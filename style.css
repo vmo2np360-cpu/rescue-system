@@ -174,3 +174,7 @@ tr:hover td { background: #f8fafc; }
     .card { padding: 16px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
 }
+#cabinGroupList .status-badge {
+    font-size: 0.8rem;
+    padding: 2px 10px;
+}
