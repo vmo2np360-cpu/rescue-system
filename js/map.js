@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (完整版)
+// 救援地圖模組 (最終修正版)
 // ================================================================
 
 let mapCabins = [];
@@ -15,9 +15,9 @@ function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
     
-    // 重置偏移量，確保車廂從起點開始排列
+    // 強制重置偏移量，確保車廂從起點均勻排列
     mapGlobalOffset = 0;
-    localStorage.removeItem('mapGlobalOffset'); // 清除儲存的偏移，避免影響初始排列
+    localStorage.removeItem('mapGlobalOffset'); // 清除儲存的偏移
     
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
@@ -84,6 +84,7 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
+    // 構建車廂
     mapBuildCabins();
 
     // 事件綁定
@@ -142,7 +143,8 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
-    mapUpdateFromFirestore();
+    // 載入車廂號碼與地圖狀態
+    mapRestoreSequences();
 }
 
 // ---- 構建車廂 (調整大小，確保均勻排列) ----
@@ -151,7 +153,6 @@ function mapBuildCabins() {
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
     const total = mapCabinMode;
-    // 調整車廂大小，避免重疊
     const size = mapCabinMode === 109 ? 14 : 18;
     const fontSize = mapCabinMode === 109 ? 16 : 20;
     const ropeLen = mapLengthOf(mapRopePts);
@@ -183,7 +184,6 @@ function mapBuildCabins() {
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
     }
-    mapRestoreSequences();
 }
 
 function mapLayoutCabins() {
@@ -217,8 +217,7 @@ function mapPointAt(pts,d) {
 }
 
 function mapRestoreState() {
-    // 不再從 localStorage 恢復 offset，避免初始偏移
-    // 只恢復模式
+    // 不再恢復偏移量，只恢復模式
     const savedMode = localStorage.getItem('mapCabinMode');
     if (savedMode) {
         mapCabinMode = parseInt(savedMode);
@@ -241,7 +240,7 @@ function mapRestoreSequences() {
     });
 }
 
-// ---- 從 Firestore 更新地圖 (修正類別與顏色) ----
+// ---- 從 Firestore 更新地圖 ----
 async function mapUpdateFromFirestore() {
     try {
         const snap = await db.collection('guests').get();
@@ -250,10 +249,7 @@ async function mapUpdateFromFirestore() {
 
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            // 先移除所有狀態類別
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
-            
-            // 預設顏色
             cabin.shape.style.fill = '#ffffff';
             cabin.shape.style.stroke = '#333';
 
@@ -296,7 +292,7 @@ async function mapUpdateFromFirestore() {
     }
 }
 
-// ---- 更新摘要統計 (使用 classList) ----
+// ---- 更新摘要統計 ----
 function mapUpdateSummary() {
     let waiting = 0, rescuing = 0, landed = 0;
     const wc = [], rc = [], lc = [];
@@ -390,7 +386,7 @@ function mapExportCSV() {
     });
 }
 
-// ---- 開啟車廂模態框 (顯示組別狀態，並支援點擊進入組別表單) ----
+// ---- 開啟車廂模態框 ----
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
     document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
@@ -399,7 +395,6 @@ function mapOpenCabin(cabin) {
     document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
     document.getElementById('cabinModal').style.display = 'flex';
 
-    // 載入組別狀態（顯示在模態框底部）
     loadCabinGroupStatus(cabin);
 }
 
@@ -409,7 +404,7 @@ function closeCabinModal() {
     mapCurrentCabin = null;
 }
 
-// ---- 載入車廂組別狀態 (顯示於模態框，並可點擊進入組別表單) ----
+// ---- 載入車廂組別狀態 (點擊可編輯) ----
 async function loadCabinGroupStatus(cabin) {
     const container = document.getElementById('cabinGroupStatus');
     const list = document.getElementById('cabinGroupList');
@@ -468,7 +463,6 @@ async function loadCabinGroupStatus(cabin) {
                 statusText = '等待救援';
                 badgeClass = 'status-waiting';
             }
-            // 每個組別項目可點擊，點擊後打開組別詳情
             html += `
                 <div class="group-item-clickable" data-docid="${doc.id}" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <span>第 ${group} 組 - ${data.guestName || '未提供姓名'}</span>
@@ -482,10 +476,13 @@ async function loadCabinGroupStatus(cabin) {
         statusList.querySelectorAll('.group-item-clickable').forEach(el => {
             el.addEventListener('click', function() {
                 const docId = this.dataset.docid;
+                // 嘗試呼叫全域的編輯函數
                 if (typeof window.editGroup === 'function') {
                     window.editGroup(docId);
+                } else if (typeof window.loadGroupDetail === 'function') {
+                    window.loadGroupDetail(docId);
                 } else {
-                    // 如果 editGroup 未定義，嘗試直接呼叫 loadGroupDetail (可能定義在 index.html 中)
+                    // 如果都未定義，嘗試直接呼叫可能定義在 index.html 中的函數 (非全域)
                     if (typeof loadGroupDetail === 'function') {
                         loadGroupDetail(docId);
                     } else {
