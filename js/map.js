@@ -14,6 +14,11 @@ let mapSvg = null;
 function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
+    
+    // 重置偏移量，確保車廂從起點開始排列
+    mapGlobalOffset = 0;
+    localStorage.removeItem('mapGlobalOffset'); // 清除儲存的偏移，避免影響初始排列
+    
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -80,7 +85,6 @@ function mapInit() {
     mapSvg.appendChild(ropeHit);
 
     mapBuildCabins();
-    mapRestoreState();
 
     // 事件綁定
     document.getElementById('moveToggleBtn').addEventListener('click', function() {
@@ -141,13 +145,13 @@ function mapInit() {
     mapUpdateFromFirestore();
 }
 
-// ---- 構建車廂 (修正大小) ----
+// ---- 構建車廂 (調整大小，確保均勻排列) ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
     const total = mapCabinMode;
-    // 調整車廂大小：84 模式用 18，109 模式用 14，避免重疊
+    // 調整車廂大小，避免重疊
     const size = mapCabinMode === 109 ? 14 : 18;
     const fontSize = mapCabinMode === 109 ? 16 : 20;
     const ropeLen = mapLengthOf(mapRopePts);
@@ -174,6 +178,7 @@ function mapBuildCabins() {
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
+        // 計算位置並套用
         const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -212,8 +217,8 @@ function mapPointAt(pts,d) {
 }
 
 function mapRestoreState() {
-    const saved = localStorage.getItem('mapGlobalOffset');
-    if (saved) mapGlobalOffset = parseFloat(saved);
+    // 不再從 localStorage 恢復 offset，避免初始偏移
+    // 只恢復模式
     const savedMode = localStorage.getItem('mapCabinMode');
     if (savedMode) {
         mapCabinMode = parseInt(savedMode);
@@ -263,7 +268,6 @@ async function mapUpdateFromFirestore() {
                         else waiting++;
                     });
 
-                    // 根據規則設定類別與顏色
                     if (landed === matched.length && matched.length > 0) {
                         cabin.el.classList.add("status-green");
                         cabin.shape.style.fill = '#22c55e';
@@ -277,12 +281,10 @@ async function mapUpdateFromFirestore() {
                         cabin.shape.style.fill = '#dc2626';
                         cabin.shape.style.stroke = '#b91c1c';
                     } else {
-                        // 未知狀況，設為白色
                         cabin.shape.style.fill = '#f1f5f9';
                         cabin.shape.style.stroke = '#94a3b8';
                     }
                 } else {
-                    // 無組別，設為淺灰色
                     cabin.shape.style.fill = '#f1f5f9';
                     cabin.shape.style.stroke = '#94a3b8';
                 }
@@ -388,7 +390,7 @@ function mapExportCSV() {
     });
 }
 
-// ---- 開啟車廂模態框 (顯示組別狀態) ----
+// ---- 開啟車廂模態框 (顯示組別狀態，並支援點擊進入組別表單) ----
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
     document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
@@ -407,7 +409,7 @@ function closeCabinModal() {
     mapCurrentCabin = null;
 }
 
-// ---- 載入車廂組別狀態 (顯示於模態框) ----
+// ---- 載入車廂組別狀態 (顯示於模態框，並可點擊進入組別表單) ----
 async function loadCabinGroupStatus(cabin) {
     const container = document.getElementById('cabinGroupStatus');
     const list = document.getElementById('cabinGroupList');
@@ -417,7 +419,6 @@ async function loadCabinGroupStatus(cabin) {
     let statusList = list;
     
     if (!statusContainer) {
-        // 在 cabinForm 中建立組別狀態區塊
         const form = document.getElementById('cabinForm');
         const div = document.createElement('div');
         div.id = 'cabinGroupStatus';
@@ -425,7 +426,7 @@ async function loadCabinGroupStatus(cabin) {
         div.style.borderTop = '1px solid #e2e8f0';
         div.style.paddingTop = '12px';
         div.innerHTML = `
-            <h4 style="margin-bottom:8px; color:#1e3a5f;">組別狀態</h4>
+            <h4 style="margin-bottom:8px; color:#1e3a5f;">組別狀態 (點擊可編輯)</h4>
             <div id="cabinGroupList" style="max-height:200px; overflow-y:auto;"></div>
         `;
         form.appendChild(div);
@@ -467,14 +468,33 @@ async function loadCabinGroupStatus(cabin) {
                 statusText = '等待救援';
                 badgeClass = 'status-waiting';
             }
+            // 每個組別項目可點擊，點擊後打開組別詳情
             html += `
-                <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9;">
+                <div class="group-item-clickable" data-docid="${doc.id}" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <span>第 ${group} 組 - ${data.guestName || '未提供姓名'}</span>
                     <span class="status-badge ${badgeClass}">${statusText}</span>
                 </div>
             `;
         });
         statusList.innerHTML = html;
+
+        // 為每個組別項目綁定點擊事件
+        statusList.querySelectorAll('.group-item-clickable').forEach(el => {
+            el.addEventListener('click', function() {
+                const docId = this.dataset.docid;
+                if (typeof window.editGroup === 'function') {
+                    window.editGroup(docId);
+                } else {
+                    // 如果 editGroup 未定義，嘗試直接呼叫 loadGroupDetail (可能定義在 index.html 中)
+                    if (typeof loadGroupDetail === 'function') {
+                        loadGroupDetail(docId);
+                    } else {
+                        alert('編輯功能尚未載入，請確認 index.html 已正確引入相關函數。');
+                    }
+                }
+            });
+        });
+
     } catch (e) {
         statusList.innerHTML = `<p style="color:red;">載入失敗: ${e.message}</p>`;
     }
