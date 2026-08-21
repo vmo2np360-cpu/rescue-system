@@ -1,0 +1,51 @@
+<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-qrcode"></i> 掃描 QR 碼 (Assembly Point)</h2>
+<div id="apMessage" class="message"></div>
+<div class="card">
+    <div class="scanner-container">
+        <video id="scanner-video" autoplay playsinline></video>
+        <div class="scanner-overlay"></div>
+    </div>
+    <div class="scanner-controls">
+        <button class="btn btn-success" onclick="startScanner()"><i class="fas fa-play"></i> 啟動掃描器</button>
+        <button class="btn btn-danger" onclick="stopScanner()"><i class="fas fa-stop"></i> 停止掃描器</button>
+    </div>
+</div>
+<div id="apRecordDetails" class="card" style="display:none;">
+    <h3 class="card-title"><i class="fas fa-user-circle"></i> 賓客資訊</h3>
+    <div class="form-group"><label>車廂號碼</label><p id="apCabinNumber" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
+    <div class="form-group"><label>組別</label><p id="apGroupNumber" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
+    <div class="form-group"><label>被救者姓名</label><p id="apGuestName" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
+    <div class="form-group"><label>健康狀況</label><p id="apHealthStatus" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
+    <div class="form-group">
+        <label for="apAmbulance"><i class="fas fa-ambulance"></i> 救護車需求</label>
+        <select id="apAmbulance" onchange="toggleApAmbulance()">
+            <option value="">請選擇</option>
+            <option value="不需要">不需要</option>
+            <option value="需要">需要</option>
+        </select>
+        <div id="apAmbulanceFields" style="display:none; margin-top:10px;">
+            <label for="apAmbulancePlate">救護車車牌</label>
+            <input type="text" id="apAmbulancePlate" placeholder="請輸入車牌號碼">
+            <label for="apHospital" style="margin-top:8px;">醫院名稱</label>
+            <input type="text" id="apHospital" placeholder="請輸入醫院名稱">
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="apExitMethod"><i class="fas fa-walking"></i> 後續處理</label>
+        <select id="apExitMethod" onchange="toggleApOtherExit()">
+            <option value="">請選擇</option>
+            <option value="正常或傷勢已處理 自行離開">正常或傷勢已處理 自行離開</option>
+            <option value="現正在救援集合點休息中">現正在救援集合點休息中</option>
+            <option value="已由救護車送往醫院">已由救護車送往醫院</option>
+            <option value="其他">其他</option>
+        </select>
+        <div id="apOtherExitContainer" style="display:none; margin-top:8px;">
+            <input type="text" id="apOtherExitInput" placeholder="請輸入其他後續處理方式">
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="apExitTime"><i class="fas fa-clock"></i> 離場時間</label>
+        <input type="datetime-local" id="apExitTime">
+    </div>
+    <button class="btn btn-success btn-block" onclick="apUpdateRecord()"><i class="fas fa-save"></i> 更新記錄</button>
+</div>

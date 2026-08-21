@@ -1,0 +1,30 @@
+<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-tv"></i> 總監控平台</h2>
+<div id="monMessage" class="message"></div>
+
+<div class="stats-grid">
+    <div class="stat-card"><div class="number" id="monTotal">0</div><div class="label">求助記錄總數</div></div>
+    <div class="stat-card"><div class="number" id="monPending">0</div><div class="label">待處理</div></div>
+    <div class="stat-card"><div class="number" id="monProcessed">0</div><div class="label">已完成</div></div>
+</div>
+
+<div class="health-grid">
+    <div class="health-card green"><div class="number" id="monGreen">0</div><div class="label">綠色(第三優先)</div></div>
+    <div class="health-card yellow"><div class="number" id="monYellow">0</div><div class="label">黃色(第二優先)</div></div>
+    <div class="health-card red"><div class="number" id="monRed">0</div><div class="label">紅色(第一優先)</div></div>
+    <div class="health-card black"><div class="number" id="monBlack">0</div><div class="label">黑色(沒有生命體徵)</div></div>
+</div>
+
+<div class="card"><div class="chart-container"><canvas id="monTimeChart"></canvas></div></div>
+
+<div class="card">
+    <div class="filter-row">
+        <div class="form-group"><label>搜尋</label><input type="text" id="monSearch" placeholder="車廂或姓名" oninput="monFilterRecords()"></div>
+        <button class="btn btn-secondary" onclick="monLoadData()"><i class="fas fa-sync-alt"></i> 刷新</button>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr></thead>
+            <tbody id="monTableBody"></tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,147 @@
+// ================================================================
+// Assembly Point 模組
+// ================================================================
+
+let apCurrentDocId = null;
+let apScanning = false;
+
+// ---- 掃描器 ----
+async function startScanner() {
+    const video = document.getElementById('scanner-video');
+    stopScanner();
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        apScanning = true;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        function tick() {
+            if (!apScanning) return;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                ctx.drawImage(video, 0, 0);
+                const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+                if (code) {
+                    try {
+                        const data = JSON.parse(code.data);
+                        if (data.type === 'guestRecord' && data.docId) {
+                            apScanning = false;
+                            stopScanner();
+                            apLoadRecord(data.docId);
+                        }
+                    } catch(e) {}
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+        tick();
+        showMessage('apMessage', '掃描器已啟動，請對準 QR 碼', 'info');
+    } catch (e) {
+        showMessage('apMessage', '無法啟動相機: ' + e.message, 'error');
+    }
+}
+
+function stopScanner() {
+    const video = document.getElementById('scanner-video');
+    if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+    }
+    apScanning = false;
+}
+
+async function apLoadRecord(docId) {
+    try {
+        showLoader(true);
+        const doc = await db.collection('guests').doc(docId).get();
+        if (!doc.exists) { showMessage('apMessage', '找不到記錄', 'error'); return; }
+        const data = doc.data();
+        apCurrentDocId = docId;
+        document.getElementById('apRecordDetails').style.display = 'block';
+        document.getElementById('apCabinNumber').textContent = data.cabinNumber || '-';
+        document.getElementById('apGroupNumber').textContent = data.groupNumber ? `第${data.groupNumber}組` : '-';
+        document.getElementById('apGuestName').textContent = data.guestName || '-';
+        document.getElementById('apHealthStatus').textContent = data.healthStatus || '-';
+        document.getElementById('apAmbulance').value = data.ambulance || '';
+        document.getElementById('apAmbulancePlate').value = data.ambulancePlate || '';
+        document.getElementById('apHospital').value = data.hospital || '';
+        document.getElementById('apExitMethod').value = data.exitMethod || '';
+        document.getElementById('apOtherExitInput').value = '';
+        document.getElementById('apExitTime').value = '';
+        toggleApAmbulance();
+        toggleApOtherExit();
+        showMessage('apMessage', '記錄載入成功，請填寫離場資訊', 'success');
+        document.getElementById('apRecordDetails').scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {
+        showMessage('apMessage', '載入失敗: ' + e.message, 'error');
+    } finally { showLoader(false); }
+}
+
+function toggleApAmbulance() {
+    const v = document.getElementById('apAmbulance').value;
+    document.getElementById('apAmbulanceFields').style.display = v === '需要' ? 'block' : 'none';
+}
+
+function toggleApOtherExit() {
+    const v = document.getElementById('apExitMethod').value;
+    document.getElementById('apOtherExitContainer').style.display = v === '其他' ? 'block' : 'none';
+}
+
+async function apUpdateRecord() {
+    if (!apCurrentDocId) { showMessage('apMessage', '請先掃描 QR 碼', 'error'); return; }
+    let exitMethod = document.getElementById('apExitMethod').value;
+    const exitTime = document.getElementById('apExitTime').value;
+    const ambulance = document.getElementById('apAmbulance').value;
+    const ambulancePlate = document.getElementById('apAmbulancePlate').value.trim();
+    const hospital = document.getElementById('apHospital').value.trim();
+
+    if (exitMethod === '其他') {
+        const other = document.getElementById('apOtherExitInput').value.trim();
+        if (!other) { showMessage('apMessage', '請輸入其他後續處理方式', 'error'); return; }
+        exitMethod = other;
+    }
+    if (!exitMethod || !exitTime) { showMessage('apMessage', '請填寫後續處理和離場時間', 'error'); return; }
+    if (ambulance === '需要' && (!ambulancePlate || !hospital)) {
+        showMessage('apMessage', '請填寫救護車車牌和醫院名稱', 'error');
+        return;
+    }
+
+    try {
+        showLoader(true);
+        const update = {
+            exitMethod, exitTime: new Date(exitTime),
+            ambulance, ambulancePlate, hospital,
+            status: 'completed',
+            updatedAt: new Date()
+        };
+        await db.collection('guests').doc(apCurrentDocId).update(update);
+        showMessage('apMessage', '記錄更新成功！', 'success');
+        document.getElementById('apRecordDetails').style.display = 'none';
+        apCurrentDocId = null;
+        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        if (typeof dbLoadRecords === 'function') dbLoadRecords();
+        setTimeout(startScanner, 2000);
+    } catch (e) {
+        showMessage('apMessage', '更新失敗: ' + e.message, 'error');
+    } finally { showLoader(false); }
+}
+
+// ---- 初始化函數 ----
+function initAssemblyPoint() {
+    console.log('✅ Assembly Point 初始化完成');
+    // 重置顯示
+    document.getElementById('apRecordDetails').style.display = 'none';
+    document.getElementById('apMessage').className = 'message';
+    // 若掃描器已停止，確保按鈕狀態正確
+}
+
+// ---- 暴露 ----
+window.startScanner = startScanner;
+window.stopScanner = stopScanner;
+window.apUpdateRecord = apUpdateRecord;
+window.toggleApAmbulance = toggleApAmbulance;
+window.toggleApOtherExit = toggleApOtherExit;
+window.initAssemblyPoint = initAssemblyPoint;

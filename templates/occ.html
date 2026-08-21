@@ -1,0 +1,45 @@
+<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-headset"></i> OCC 求助記錄</h2>
+<div id="occMessage" class="message"></div>
+
+<div class="card">
+    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="form-group"><label>車廂號碼</label><input type="text" id="occCabinNumber" placeholder="1-125"></div>
+        <div class="form-group"><label>賓客姓名</label><input type="text" id="occGuestName" placeholder="請輸入姓名"></div>
+    </div>
+    <div class="form-group"><label>聯絡方式</label><input type="text" id="occContactNumber" placeholder="請輸入聯絡電話"></div>
+    <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+        <div class="form-group"><label>性別</label><select id="occGender"><option value="">請選擇</option><option value="男">男</option><option value="女">女</option><option value="其他">其他</option></select></div>
+        <div class="form-group"><label>年齡</label><select id="occAgeRange"><option value="">請選擇</option><option value="未能提供">未能提供</option><option value="0-12">0-12歲</option><option value="13-17">13-17歲</option><option value="18-25">18-25歲</option><option value="26-35">26-35歲</option><option value="36-45">36-45歲</option><option value="46-55">46-55歲</option><option value="56-65">56-65歲</option><option value="66+">66歲以上</option></select></div>
+        <div class="form-group"><label>健康狀況</label><select id="occHealthStatus"><option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動</option><option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理</option><option value="紅色(第一優先)">紅色_有生命危險需立即搶救</option><option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option><option value="未能分類">未能分類</option></select></div>
+    </div>
+    <div class="form-group"><label>資料來源</label>
+        <select id="occSource" onchange="occToggleOtherSource()">
+            <option value="">請選擇</option>
+            <option value="警察(999報案中心)">警察(999報案中心)</option>
+            <option value="消防處">消防處</option>
+            <option value="NP360熱線中心">NP360熱線中心</option>
+            <option value="NP360纜車求助熱線">NP360纜車求助熱線</option>
+            <option value="其他">其他</option>
+        </select>
+        <div id="occOtherSourceContainer" style="display:none; margin-top:8px;">
+            <input type="text" id="occOtherSourceInput" placeholder="請輸入其他資料來源">
+        </div>
+    </div>
+    <div class="form-group"><label>備註</label><textarea id="occNotes" rows="2" placeholder="請輸入備註"></textarea></div>
+    <button class="btn btn-success btn-block" onclick="occSaveRecord()"><i class="fas fa-save"></i> 儲存求助記錄</button>
+</div>
+
+<div class="card">
+    <div class="filter-row">
+        <div class="form-group"><label>搜尋</label><input type="text" id="occSearch" placeholder="車廂或姓名" oninput="occFilterRecords()"></div>
+        <div class="form-group"><label>來源</label><select id="occFilterSource" onchange="occFilterRecords()"><option value="">全部</option><option value="警察(999報案中心)">警察</option><option value="消防處">消防處</option><option value="NP360熱線中心">NP360熱線</option><option value="NP360纜車求助熱線">纜車求助</option><option value="其他">其他</option></select></div>
+        <div class="form-group"><label>狀態</label><select id="occFilterStatus" onchange="occFilterRecords()"><option value="">全部</option><option value="pending">待處理</option><option value="processed">已處理</option></select></div>
+        <button class="btn btn-secondary" onclick="occLoadRecords()"><i class="fas fa-sync-alt"></i> 刷新</button>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>#</th><th>車廂</th><th>姓名</th><th>聯絡方式</th><th>健康狀況</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead>
+            <tbody id="occTableBody"></tbody>
+        </table>
+    </div>
+</div>

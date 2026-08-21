@@ -1,0 +1,101 @@
+<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-user-plus"></i> 被救者記錄 (Ground Support)</h2>
+<div id="gsMessage" class="message"></div>
+<div class="card">
+    <div class="form-group">
+        <label for="gsCabinNumber"><i class="fas fa-train"></i> 車廂號碼</label>
+        <input type="text" id="gsCabinNumber" placeholder="1-125">
+    </div>
+    <div class="form-group">
+        <label for="gsGroupNumber"><i class="fas fa-users"></i> 組別</label>
+        <select id="gsGroupNumber">
+            <option value="">請選擇</option>
+            <option value="1">第1組</option><option value="2">第2組</option>
+            <option value="3">第3組</option><option value="4">第4組</option>
+            <option value="5">第5組</option><option value="6">第6組</option>
+            <option value="7">第7組</option><option value="8">第8組</option>
+            <option value="9">第9組</option><option value="10">第10組</option>
+            <option value="11">第11組</option><option value="12">第12組</option>
+            <option value="13">第13組</option><option value="14">第14組</option>
+            <option value="15">第15組</option><option value="16">第16組</option>
+            <option value="17">第17組</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="gsGuestName"><i class="fas fa-user"></i> 被救者姓名</label>
+        <input type="text" id="gsGuestName" placeholder="請輸入全名">
+        <button class="btn btn-secondary" style="margin-top:6px; padding:4px 12px; font-size:0.8rem;" onclick="document.getElementById('gsGuestName').value='未能提供'">設為「未能提供」</button>
+    </div>
+    <div class="form-group">
+        <label for="gsContactNumber"><i class="fas fa-phone"></i> 聯絡方式</label>
+        <input type="text" id="gsContactNumber" placeholder="請輸入聯絡電話">
+        <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="padding:4px 12px; font-size:0.8rem;" onclick="setGsContact('未能提供')">未能提供</button>
+            <button class="btn btn-secondary" style="padding:4px 12px; font-size:0.8rem;" onclick="toggleGsOtherContact()">其他</button>
+        </div>
+        <div id="gsOtherContactContainer" style="display:none; margin-top:6px;">
+            <input type="text" id="gsOtherContactInput" placeholder="請輸入其他聯絡方式">
+        </div>
+        <div style="margin-top:6px;">
+            <label style="font-weight:400; font-size:0.9rem;">
+                <input type="checkbox" id="gsSmsOnly" onchange="toggleGsSmsSuffix()"> 只能接收短信
+            </label>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="gsGender"><i class="fas fa-venus-mars"></i> 性別</label>
+        <select id="gsGender">
+            <option value="">請選擇</option>
+            <option value="男">男</option>
+            <option value="女">女</option>
+            <option value="其他">其他</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="gsAgeRange"><i class="fas fa-birthday-cake"></i> 年齡</label>
+        <select id="gsAgeRange">
+            <option value="">請選擇</option>
+            <option value="未能提供">未能提供</option>
+            <option value="0-12">0-12歲</option>
+            <option value="13-17">13-17歲</option>
+            <option value="18-25">18-25歲</option>
+            <option value="26-35">26-35歲</option>
+            <option value="36-45">36-45歲</option>
+            <option value="46-55">46-55歲</option>
+            <option value="56-65">56-65歲</option>
+            <option value="66+">66歲以上</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="gsHealthStatus"><i class="fas fa-heartbeat"></i> 健康狀況</label>
+        <select id="gsHealthStatus">
+            <option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動_(第三優先)</option>
+            <option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理_(第二優先)</option>
+            <option value="紅色(第一優先)">紅色_有生命危險需立即搶救_(第一優先)</option>
+            <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
+            <option value="未能分類">未能分類</option>
+        </select>
+    </div>
+    <button class="btn btn-success btn-block" onclick="gsCreateRecord()"><i class="fas fa-plus-circle"></i> 建立記錄並生成 QR 碼</button>
+</div>
+
+<!-- 重複警告區塊 -->
+<div id="gsDuplicateWarning" class="card" style="display:none; border:2px solid #eab308;">
+    <div style="display:flex; align-items:center; gap:10px; color:#92400e;">
+        <i class="fas fa-exclamation-triangle" style="font-size:1.5rem;"></i>
+        <strong>發現重複記錄</strong>
+    </div>
+    <p style="margin:8px 0;">以下記錄與您輸入的車廂和組別相同：</p>
+    <div id="gsDuplicateList" style="background:#f8fafc; padding:8px; border-radius:6px; margin:8px 0;"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="gsCancelDuplicate()"><i class="fas fa-times"></i> 取消建立</button>
+        <button class="btn btn-success" onclick="gsCreateAnyway()"><i class="fas fa-plus-circle"></i> 資料無誤，確定建立記錄</button>
+    </div>
+</div>
+
+<div id="gsQrResult" class="card" style="display:none; text-align:center;">
+    <h3 style="color:#1e3a5f;">賓客 QR 碼憑證</h3>
+    <p style="color:#64748b;">請掃描此 QR 碼更新離場資訊</p>
+    <div id="gsQrCode" style="display:flex; justify-content:center; margin:12px 0;"></div>
+    <div><strong>車廂:</strong> <span id="gsPrintCabin"></span> ｜ <strong>組別:</strong> <span id="gsPrintGroup"></span></div>
+    <button class="btn btn-secondary" style="margin-top:12px;" onclick="gsSavePDF()"><i class="fas fa-file-pdf"></i> 儲存 PDF</button>
+</div>
