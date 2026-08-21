@@ -15,7 +15,7 @@ function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
     
-    // 強制重置偏移量，確保車廂從起點均勻排列
+    // 強制重置偏移量為 0
     mapGlobalOffset = 0;
     localStorage.removeItem('mapGlobalOffset'); // 清除儲存的偏移
     
@@ -147,7 +147,7 @@ function mapInit() {
     mapRestoreSequences();
 }
 
-// ---- 構建車廂 (調整大小，確保均勻排列) ----
+// ---- 構建車廂 (確保均勻排列) ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
@@ -179,7 +179,7 @@ function mapBuildCabins() {
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
-        // 計算位置並套用
+        // 使用目前的 mapGlobalOffset 計算位置
         const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -482,11 +482,13 @@ async function loadCabinGroupStatus(cabin) {
                 } else if (typeof window.loadGroupDetail === 'function') {
                     window.loadGroupDetail(docId);
                 } else {
-                    // 如果都未定義，嘗試直接呼叫可能定義在 index.html 中的函數 (非全域)
-                    if (typeof loadGroupDetail === 'function') {
+                    // 嘗試直接呼叫 (可能已定義但未掛載到 window)
+                    if (typeof editGroup === 'function') {
+                        editGroup(docId);
+                    } else if (typeof loadGroupDetail === 'function') {
                         loadGroupDetail(docId);
                     } else {
-                        alert('編輯功能尚未載入，請確認 index.html 已正確引入相關函數。');
+                        alert('編輯功能尚未載入，請確認 index.html 已將 editGroup 和 loadGroupDetail 掛載到 window。');
                     }
                 }
             });
