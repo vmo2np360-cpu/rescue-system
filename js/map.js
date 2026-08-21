@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (完整版，包含組別編輯)
+// 救援地圖模組 (針對 index.html 調整)
 // ================================================================
 
 let mapCabins = [];
@@ -15,7 +15,7 @@ function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
     
-    // 強制重置偏移量為 0
+    // 強制重置偏移量為 0，確保初始排列均勻
     mapGlobalOffset = 0;
     localStorage.removeItem('mapGlobalOffset');
     
@@ -84,7 +84,6 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
-    // 構建車廂
     mapBuildCabins();
 
     // 事件綁定
@@ -143,11 +142,10 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
-    // 載入車廂號碼與地圖狀態
     mapRestoreSequences();
 }
 
-// ---- 構建車廂 (確保均勻排列) ----
+// ---- 構建車廂 ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
@@ -469,7 +467,6 @@ async function loadCabinGroupStatus(cabin) {
         statusList.querySelectorAll('.group-item-clickable').forEach(el => {
             el.addEventListener('click', function() {
                 const docId = this.dataset.docid;
-                // 呼叫全域的 editGroup 函數
                 if (typeof window.editGroup === 'function') {
                     window.editGroup(docId);
                 } else {
@@ -484,15 +481,15 @@ async function loadCabinGroupStatus(cabin) {
 }
 
 // ================================================================
-// 組別編輯函數 (移植自靜態版本)
+// 組別編輯函數 (對應 groupModal)
 // ================================================================
 
-// ---- 編輯組別 (由點擊組別清單調用) ----
+// ---- 編輯組別 ----
 function editGroup(docId) {
     loadGroupDetail(docId);
 }
 
-// ---- 載入組別詳細資料並開啟模態框 ----
+// ---- 載入組別詳細資料 ----
 async function loadGroupDetail(docId) {
     try {
         showLoader(true);
@@ -500,10 +497,9 @@ async function loadGroupDetail(docId) {
         if (doc.exists) {
             const guestData = doc.data();
             guestData.docId = docId;
-            openGroupDetailModal(guestData);
+            openGroupModal(guestData);
         } else {
             alert('找不到組別記錄，可能已被刪除');
-            // 重新載入組別列表
             if (mapCurrentCabin) {
                 loadCabinGroupStatus(mapCurrentCabin);
             }
@@ -516,56 +512,73 @@ async function loadGroupDetail(docId) {
     }
 }
 
-// ---- 開啟組別詳情模態框 ----
-function openGroupDetailModal(guestData) {
-    const modal = document.getElementById('groupDetailModal');
-    const form = document.getElementById('groupDetailForm');
+// ---- 開啟 groupModal 並填充數據 ----
+function openGroupModal(guestData) {
+    const modal = document.getElementById('groupModal');
+    const form = document.getElementById('groupForm');
     
     if (!modal || !form) {
-        console.error('找不到組別詳情模態框或表單');
-        alert('組別編輯功能尚未準備好，請確保 groupDetailModal 存在於 index.html');
+        alert('組別編輯功能尚未準備好，請確認 groupModal 存在於 index.html');
         return;
     }
     
     // 重置表單
     form.reset();
     
-    // 填充數據
     if (guestData && guestData.docId) {
-        document.getElementById('groupDetailDocId').value = guestData.docId;
-        document.getElementById('groupDetailCabinNumber').value = guestData.cabinNumber || '';
-        document.getElementById('groupDetailGroupNumber').value = guestData.groupNumber || '';
-        document.getElementById('groupDetailGuestName').value = guestData.guestName || '';
-        document.getElementById('groupDetailContactNumber').value = guestData.contactNumber || '';
-        document.getElementById('groupDetailGender').value = guestData.gender || '';
-        document.getElementById('groupDetailAgeRange').value = guestData.ageRange || '';
-        document.getElementById('groupDetailHealthStatus').value = guestData.healthStatus || '';
-        document.getElementById('groupDetailAmbulance').value = guestData.ambulance || '';
-        document.getElementById('groupDetailAmbulancePlate').value = guestData.ambulancePlate || '';
-        document.getElementById('groupDetailHospital').value = guestData.hospital || '';
-        document.getElementById('groupDetailExitMethod').value = guestData.exitMethod || '';
-        document.getElementById('groupDetailOtherExitMethodInput').value = '';
+        document.getElementById('groupDocId').value = guestData.docId;
+        document.getElementById('groupCabinNumber').value = guestData.cabinNumber || '';
+        document.getElementById('groupGroupNumber').value = guestData.groupNumber || '';
+        document.getElementById('groupGuestName').value = guestData.guestName || '';
+        document.getElementById('groupContactNumber').value = guestData.contactNumber || '';
+        document.getElementById('groupGender').value = guestData.gender || '';
+        document.getElementById('groupAgeRange').value = guestData.ageRange || '';
+        document.getElementById('groupHealthStatus').value = guestData.healthStatus || '';
+        document.getElementById('groupAmbulance').value = guestData.ambulance || '';
+        document.getElementById('groupAmbulancePlate').value = guestData.ambulancePlate || '';
+        document.getElementById('groupHospital').value = guestData.hospital || '';
+        document.getElementById('groupExitMethod').value = guestData.exitMethod || '';
+        document.getElementById('groupOtherExitInput').value = '';
         if (guestData.exitTime) {
             try {
                 const d = guestData.exitTime.toDate ? guestData.exitTime.toDate() : new Date(guestData.exitTime);
-                document.getElementById('groupDetailExitTime').value = d.toISOString().slice(0, 16);
+                document.getElementById('groupExitTime').value = d.toISOString().slice(0, 16);
             } catch(e) {}
         }
-        document.getElementById('groupDetailRescuedBy').value = guestData.rescuedBy || '';
-        document.getElementById('otherRescuerInput').value = '';
-        document.getElementById('groupDetailTimeReachedTop').value = guestData.timeReachedTop || '';
-        document.getElementById('groupDetailTimeLanded').value = guestData.timeLanded || '';
-        document.getElementById('groupDetailRemarks').value = guestData.remarks || '';
+        document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
+        document.getElementById('groupOtherRescuerInput').value = '';
+        document.getElementById('groupTimeReachedTop').value = guestData.timeReachedTop || '';
+        document.getElementById('groupTimeLanded').value = guestData.timeLanded || '';
+        document.getElementById('groupRemarks').value = guestData.remarks || '';
         
         // 觸發輔助顯示
         if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
-        if (typeof toggleGroupDetailOtherExitMethod === 'function') toggleGroupDetailOtherExitMethod();
-        if (typeof toggleOtherRescuerInput === 'function') toggleOtherRescuerInput();
+        if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
+        if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
         
-        // 更新狀態徽章
-        updateGroupStatusBadge(guestData);
+        // 更新狀態徽章（如果有的話）
+        const badge = document.getElementById('group-status-badge');
+        if (badge) {
+            badge.className = 'status-badge';
+            const status = getGroupStatus(guestData);
+            if (status === 'landed') {
+                badge.textContent = '已著陸';
+                badge.classList.add('status-complete');
+            } else if (status === 'rescuing') {
+                badge.textContent = '救援中';
+                badge.classList.add('status-pending');
+            } else if (status === 'waiting') {
+                badge.textContent = '等待救援';
+                badge.style.backgroundColor = '#dc2626';
+                badge.style.color = 'white';
+            } else {
+                badge.textContent = '未知';
+                badge.style.backgroundColor = '#64748b';
+                badge.style.color = 'white';
+            }
+        }
         
-        // 生成QR碼
+        // 生成QR碼（如果函數存在）
         if (typeof generateGroupQRCode === 'function') {
             generateGroupQRCode(guestData);
         }
@@ -574,26 +587,32 @@ function openGroupDetailModal(guestData) {
     modal.style.display = 'flex';
 }
 
-// ---- 更新組別狀態徽章 ----
-function updateGroupStatusBadge(guestData) {
-    const badge = document.getElementById('group-status-badge');
-    if (!badge) return;
-    badge.className = 'status-badge';
-    const status = getGroupStatus(guestData);
-    if (status === 'landed') {
-        badge.textContent = '已著陸';
-        badge.classList.add('status-complete');
-    } else if (status === 'rescuing') {
-        badge.textContent = '救援中';
-        badge.classList.add('status-pending');
-    } else if (status === 'waiting') {
-        badge.textContent = '等待救援';
-        badge.style.backgroundColor = '#dc2626';
-        badge.style.color = 'white';
-    } else {
-        badge.textContent = '未知狀態';
-        badge.style.backgroundColor = '#64748b';
-        badge.style.color = 'white';
+// ---- 關閉 groupModal ----
+function closeGroupModal() {
+    document.getElementById('groupModal').style.display = 'none';
+}
+
+// ---- 刪除組別記錄 ----
+async function deleteGroupRecord() {
+    const docId = document.getElementById('groupDocId').value;
+    if (!docId) {
+        alert('無法找到記錄ID');
+        return;
+    }
+    if (!confirm('確定要刪除此組別記錄嗎？此操作無法復原！')) return;
+    try {
+        showLoader(true);
+        await db.collection('guests').doc(docId).delete();
+        alert('組別記錄已刪除');
+        closeGroupModal();
+        mapUpdateFromFirestore();
+        if (mapCurrentCabin) {
+            loadCabinGroupStatus(mapCurrentCabin);
+        }
+    } catch (e) {
+        alert('刪除失敗: ' + e.message);
+    } finally {
+        hideLoader();
     }
 }
 
@@ -615,4 +634,5 @@ window.initMap = initMap;
 window.mapOpenCabin = mapOpenCabin;
 window.editGroup = editGroup;
 window.loadGroupDetail = loadGroupDetail;
-window.openGroupDetailModal = openGroupDetailModal;
+window.closeGroupModal = closeGroupModal;
+window.deleteGroupRecord = deleteGroupRecord;
