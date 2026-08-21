@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (完整移植)
+// 救援地圖模組 (完整版)
 // ================================================================
 
 let mapCabins = [];
@@ -8,11 +8,12 @@ let mapGlobalOffset = 0;
 let mapCabinMode = 84;
 let mapMoveMode = false;
 let mapCurrentCabin = null;
+let mapSvg = null;
 
 // ---- 初始化地圖 ----
 function mapInit() {
     if (mapCabins.length) return;
-    const svg = document.getElementById('map');
+    mapSvg = document.getElementById('map');
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -22,22 +23,22 @@ function mapInit() {
     for(let i=0;i<slots.length;i++){ x += slots[i]*unit; xCoords.push(x); }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    const defs = svg.querySelector('defs');
-    svg.innerHTML = '';
-    if (defs) svg.appendChild(defs);
+    const defs = mapSvg.querySelector('defs');
+    mapSvg.innerHTML = '';
+    if (defs) mapSvg.appendChild(defs);
 
     const addRect = (x,y,w,h,cls) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
         r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',w); r.setAttribute('height',h);
         r.setAttribute('class',cls);
-        svg.appendChild(r);
+        mapSvg.appendChild(r);
     };
     addRect(xCoords[0], baseY, t2bX-xCoords[0], 100, 'city');
     addRect(t2bX, baseY, t3X-t2bX, 100, 'sea');
     const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
     mountain.setAttribute('fill','url(#gradMountain)');
-    svg.appendChild(mountain);
+    mapSvg.appendChild(mountain);
 
     let groundPts = [];
     segments.forEach((s,i) => {
@@ -50,7 +51,7 @@ function mapInit() {
         const use = document.createElementNS('http://www.w3.org/2000/svg','use');
         use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
         use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
-        svg.appendChild(use);
+        mapSvg.appendChild(use);
         const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
         txt.textContent = s;
         txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
@@ -58,7 +59,7 @@ function mapInit() {
         txt.setAttribute('class', 'label');
         txt.setAttribute('fill', '#fff');
         txt.setAttribute('font-weight', 'bold');
-        svg.appendChild(txt);
+        mapSvg.appendChild(txt);
     });
 
     const up = groundPts.map(p => [p[0], p[1]-60]);
@@ -67,7 +68,7 @@ function mapInit() {
     const rope = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     rope.setAttribute('points', mapRopePts.map(p => p.join(',')).join(' '));
     rope.setAttribute('fill','none'); rope.setAttribute('stroke','#444'); rope.setAttribute('stroke-width','3');
-    svg.appendChild(rope);
+    mapSvg.appendChild(rope);
 
     const ropeHit = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     ropeHit.setAttribute('points', rope.getAttribute('points'));
@@ -76,7 +77,7 @@ function mapInit() {
     ropeHit.setAttribute('fill','none');
     ropeHit.style.cursor = 'default';
     ropeHit.style.pointerEvents = 'all';
-    svg.appendChild(ropeHit);
+    mapSvg.appendChild(ropeHit);
 
     mapBuildCabins();
     mapRestoreState();
@@ -140,12 +141,15 @@ function mapInit() {
     mapUpdateFromFirestore();
 }
 
+// ---- 構建車廂 (修正大小) ----
 function mapBuildCabins() {
-    const svg = document.getElementById('map');
+    const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
     const total = mapCabinMode;
-    const size = mapCabinMode === 109 ? 20 : 24;
+    // 調整車廂大小：84 模式用 18，109 模式用 14，避免重疊
+    const size = mapCabinMode === 109 ? 14 : 18;
+    const fontSize = mapCabinMode === 109 ? 16 : 20;
     const ropeLen = mapLengthOf(mapRopePts);
     for(let i=0; i<total; i++) {
         const g = document.createElementNS('http://www.w3.org/2000/svg','g');
@@ -161,7 +165,7 @@ function mapBuildCabins() {
         const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
         lbl.setAttribute('class', 'seq-label');
         lbl.setAttribute('y', '5');
-        lbl.setAttribute('font-size', mapCabinMode===109 ? '18' : '22');
+        lbl.setAttribute('font-size', fontSize);
         lbl.setAttribute('text-anchor', 'middle');
         lbl.setAttribute('dominant-baseline', 'middle');
         lbl.setAttribute('fill', '#111');
@@ -232,52 +236,83 @@ function mapRestoreSequences() {
     });
 }
 
+// ---- 從 Firestore 更新地圖 (修正類別與顏色) ----
 async function mapUpdateFromFirestore() {
     try {
         const snap = await db.collection('guests').get();
         const guests = [];
         snap.forEach(d => guests.push({ id: d.id, ...d.data() }));
+
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            cabin.shape.style.fill = '#fff';
+            // 先移除所有狀態類別
+            cabin.el.classList.remove("status-red", "status-yellow", "status-green");
+            
+            // 預設顏色
+            cabin.shape.style.fill = '#ffffff';
             cabin.shape.style.stroke = '#333';
-            if(seq) {
+
+            if (seq) {
                 const matched = guests.filter(g => g.cabinNumber === seq);
-                if(matched.length) {
-                    let landed=0, rescuing=0, waiting=0;
+                if (matched.length) {
+                    let landed = 0, rescuing = 0, waiting = 0;
                     matched.forEach(g => {
-                        const s = getGroupStatus(g);
-                        if(s === 'landed') landed++;
-                        else if(s === 'rescuing') rescuing++;
+                        const status = getGroupStatus(g);
+                        if (status === 'landed') landed++;
+                        else if (status === 'rescuing') rescuing++;
                         else waiting++;
                     });
-                    if(landed === matched.length && matched.length > 0) {
+
+                    // 根據規則設定類別與顏色
+                    if (landed === matched.length && matched.length > 0) {
+                        cabin.el.classList.add("status-green");
                         cabin.shape.style.fill = '#22c55e';
                         cabin.shape.style.stroke = '#16a34a';
-                    } else if(waiting === 0 && rescuing > 0) {
+                    } else if (waiting === 0 && rescuing > 0) {
+                        cabin.el.classList.add("status-yellow");
                         cabin.shape.style.fill = '#eab308';
                         cabin.shape.style.stroke = '#ca8a04';
-                    } else if(waiting > 0) {
+                    } else if (waiting > 0) {
+                        cabin.el.classList.add("status-red");
                         cabin.shape.style.fill = '#dc2626';
                         cabin.shape.style.stroke = '#b91c1c';
+                    } else {
+                        // 未知狀況，設為白色
+                        cabin.shape.style.fill = '#f1f5f9';
+                        cabin.shape.style.stroke = '#94a3b8';
                     }
+                } else {
+                    // 無組別，設為淺灰色
+                    cabin.shape.style.fill = '#f1f5f9';
+                    cabin.shape.style.stroke = '#94a3b8';
                 }
             }
         });
         mapUpdateSummary();
-    } catch(e) { console.error('地圖更新失敗:', e); }
+    } catch(e) {
+        console.error('地圖更新失敗:', e);
+    }
 }
 
+// ---- 更新摘要統計 (使用 classList) ----
 function mapUpdateSummary() {
-    let waiting=0, rescuing=0, landed=0;
-    const wc=[], rc=[], lc=[];
+    let waiting = 0, rescuing = 0, landed = 0;
+    const wc = [], rc = [], lc = [];
+
     mapCabins.forEach(c => {
-        const color = c.shape.style.fill;
         const seq = c.fields.sequence || '';
-        if(color === '#dc2626') { waiting++; if(seq) wc.push(seq); }
-        else if(color === '#eab308') { rescuing++; if(seq) rc.push(seq); }
-        else if(color === '#22c55e') { landed++; if(seq) lc.push(seq); }
+        if (c.el.classList.contains("status-red")) {
+            waiting++;
+            if (seq) wc.push(seq);
+        } else if (c.el.classList.contains("status-yellow")) {
+            rescuing++;
+            if (seq) rc.push(seq);
+        } else if (c.el.classList.contains("status-green")) {
+            landed++;
+            if (seq) lc.push(seq);
+        }
     });
+
     document.getElementById('mapWaiting').textContent = waiting;
     document.getElementById('mapRescuing').textContent = rescuing;
     document.getElementById('mapLanded').textContent = landed;
@@ -288,6 +323,7 @@ function mapUpdateSummary() {
     document.getElementById('landedText').textContent = '已著陸: ' + landed;
 }
 
+// ---- 套用車廂號碼 ----
 function mapApplySequences() {
     const seqs = document.getElementById('seqInput').value.split(/[\s,]+/).filter(s => s);
     if(!seqs.length) return;
@@ -300,6 +336,7 @@ function mapApplySequences() {
     mapUpdateFromFirestore();
 }
 
+// ---- 搜尋車廂 ----
 function mapSearchCabin() {
     const q = document.getElementById('mapSearchBox').value.trim();
     if(!q) return alert('請輸入車廂號碼');
@@ -307,26 +344,29 @@ function mapSearchCabin() {
     if(!cabin) return alert('找不到車廂: ' + q);
     cabin.shape.style.stroke = 'gold';
     cabin.shape.style.strokeWidth = '6';
-    setTimeout(() => { cabin.shape.style.stroke = '#333'; cabin.shape.style.strokeWidth = '2'; }, 3000);
+    setTimeout(() => { cabin.shape.style.stroke = ''; cabin.shape.style.strokeWidth = ''; }, 3000);
     const svg = document.getElementById('map');
     const bbox = cabin.el.getBBox();
     svg.setAttribute('viewBox', `${bbox.x-100} ${bbox.y-100} 200 200`);
     setTimeout(() => svg.setAttribute('viewBox', '0 0 4000 700'), 3000);
 }
 
+// ---- 清除所有 ----
 function mapClearAll() {
     if(!confirm('確定清除所有車廂資料？')) return;
     mapCabins.forEach(c => {
         c.fields = {};
         c.label.textContent = '';
         realtimeDb.ref('cabins/'+c.id).remove();
-        c.shape.style.fill = '#fff';
+        c.shape.style.fill = '#ffffff';
         c.shape.style.stroke = '#333';
+        c.el.classList.remove("status-red", "status-yellow", "status-green");
     });
     document.getElementById('seqInput').value = '';
     mapUpdateSummary();
 }
 
+// ---- 匯出 CSV ----
 function mapExportCSV() {
     db.collection('guests').get().then(snap => {
         const records = [];
@@ -348,6 +388,7 @@ function mapExportCSV() {
     });
 }
 
+// ---- 開啟車廂模態框 (顯示組別狀態) ----
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
     document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
@@ -355,20 +396,97 @@ function mapOpenCabin(cabin) {
     document.getElementById('cabinTimeLanded').value = cabin.fields.timeLanded || '';
     document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
     document.getElementById('cabinModal').style.display = 'flex';
+
+    // 載入組別狀態（顯示在模態框底部）
+    loadCabinGroupStatus(cabin);
 }
 
+// ---- 關閉車廂模態框 ----
 function closeCabinModal() {
     document.getElementById('cabinModal').style.display = 'none';
     mapCurrentCabin = null;
 }
 
-// ---- 初始化 ----
+// ---- 載入車廂組別狀態 (顯示於模態框) ----
+async function loadCabinGroupStatus(cabin) {
+    const container = document.getElementById('cabinGroupStatus');
+    const list = document.getElementById('cabinGroupList');
+    
+    // 如果容器不存在，動態建立
+    let statusContainer = container;
+    let statusList = list;
+    
+    if (!statusContainer) {
+        // 在 cabinForm 中建立組別狀態區塊
+        const form = document.getElementById('cabinForm');
+        const div = document.createElement('div');
+        div.id = 'cabinGroupStatus';
+        div.style.marginTop = '16px';
+        div.style.borderTop = '1px solid #e2e8f0';
+        div.style.paddingTop = '12px';
+        div.innerHTML = `
+            <h4 style="margin-bottom:8px; color:#1e3a5f;">組別狀態</h4>
+            <div id="cabinGroupList" style="max-height:200px; overflow-y:auto;"></div>
+        `;
+        form.appendChild(div);
+        statusContainer = div;
+        statusList = document.getElementById('cabinGroupList');
+    }
+
+    statusList.innerHTML = '<p style="color:#64748b;">載入中...</p>';
+
+    const cabinNumber = cabin.fields.sequence;
+    if (!cabinNumber) {
+        statusList.innerHTML = '<p style="color:#64748b;">此車廂尚未設定號碼</p>';
+        return;
+    }
+
+    try {
+        const snapshot = await db.collection('guests')
+            .where('cabinNumber', '==', cabinNumber)
+            .get();
+
+        if (snapshot.empty) {
+            statusList.innerHTML = '<p style="color:#64748b;">此車廂暫無組別記錄</p>';
+            return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const group = data.groupNumber || '?';
+            const status = getGroupStatus(data);
+            let statusText = '', badgeClass = '';
+            if (status === 'landed') {
+                statusText = '已著陸';
+                badgeClass = 'status-complete';
+            } else if (status === 'rescuing') {
+                statusText = '救援中';
+                badgeClass = 'status-pending';
+            } else {
+                statusText = '等待救援';
+                badgeClass = 'status-waiting';
+            }
+            html += `
+                <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9;">
+                    <span>第 ${group} 組 - ${data.guestName || '未提供姓名'}</span>
+                    <span class="status-badge ${badgeClass}">${statusText}</span>
+                </div>
+            `;
+        });
+        statusList.innerHTML = html;
+    } catch (e) {
+        statusList.innerHTML = `<p style="color:red;">載入失敗: ${e.message}</p>`;
+    }
+}
+
+// ---- 初始化函數 ----
 function initMap() {
     console.log('✅ 救援地圖初始化完成');
     mapInit();
 }
 
-// ---- 暴露 ----
+// ---- 暴露給全域 ----
 window.mapInit = mapInit;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
 window.mapApplySequences = mapApplySequences;
@@ -377,3 +495,4 @@ window.mapClearAll = mapClearAll;
 window.mapExportCSV = mapExportCSV;
 window.closeCabinModal = closeCabinModal;
 window.initMap = initMap;
+window.mapOpenCabin = mapOpenCabin;
