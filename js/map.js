@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (最終修正版)
+// 救援地圖模組 (完整版，包含組別編輯功能)
 // ================================================================
 
 let mapCabins = [];
@@ -14,11 +14,12 @@ let mapSvg = null;
 function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
-    
+
     // 強制重置偏移量為 0
     mapGlobalOffset = 0;
-    localStorage.removeItem('mapGlobalOffset'); // 清除儲存的偏移
-    
+    localStorage.removeItem('mapGlobalOffset');
+
+    // 構建場景...
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -84,8 +85,8 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
-    // 構建車廂
-    mapBuildCabins();
+    // 構建車廂（傳入偏移 0）
+    mapBuildCabins(0);
 
     // 事件綁定
     document.getElementById('moveToggleBtn').addEventListener('click', function() {
@@ -110,6 +111,7 @@ function mapInit() {
             window.addEventListener('mouseup', () => {
                 dragging = false;
                 ropeHit.style.cursor = 'grab';
+                localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
             });
         }
     });
@@ -119,7 +121,7 @@ function mapInit() {
         this.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
         document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
         localStorage.setItem('mapCabinMode', mapCabinMode);
-        mapBuildCabins();
+        mapBuildCabins(mapGlobalOffset);
         mapUpdateFromFirestore();
     });
 
@@ -143,12 +145,12 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
-    // 載入車廂號碼與地圖狀態
+    // 從 Realtime Database 恢復車廂號碼
     mapRestoreSequences();
 }
 
-// ---- 構建車廂 (確保均勻排列) ----
-function mapBuildCabins() {
+// ---- 構建車廂 (接受 offset 參數，確保初始排列) ----
+function mapBuildCabins(offset = 0) {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
@@ -179,8 +181,8 @@ function mapBuildCabins() {
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
-        // 使用目前的 mapGlobalOffset 計算位置
-        const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
+        // 使用傳入的 offset
+        const d = (i * ropeLen / mapCabins.length + offset) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
     }
@@ -193,7 +195,6 @@ function mapLayoutCabins() {
         const pos = mapPointAt(mapRopePts, d);
         c.el.setAttribute('transform', `translate(${pos.x},${pos.y})`);
     });
-    localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
 }
 
 function mapLengthOf(pts) {
@@ -217,7 +218,7 @@ function mapPointAt(pts,d) {
 }
 
 function mapRestoreState() {
-    // 不再恢復偏移量，只恢復模式
+    // 只恢復模式，不恢復偏移
     const savedMode = localStorage.getItem('mapCabinMode');
     if (savedMode) {
         mapCabinMode = parseInt(savedMode);
@@ -476,20 +477,11 @@ async function loadCabinGroupStatus(cabin) {
         statusList.querySelectorAll('.group-item-clickable').forEach(el => {
             el.addEventListener('click', function() {
                 const docId = this.dataset.docid;
-                // 嘗試呼叫全域的編輯函數
-                if (typeof window.editGroup === 'function') {
-                    window.editGroup(docId);
-                } else if (typeof window.loadGroupDetail === 'function') {
-                    window.loadGroupDetail(docId);
+                // 直接呼叫本地定義的 editGroup 函數（已在下方定義）
+                if (typeof editGroup === 'function') {
+                    editGroup(docId);
                 } else {
-                    // 嘗試直接呼叫 (可能已定義但未掛載到 window)
-                    if (typeof editGroup === 'function') {
-                        editGroup(docId);
-                    } else if (typeof loadGroupDetail === 'function') {
-                        loadGroupDetail(docId);
-                    } else {
-                        alert('編輯功能尚未載入，請確認 index.html 已將 editGroup 和 loadGroupDetail 掛載到 window。');
-                    }
+                    alert('編輯功能尚未載入，請確認 map.js 已定義 editGroup。');
                 }
             });
         });
@@ -499,13 +491,51 @@ async function loadCabinGroupStatus(cabin) {
     }
 }
 
+// ---- 編輯組別 (來自原始 index.html) ----
+function editGroup(docId) {
+    // 這裡複製原始 index.html 中 editGroup 的邏輯
+    // 由於 index.html 中該函數會調用 loadGroupDetail，我們也需定義 loadGroupDetail
+    loadGroupDetail(docId);
+}
+
+// ---- 載入組別詳情 (來自原始 index.html) ----
+async function loadGroupDetail(docId) {
+    try {
+        showLoader(true);
+        const doc = await db.collection('guests').doc(docId).get();
+        if (doc.exists) {
+            const guestData = doc.data();
+            guestData.docId = docId;
+            // 呼叫 openGroupDetailModal (此函數在 index.html 中定義，但可能未暴露)
+            // 由於我們在 map.js 中無法直接訪問，我們可以將 openGroupDetailModal 也複製過來，或使用 window 呼叫。
+            if (typeof window.openGroupDetailModal === 'function') {
+                window.openGroupDetailModal(guestData);
+            } else {
+                // 如果 window 中沒有，我們可以嘗試直接調用 (可能在 index.html 的 script 中定義)
+                if (typeof openGroupDetailModal === 'function') {
+                    openGroupDetailModal(guestData);
+                } else {
+                    alert('無法開啟組別詳情，請確認 openGroupDetailModal 函數已定義。');
+                }
+            }
+        } else {
+            alert('找不到組別記錄');
+        }
+    } catch (error) {
+        console.error('載入組別詳情失敗:', error);
+        alert('載入失敗: ' + error.message);
+    } finally {
+        hideLoader();
+    }
+}
+
 // ---- 初始化函數 ----
 function initMap() {
     console.log('✅ 救援地圖初始化完成');
     mapInit();
 }
 
-// ---- 暴露給全域 ----
+// ---- 暴露給全域 (以便其他模組或 HTML 呼叫) ----
 window.mapInit = mapInit;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
 window.mapApplySequences = mapApplySequences;
@@ -515,3 +545,5 @@ window.mapExportCSV = mapExportCSV;
 window.closeCabinModal = closeCabinModal;
 window.initMap = initMap;
 window.mapOpenCabin = mapOpenCabin;
+window.editGroup = editGroup;      // 暴露給其他模組
+window.loadGroupDetail = loadGroupDetail; // 暴露
