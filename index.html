@@ -82,7 +82,9 @@
     <div id="section-monitor" class="section-container"></div>
 </div>
 
-<!-- ===== 全局模態框（保留在 index.html） ===== -->
+<!-- ===== 全局模態框 ===== -->
+
+<!-- 車廂資訊模態框 -->
 <div id="cabinModal" class="modal">
     <div class="modal-content">
         <div class="modal-header"><span class="modal-title">車廂資訊</span><button class="modal-close" onclick="closeCabinModal()">&times;</button></div>
@@ -99,25 +101,125 @@
     </div>
 </div>
 
+<!-- 組別詳情模態框 (完整表單) -->
 <div id="groupModal" class="modal">
     <div class="modal-content">
         <div class="modal-header"><span class="modal-title">組別詳情</span><button class="modal-close" onclick="closeGroupModal()">&times;</button></div>
         <form id="groupForm">
             <input type="hidden" id="groupDocId" name="docId">
             <input type="hidden" id="groupCabinNumber" name="cabinNumber">
-            <div class="form-group"><label>組別</label><select id="groupGroupNumber" name="groupNumber" required><option value="">請選擇</option><option value="1">第1組</option><option value="2">第2組</option><option value="3">第3組</option><option value="4">第4組</option><option value="5">第5組</option><option value="6">第6組</option><option value="7">第7組</option><option value="8">第8組</option><option value="9">第9組</option><option value="10">第10組</option><option value="11">第11組</option><option value="12">第12組</option><option value="13">第13組</option><option value="14">第14組</option><option value="15">第15組</option><option value="16">第16組</option><option value="17">第17組</option></select></div>
-            <!-- 其餘欄位同前，此處省略以節省篇幅，實際請保留完整表單 -->
+            
+            <div class="form-group"><label>組別</label><select id="groupGroupNumber" name="groupNumber" required>
+                <option value="">請選擇</option>
+                <option value="1">第1組</option><option value="2">第2組</option>
+                <option value="3">第3組</option><option value="4">第4組</option>
+                <option value="5">第5組</option><option value="6">第6組</option>
+                <option value="7">第7組</option><option value="8">第8組</option>
+                <option value="9">第9組</option><option value="10">第10組</option>
+                <option value="11">第11組</option><option value="12">第12組</option>
+                <option value="13">第13組</option><option value="14">第14組</option>
+                <option value="15">第15組</option><option value="16">第16組</option>
+                <option value="17">第17組</option>
+            </select></div>
+            
+            <div class="form-group"><label>被救者姓名</label><input type="text" id="groupGuestName" name="guestName" placeholder="請輸入姓名"></div>
+            
+            <div class="form-group"><label>聯絡方式</label><input type="text" id="groupContactNumber" name="contactNumber" placeholder="請輸入聯絡電話"></div>
+            
+            <div class="form-group"><label>性別</label>
+                <select id="groupGender" name="gender">
+                    <option value="">請選擇</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            
+            <div class="form-group"><label>年齡</label>
+                <select id="groupAgeRange" name="ageRange">
+                    <option value="">請選擇</option>
+                    <option value="未能提供">未能提供</option>
+                    <option value="0-12">0-12歲</option>
+                    <option value="13-17">13-17歲</option>
+                    <option value="18-25">18-25歲</option>
+                    <option value="26-35">26-35歲</option>
+                    <option value="36-45">36-45歲</option>
+                    <option value="46-55">46-55歲</option>
+                    <option value="56-65">56-65歲</option>
+                    <option value="66+">66歲以上</option>
+                </select>
+            </div>
+            
+            <div class="form-group"><label>健康狀況</label>
+                <select id="groupHealthStatus" name="healthStatus">
+                    <option value="">請選擇</option>
+                    <option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動</option>
+                    <option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理</option>
+                    <option value="紅色(第一優先)">紅色_有生命危險需立即搶救</option>
+                    <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
+                    <option value="未能分類">未能分類</option>
+                </select>
+            </div>
+            
+            <div class="form-group"><label>救護車需求</label>
+                <select id="groupAmbulance" name="ambulance" onchange="toggleGroupAmbulanceFields()">
+                    <option value="">請選擇</option>
+                    <option value="不需要">不需要</option>
+                    <option value="需要">需要</option>
+                </select>
+            </div>
+            
+            <div id="groupAmbulanceFields" style="display:none;">
+                <div class="form-group"><label>救護車車牌</label><input type="text" id="groupAmbulancePlate" name="ambulancePlate" placeholder="請輸入車牌"></div>
+                <div class="form-group"><label>醫院名稱</label><input type="text" id="groupHospital" name="hospital" placeholder="請輸入醫院名稱"></div>
+            </div>
+            
+            <div class="form-group"><label>後續處理</label>
+                <select id="groupExitMethod" name="exitMethod" onchange="toggleGroupOtherExit()">
+                    <option value="">請選擇</option>
+                    <option value="正常或傷勢已處理 自行離開">正常或傷勢已處理 自行離開</option>
+                    <option value="現正在救援集合點休息中">現正在救援集合點休息中</option>
+                    <option value="已由救護車送往醫院">已由救護車送往醫院</option>
+                    <option value="其他">其他</option>
+                </select>
+                <div id="groupOtherExitContainer" style="display:none; margin-top:8px;">
+                    <input type="text" id="groupOtherExitInput" placeholder="請輸入其他後續處理方式">
+                </div>
+            </div>
+            
+            <div class="form-group"><label>離場時間</label><input type="datetime-local" id="groupExitTime" name="exitTime"></div>
+            
+            <div class="form-group"><label>救援人員</label>
+                <select id="groupRescuedBy" name="rescuedBy" onchange="toggleGroupOtherRescuer()">
+                    <option value="">請選擇</option>
+                    <option value="消防員">消防員</option>
+                    <option value="民安隊">民安隊</option>
+                    <option value="警察">警察</option>
+                    <option value="NP360職員">NP360職員</option>
+                    <option value="其他">其他</option>
+                </select>
+                <div id="groupOtherRescuerContainer" style="display:none; margin-top:8px;">
+                    <input type="text" id="groupOtherRescuerInput" placeholder="請輸入其他救援人員">
+                </div>
+            </div>
+            
+            <div class="form-group"><label>開始救援時間</label><input type="time" id="groupTimeReachedTop" name="timeReachedTop"></div>
+            <div class="form-group"><label>完成救援時間</label><input type="time" id="groupTimeLanded" name="timeLanded"></div>
+            
+            <div class="form-group"><label>備註</label><textarea id="groupRemarks" name="remarks" rows="2"></textarea></div>
+            
+            <div id="group-qrcode"></div>
+            
             <div class="modal-actions">
                 <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> 儲存</button>
                 <button type="button" class="btn btn-secondary" onclick="closeGroupModal()">取消</button>
+                <button type="button" class="btn btn-danger" onclick="deleteGroupRecord()" style="background:#dc2626;color:white;">刪除</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    window.editGroup = editGroup;
-window.loadGroupDetail = loadGroupDetail;
     // 頁面載入後初始化地圖（若有需要）
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
