@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (最終修正版)
+// 救援地圖模組 (最終修正版 - 解決移動、背景、保存問題)
 // ================================================================
 
 let mapCabins = [];
@@ -9,6 +9,7 @@ let mapCabinMode = 84;
 let mapMoveMode = false;
 let mapCurrentCabin = null;
 let mapSvg = null;
+let groupFormBound = false; // 防止重複綁定
 
 // ---- 初始化地圖 ----
 function mapInit() {
@@ -31,14 +32,23 @@ function mapInit() {
     mapSvg.innerHTML = '';
     if (defs) mapSvg.appendChild(defs);
 
-    const addRect = (x,y,w,h,cls) => {
+    // 自定義矩形函數，確保顏色正確
+    const addRect = (x, y, w, h, cls, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
-        r.setAttribute('x',x); r.setAttribute('y',y); r.setAttribute('width',w); r.setAttribute('height',h);
-        r.setAttribute('class',cls);
+        r.setAttribute('x', x);
+        r.setAttribute('y', y);
+        r.setAttribute('width', w);
+        r.setAttribute('height', h);
+        if (fillColor) {
+            r.setAttribute('fill', fillColor);
+        } else {
+            r.setAttribute('class', cls);
+        }
         mapSvg.appendChild(r);
     };
-    addRect(xCoords[0], baseY, t2bX-xCoords[0], 100, 'city');
-    addRect(t2bX, baseY, t3X-t2bX, 100, 'sea');
+    // 城市區域用灰色，避免黑色
+    addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, '', '#cccccc');
+    addRect(t2bX, baseY, t3X - t2bX, 100, 'sea'); // 海用漸變
     const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
     mountain.setAttribute('fill','url(#gradMountain)');
@@ -83,34 +93,35 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
-    mapBuildCabins();
-    mapLayoutCabins(); // 強制均勻排列
+    // ---- 移動模式：一次性綁定事件，內部判斷 ----
+    let dragging = false;
+    let lastX = 0;
+    ropeHit.addEventListener('mousedown', function(e) {
+        if (!mapMoveMode) return; // 若未啟用移動則忽略
+        dragging = true;
+        lastX = e.clientX;
+        ropeHit.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', function(e) {
+        if (!mapMoveMode || !dragging) return;
+        mapGlobalOffset += (e.clientX - lastX) * 2;
+        lastX = e.clientX;
+        mapLayoutCabins();
+    });
+    window.addEventListener('mouseup', function() {
+        if (dragging) {
+            dragging = false;
+            ropeHit.style.cursor = 'grab';
+        }
+    });
 
-    // 事件綁定
+    // 移動按鈕只切換狀態，不重複綁定事件
     document.getElementById('moveToggleBtn').addEventListener('click', function() {
         mapMoveMode = !mapMoveMode;
         this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
         this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
         this.style.color = mapMoveMode ? 'white' : '#1e293b';
-        if (mapMoveMode) {
-            let dragging = false, lastX;
-            ropeHit.addEventListener('mousedown', e => {
-                dragging = true;
-                lastX = e.clientX;
-                ropeHit.style.cursor = 'grabbing';
-            });
-            window.addEventListener('mousemove', e => {
-                if (dragging) {
-                    mapGlobalOffset += (e.clientX - lastX) * 2;
-                    lastX = e.clientX;
-                    mapLayoutCabins();
-                }
-            });
-            window.addEventListener('mouseup', () => {
-                dragging = false;
-                ropeHit.style.cursor = 'grab';
-            });
-        }
+        ropeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
     });
 
     document.getElementById('mapToggleBtn').addEventListener('click', function() {
@@ -143,19 +154,24 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
-    // 綁定 groupModal 提交事件（防止頁面刷新）
-    const groupForm = document.getElementById('groupForm');
-    if (groupForm) {
-        groupForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveGroupRecord();
-        });
+    // ---- 綁定 groupForm 提交事件 (僅一次) ----
+    if (!groupFormBound) {
+        const groupForm = document.getElementById('groupForm');
+        if (groupForm) {
+            groupForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveGroupRecord();
+            });
+            groupFormBound = true;
+        }
     }
 
+    mapBuildCabins();
+    mapLayoutCabins();
     mapRestoreSequences();
 }
 
-// ---- 構建車廂 (修正顏色) ----
+// ---- 構建車廂 ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
@@ -174,7 +190,6 @@ function mapBuildCabins() {
         }
         const hex = document.createElementNS('http://www.w3.org/2000/svg','polygon');
         hex.setAttribute('points', pts.join(' '));
-        // 明確設定初始顏色為白色
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
         g.appendChild(hex);
@@ -258,9 +273,7 @@ async function mapUpdateFromFirestore() {
 
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            // 先移除所有狀態類別
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
-            // 預設顏色
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
@@ -494,7 +507,7 @@ async function loadCabinGroupStatus(cabin) {
 }
 
 // ================================================================
-// 組別編輯函數 (對應 groupModal)
+// 組別編輯函數
 // ================================================================
 
 function editGroup(docId) {
@@ -593,23 +606,25 @@ function openGroupModal(guestData) {
     modal.style.display = 'flex';
 }
 
-// ---- 儲存組別記錄（防止頁面刷新） ----
+// ---- 儲存組別記錄 ----
 async function saveGroupRecord() {
+    const docId = document.getElementById('groupDocId').value;
+    if (!docId) {
+        alert('無效的記錄ID');
+        return;
+    }
+    
     const form = document.getElementById('groupForm');
     const formData = new FormData(form);
-    const docId = document.getElementById('groupDocId').value;
-    const cabinNumber = document.getElementById('groupCabinNumber').value;
-    
-    // 構建更新數據
     const updateData = {};
     for (const [key, value] of formData.entries()) {
         if (key !== 'docId' && key !== 'cabinNumber') {
             updateData[key] = value;
         }
     }
-    updateData.cabinNumber = cabinNumber;
+    updateData.cabinNumber = document.getElementById('groupCabinNumber').value;
     
-    // 處理特殊欄位（如「其他」選項）
+    // 處理特殊欄位
     const exitMethod = document.getElementById('groupExitMethod').value;
     if (exitMethod === '其他') {
         const other = document.getElementById('groupOtherExitInput').value.trim();
@@ -638,7 +653,7 @@ async function saveGroupRecord() {
     }
     updateData.updatedAt = new Date();
     
-    // 驗證必填
+    // 驗證
     if (!updateData.groupNumber) {
         alert('請選擇組別');
         return;
@@ -646,13 +661,7 @@ async function saveGroupRecord() {
     
     try {
         showLoader(true);
-        if (docId) {
-            await db.collection('guests').doc(docId).update(updateData);
-        } else {
-            // 如果是新增，但這裡我們只做編輯，因此假設 docId 存在
-            alert('無效的記錄ID');
-            return;
-        }
+        await db.collection('guests').doc(docId).update(updateData);
         alert('組別記錄已更新');
         closeGroupModal();
         mapUpdateFromFirestore();
@@ -713,4 +722,4 @@ window.editGroup = editGroup;
 window.loadGroupDetail = loadGroupDetail;
 window.closeGroupModal = closeGroupModal;
 window.deleteGroupRecord = deleteGroupRecord;
-window.saveGroupRecord = saveGroupRecord; // 新增
+window.saveGroupRecord = saveGroupRecord;
