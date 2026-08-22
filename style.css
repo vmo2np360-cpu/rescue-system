@@ -121,11 +121,6 @@ tr:hover td { background: #f8fafc; }
 
 /* ===== 地圖相關 ===== */
 #map { width: 100%; height: 700px; background: #dbeafe; border-radius: 12px; border: 1px solid #e2e8f0; }
-#map {
-    margin-top: -20px;  /* 向上移動，減少上方空白 */
-    height: 75vh;       /* 佔用更多垂直空間 */
-    min-height: 500px;
-}
 .map-toolbar { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px; background: white; border-radius: 12px; margin-bottom: 16px; align-items: center; border: 1px solid #e2e8f0; }
 .map-toolbar textarea { flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; resize: vertical; font-family: inherit; }
 .map-toolbar input[type="text"] { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 120px; }
