@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (針對 index.html 調整)
+// 救援地圖模組 (修正版)
 // ================================================================
 
 let mapCabins = [];
@@ -12,10 +12,15 @@ let mapSvg = null;
 
 // ---- 初始化地圖 ----
 function mapInit() {
-    if (mapCabins.length) return;
+    if (mapCabins.length) {
+        // 如果已存在車廂，僅更新位置和顏色
+        mapLayoutCabins();
+        mapUpdateFromFirestore();
+        return;
+    }
     mapSvg = document.getElementById('map');
     
-    // 強制重置偏移量為 0，確保初始排列均勻
+    // 強制重置偏移量
     mapGlobalOffset = 0;
     localStorage.removeItem('mapGlobalOffset');
     
@@ -84,6 +89,7 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
+    // 構建車廂
     mapBuildCabins();
 
     // 事件綁定
@@ -142,6 +148,12 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
+    // 綁定 groupForm 提交事件 (在 map.js 中統一處理)
+    document.getElementById('groupForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveGroupData();
+    });
+
     mapRestoreSequences();
 }
 
@@ -165,6 +177,9 @@ function mapBuildCabins() {
         const hex = document.createElementNS('http://www.w3.org/2000/svg','polygon');
         hex.setAttribute('points', pts.join(' '));
         g.appendChild(hex);
+        // 設定初始填充為白色，避免黑色
+        hex.style.fill = '#ffffff';
+        hex.style.stroke = '#333';
         const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
         lbl.setAttribute('class', 'seq-label');
         lbl.setAttribute('y', '5');
@@ -177,6 +192,7 @@ function mapBuildCabins() {
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
+        // 計算位置並套用
         const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -246,6 +262,7 @@ async function mapUpdateFromFirestore() {
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
+            // 預設白色
             cabin.shape.style.fill = '#ffffff';
             cabin.shape.style.stroke = '#333';
 
@@ -481,7 +498,7 @@ async function loadCabinGroupStatus(cabin) {
 }
 
 // ================================================================
-// 組別編輯函數 (對應 groupModal)
+// 組別編輯與儲存
 // ================================================================
 
 // ---- 編輯組別 ----
@@ -592,6 +609,83 @@ function closeGroupModal() {
     document.getElementById('groupModal').style.display = 'none';
 }
 
+// ---- 儲存組別資料 ----
+async function saveGroupData() {
+    const docId = document.getElementById('groupDocId').value;
+    const cabinNumber = document.getElementById('groupCabinNumber').value;
+    const groupNumber = document.getElementById('groupGroupNumber').value;
+    
+    if (!cabinNumber || !groupNumber) {
+        alert('請填寫車廂號碼和組別');
+        return;
+    }
+    
+    // 收集表單數據
+    const form = document.getElementById('groupForm');
+    const formData = new FormData(form);
+    const updateData = {};
+    for (const [key, value] of formData.entries()) {
+        if (key !== 'docId' && key !== 'cabinNumber') {
+            updateData[key] = value;
+        }
+    }
+    updateData.cabinNumber = cabinNumber;
+    
+    // 處理特殊欄位
+    // 後續處理「其他」
+    if (updateData.exitMethod === '其他') {
+        const other = document.getElementById('groupOtherExitInput').value.trim();
+        if (other) updateData.exitMethod = other;
+    }
+    // 救援人員「其他」
+    if (updateData.rescuedBy === '其他') {
+        const other = document.getElementById('groupOtherRescuerInput').value.trim();
+        if (other) updateData.rescuedBy = other;
+    }
+    // 救護車
+    if (updateData.ambulance === '需要') {
+        updateData.ambulancePlate = document.getElementById('groupAmbulancePlate').value;
+        updateData.hospital = document.getElementById('groupHospital').value;
+    } else {
+        updateData.ambulancePlate = '';
+        updateData.hospital = '';
+    }
+    // 離場時間
+    const exitTime = document.getElementById('groupExitTime').value;
+    if (exitTime) {
+        updateData.exitTime = new Date(exitTime);
+        updateData.status = 'completed';
+    } else {
+        updateData.exitTime = null;
+        updateData.status = 'pending';
+    }
+    updateData.updatedAt = new Date();
+    
+    try {
+        showLoader(true);
+        if (docId) {
+            await db.collection('guests').doc(docId).update(updateData);
+            alert('組別記錄更新成功！');
+        } else {
+            // 新增記錄 (但一般由 Ground Support 建立，此處保留)
+            const ref = await db.collection('guests').add({
+                ...updateData,
+                createdAt: new Date()
+            });
+            alert('組別記錄建立成功！');
+        }
+        closeGroupModal();
+        mapUpdateFromFirestore(); // 更新地圖
+        if (mapCurrentCabin) {
+            loadCabinGroupStatus(mapCurrentCabin); // 更新組別清單
+        }
+    } catch (e) {
+        alert('儲存失敗: ' + e.message);
+    } finally {
+        hideLoader();
+    }
+}
+
 // ---- 刪除組別記錄 ----
 async function deleteGroupRecord() {
     const docId = document.getElementById('groupDocId').value;
@@ -636,3 +730,5 @@ window.editGroup = editGroup;
 window.loadGroupDetail = loadGroupDetail;
 window.closeGroupModal = closeGroupModal;
 window.deleteGroupRecord = deleteGroupRecord;
+// 確保儲存函數可被表單調用
+window.saveGroupData = saveGroupData;
