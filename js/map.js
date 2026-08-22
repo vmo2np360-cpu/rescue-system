@@ -1,6 +1,7 @@
 // ================================================================
-// 救援地圖模組 (完整版 - 放大SVG + 多狀態) - 已修正搜尋與移動功能
+// 救援地圖模組 (完整版 - 放大SVG + 多狀態)
 // ================================================================
+
 let mapCabins = [];
 let mapRopePts = [];
 let mapGlobalOffset = 0;
@@ -15,25 +16,20 @@ let dragStartX = 0;
 function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
-    if (!mapSvg) {
-        console.error('找不到 #map 元素');
-        return;
-    }
-
+    
     // 設定 viewBox 放大內容 (裁切掉多餘空白)
     mapSvg.setAttribute('viewBox', '0 0 2800 700');
-
-    mapGlobalOffset = parseFloat(localStorage.getItem('mapGlobalOffset')) || 0;
-
+    
+    mapGlobalOffset = 0;
+    localStorage.removeItem('mapGlobalOffset');
+    
     // ----- 建立白色背景 -----
-    const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    bgRect.setAttribute('x', '0');
-    bgRect.setAttribute('y', '0');
-    bgRect.setAttribute('width', '2800');
-    bgRect.setAttribute('height', '700');
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
+    bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '700');
     bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
-
+    
     // 保留 defs
     const defs = mapSvg.querySelector('defs');
     const children = Array.from(mapSvg.children);
@@ -41,55 +37,54 @@ function mapInit() {
         if (child.tagName !== 'defs') mapSvg.removeChild(child);
     });
     if (defs) mapSvg.appendChild(defs);
-
+    
     // ----- 建立地圖元素 -----
-    const segments = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
-    const slots = [2, 2, 2, 2, 10, 6, 5, 1, 2, 7, 3];
+    const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
+    const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
     const baseY = 600, topY = 300, npY = 340;
     let x = startX;
     const xCoords = [x];
-    for (let i = 0; i < slots.length; i++) {
-        x += slots[i] * unit;
-        xCoords.push(x);
-    }
+    for(let i=0;i<slots.length;i++){ x += slots[i]*unit; xCoords.push(x); }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    const addRect = (x, y, w, h, cls) => {
-        const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        r.setAttribute('x', x);
-        r.setAttribute('y', y);
-        r.setAttribute('width', w);
-        r.setAttribute('height', h);
-        r.setAttribute('class', cls);
-        mapSvg.appendChild(r);
-    };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, 'city');
-    addRect(t2bX, baseY, t3X - t2bX, 100, 'sea');
+  const addRect = (x, y, w, h, cls, fillColor) => {
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x', x);
+    r.setAttribute('y', y);
+    r.setAttribute('width', w);
+    r.setAttribute('height', h);
+    r.setAttribute('class', cls);
+    if (fillColor) r.setAttribute('fill', fillColor);
+    mapSvg.appendChild(r);
+};
 
-    const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+// 城市區塊 (TC 到 T2B) – 灰色
+addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, 'city', '#d4d4d4');
+// 海洋區塊 (T2B 到 T3) – 淺藍色
+addRect(t2bX, baseY, t3X - t2bX, 100, 'sea', '#81D4FA');
+    addRect(xCoords[0], baseY, t2bX-xCoords[0], 100, 'city');
+    addRect(t2bX, baseY, t3X-t2bX, 100, 'sea');
+    const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
-    mountain.setAttribute('fill', 'url(#gradMountain)');
+    mountain.setAttribute('fill','url(#gradMountain)');
     mapSvg.appendChild(mountain);
 
     let groundPts = [];
-    segments.forEach((s, i) => {
+    segments.forEach((s,i) => {
         let gx = xCoords[i], gy = baseY;
-        if (s === 'NLS') gy = topY;
-        else if (s === 'NP') gy = npY;
-        else if (s === 'T3' || (i > 5 && i < segments.indexOf('NLS'))) gy = baseY - (baseY - topY) * ((gx - t3X) / (nlsX - t3X));
-        else if (i > segments.indexOf('NLS')) gy = topY + (npY - topY) * ((gx - nlsX) / (npX - nlsX));
+        if(s==='NLS') gy = topY;
+        else if(s==='NP') gy = npY;
+        else if(s==='T3' || (i>5 && i<segments.indexOf('NLS'))) gy = baseY - (baseY-topY)*((gx-t3X)/(nlsX-t3X));
+        else if(i>segments.indexOf('NLS')) gy = topY + (npY-topY)*((gx-nlsX)/(npX-nlsX));
         groundPts.push([gx, gy]);
-
-        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', ['TC', 'AIAS', 'NLS', 'NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
+        const use = document.createElementNS('http://www.w3.org/2000/svg','use');
+        use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
         use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
         mapSvg.appendChild(use);
-
-        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
         txt.textContent = s;
-        txt.setAttribute('x', gx);
-        txt.setAttribute('y', gy + 25);
+        txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('class', 'label');
         txt.setAttribute('fill', '#fff');
@@ -97,276 +92,158 @@ function mapInit() {
         mapSvg.appendChild(txt);
     });
 
-    const up = groundPts.map(p => [p[0], p[1] - 60]);
-    const down = groundPts.map(p => [p[0], p[1] + 60]).reverse();
+    const up = groundPts.map(p => [p[0], p[1]-60]);
+    const down = groundPts.map(p => [p[0], p[1]+60]).reverse();
     mapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
-
-    const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    const rope = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     rope.setAttribute('points', mapRopePts.map(p => p.join(',')).join(' '));
-    rope.setAttribute('fill', 'none');
-    rope.setAttribute('stroke', '#444');
-    rope.setAttribute('stroke-width', '4');
+    rope.setAttribute('fill','none'); rope.setAttribute('stroke','#444'); rope.setAttribute('stroke-width','4');
     mapSvg.appendChild(rope);
 
-    const ropeHit = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    const ropeHit = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     ropeHit.setAttribute('points', rope.getAttribute('points'));
-    ropeHit.setAttribute('stroke', 'transparent');
-    ropeHit.setAttribute('stroke-width', '30');
-    ropeHit.setAttribute('fill', 'none');
+    ropeHit.setAttribute('stroke','transparent');
+    ropeHit.setAttribute('stroke-width','30');
+    ropeHit.setAttribute('fill','none');
     ropeHit.style.cursor = 'default';
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
     // ----- 動態建立圖例 (完整狀態) -----
-    const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
     legend.setAttribute('id', 'legend');
     legend.setAttribute('transform', 'translate(1900, 480)');
-
-    const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rectBg.setAttribute('x', '0');
-    rectBg.setAttribute('y', '0');
-    rectBg.setAttribute('width', '340');
-    rectBg.setAttribute('height', '250');
-    rectBg.setAttribute('fill', 'white');
-    rectBg.setAttribute('stroke', '#333');
-    rectBg.setAttribute('rx', '8');
+    const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rectBg.setAttribute('x', '0'); rectBg.setAttribute('y', '0');
+    rectBg.setAttribute('width', '340'); rectBg.setAttribute('height', '250');
+    rectBg.setAttribute('fill', 'white'); rectBg.setAttribute('stroke', '#333'); rectBg.setAttribute('rx', '8');
     legend.appendChild(rectBg);
-
-    const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    title.setAttribute('x', '170');
-    title.setAttribute('y', '35');
-    title.setAttribute('font-size', '28');
-    title.setAttribute('font-weight', 'bold');
-    title.setAttribute('text-anchor', 'middle');
-    title.textContent = '車廂狀態';
+    const title = document.createElementNS('http://www.w3.org/2000/svg','text');
+    title.setAttribute('x', '170'); title.setAttribute('y', '35');
+    title.setAttribute('font-size', '28'); title.setAttribute('font-weight', 'bold');
+    title.setAttribute('text-anchor', 'middle'); title.textContent = '車廂狀態';
     legend.appendChild(title);
 
     // 狀態1: 等待救援 (紅色)
-    const g1 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g1 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g1.setAttribute('transform', 'translate(20, 65)');
-    const r1 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    r1.setAttribute('width', '24');
-    r1.setAttribute('height', '24');
-    r1.setAttribute('fill', '#dc2626');
-    r1.setAttribute('stroke', '#333');
+    const r1 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r1.setAttribute('width', '24'); r1.setAttribute('height', '24'); r1.setAttribute('fill', '#dc2626'); r1.setAttribute('stroke', '#333');
     g1.appendChild(r1);
-    const t1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t1.setAttribute('x', '36');
-    t1.setAttribute('y', '18');
-    t1.setAttribute('font-size', '22');
-    t1.textContent = '等待救援 (求助記錄)';
+    const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t1.setAttribute('x', '36'); t1.setAttribute('y', '18'); t1.setAttribute('font-size', '22'); t1.textContent = '等待救援 (求助記錄)';
     g1.appendChild(t1);
     legend.appendChild(g1);
 
     // 狀態2: 救援中 (黃色)
-    const g2 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g2.setAttribute('transform', 'translate(20, 105)');
-    const r2 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    r2.setAttribute('width', '24');
-    r2.setAttribute('height', '24');
-    r2.setAttribute('fill', '#eab308');
-    r2.setAttribute('stroke', '#333');
+    const r2 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r2.setAttribute('width', '24'); r2.setAttribute('height', '24'); r2.setAttribute('fill', '#eab308'); r2.setAttribute('stroke', '#333');
     g2.appendChild(r2);
-    const t2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t2.setAttribute('x', '36');
-    t2.setAttribute('y', '18');
-    t2.setAttribute('font-size', '22');
-    t2.textContent = '救援中 (已有人員)';
+    const t2 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t2.setAttribute('x', '36'); t2.setAttribute('y', '18'); t2.setAttribute('font-size', '22'); t2.textContent = '救援中 (已有人員)';
     g2.appendChild(t2);
     legend.appendChild(g2);
 
     // 狀態3: 已著陸 (綠色)
-    const g3 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g3 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g3.setAttribute('transform', 'translate(20, 145)');
-    const r3 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    r3.setAttribute('width', '24');
-    r3.setAttribute('height', '24');
-    r3.setAttribute('fill', '#22c55e');
-    r3.setAttribute('stroke', '#333');
+    const r3 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r3.setAttribute('width', '24'); r3.setAttribute('height', '24'); r3.setAttribute('fill', '#22c55e'); r3.setAttribute('stroke', '#333');
     g3.appendChild(r3);
-    const t3 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t3.setAttribute('x', '36');
-    t3.setAttribute('y', '18');
-    t3.setAttribute('font-size', '22');
-    t3.textContent = '已著陸 (所有組別)';
+    const t3 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t3.setAttribute('x', '36'); t3.setAttribute('y', '18'); t3.setAttribute('font-size', '22'); t3.textContent = '已著陸 (所有組別)';
     g3.appendChild(t3);
     legend.appendChild(g3);
 
     // 狀態4: 無記錄 (灰色)
-    const g4 = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const g4 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g4.setAttribute('transform', 'translate(20, 185)');
-    const r4 = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    r4.setAttribute('width', '24');
-    r4.setAttribute('height', '24');
-    r4.setAttribute('fill', '#e2e8f0');
-    r4.setAttribute('stroke', '#333');
+    const r4 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r4.setAttribute('width', '24'); r4.setAttribute('height', '24'); r4.setAttribute('fill', '#e2e8f0'); r4.setAttribute('stroke', '#333');
     g4.appendChild(r4);
-    const t4 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t4.setAttribute('x', '36');
-    t4.setAttribute('y', '18');
-    t4.setAttribute('font-size', '22');
-    t4.textContent = '無組別記錄';
+    const t4 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t4.setAttribute('x', '36'); t4.setAttribute('y', '18'); t4.setAttribute('font-size', '22'); t4.textContent = '無組別記錄';
     g4.appendChild(t4);
     legend.appendChild(g4);
 
     mapSvg.appendChild(legend);
 
-    // 構建車廂
+    // 構建車廂 (放大)
     mapBuildCabins();
     mapLayoutCabins();
 
-    // 綁定所有功能事件（修正重點）
+    // 移動模式設定
     setupMoveMode();
-    bindMoveToggle();
-    bindMapSearch();
-    bindOtherControls();
 
-    // 恢復狀態
-    mapRestoreState();
-    mapRestoreSequences();
-}
-
-// ---- 綁定搜尋功能（修正） ----
-function bindMapSearch() {
-    const searchBox = document.getElementById('mapSearchBox');
-    const searchBtn = document.getElementById('mapSearchBtn'); // 如果有搜尋按鈕
-
-    if (searchBox) {
-        // 移除舊事件避免重複綁定
-        searchBox.onkeypress = null;
-        searchBox.addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                mapSearchCabin();
-            }
-        });
-    } else {
-        console.warn('找不到 #mapSearchBox');
-    }
-
-    if (searchBtn) {
-        searchBtn.onclick = null;
-        searchBtn.addEventListener('click', mapSearchCabin);
-    }
-}
-
-// ---- 綁定移動按鈕（修正） ----
-function bindMoveToggle() {
-    const moveBtn = document.getElementById('moveToggleBtn');
-    if (!moveBtn) {
-        console.warn('找不到 #moveToggleBtn');
-        return;
-    }
-
-    // 清除舊事件
-    moveBtn.onclick = null;
-
-    moveBtn.addEventListener('click', function () {
-        mapMoveMode = !mapMoveMode;
-        this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
-        this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
-        this.style.color = mapMoveMode ? 'white' : '#1e293b';
-
-        // 每次切換都重新綁定繩索事件
-        setupMoveMode();
-        console.log('移動模式：', mapMoveMode ? '已啟用' : '已禁用');
+    // 事件綁定
+    document.getElementById('mapToggleBtn').addEventListener('click', function() {
+        mapCabinMode = mapCabinMode === 84 ? 109 : 84;
+        this.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+        document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
+        localStorage.setItem('mapCabinMode', mapCabinMode);
+        mapBuildCabins();
+        mapLayoutCabins();
+        mapUpdateFromFirestore();
     });
-}
 
-// ---- 綁定其他控制項 ----
-function bindOtherControls() {
-    const toggleBtn = document.getElementById('mapToggleBtn');
-    if (toggleBtn) {
-        toggleBtn.onclick = null;
-        toggleBtn.addEventListener('click', function () {
-            mapCabinMode = mapCabinMode === 84 ? 109 : 84;
-            this.textContent = '切換到 ' + (mapCabinMode === 84 ? '109' : '84') + ' 車廂';
-            const modeLabel = document.getElementById('modeLabel');
-            if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
-            localStorage.setItem('mapCabinMode', mapCabinMode);
-            mapBuildCabins();
-            mapLayoutCabins();
-            mapUpdateFromFirestore();
-        });
-    }
+    document.getElementById('exportCsvBtn').addEventListener('click', mapExportCSV);
+    document.getElementById('seqInput').addEventListener('keypress', e => { if(e.key==='Enter') mapApplySequences(); });
+    document.getElementById('mapSearchBox').addEventListener('keypress', e => { if(e.key==='Enter') mapSearchCabin(); });
 
-    const exportBtn = document.getElementById('exportCsvBtn');
-    if (exportBtn) {
-        exportBtn.onclick = null;
-        exportBtn.addEventListener('click', mapExportCSV);
-    }
+    document.getElementById('cabinForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if(!mapCurrentCabin) return;
+        const data = {
+            sequence: document.getElementById('cabinSeq').value.trim(),
+            timeReachedTop: document.getElementById('cabinTimeReachedTop').value,
+            timeLanded: document.getElementById('cabinTimeLanded').value,
+            remarks: document.getElementById('cabinRemarks').value
+        };
+        mapCurrentCabin.fields = data;
+        mapCurrentCabin.label.textContent = data.sequence;
+        realtimeDb.ref('cabins/'+mapCurrentCabin.id).set(data);
+        closeCabinModal();
+        mapUpdateFromFirestore();
+    });
 
-    const seqInput = document.getElementById('seqInput');
-    if (seqInput) {
-        seqInput.onkeypress = null;
-        seqInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') mapApplySequences();
-        });
-    }
-
-    const cabinForm = document.getElementById('cabinForm');
-    if (cabinForm) {
-        cabinForm.onsubmit = null;
-        cabinForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (!mapCurrentCabin) return;
-            const data = {
-                sequence: document.getElementById('cabinSeq').value.trim(),
-                timeReachedTop: document.getElementById('cabinTimeReachedTop').value,
-                timeLanded: document.getElementById('cabinTimeLanded').value,
-                remarks: document.getElementById('cabinRemarks').value
-            };
-            mapCurrentCabin.fields = data;
-            mapCurrentCabin.label.textContent = data.sequence;
-            if (typeof realtimeDb !== 'undefined') {
-                realtimeDb.ref('cabins/' + mapCurrentCabin.id).set(data);
-            }
-            closeCabinModal();
-            mapUpdateFromFirestore();
-        });
-    }
-
+    // 綁定 groupForm 提交事件
     const groupForm = document.getElementById('groupForm');
     if (groupForm) {
-        groupForm.onsubmit = null;
-        groupForm.addEventListener('submit', function (e) {
+        groupForm.addEventListener('submit', function(e) {
             e.preventDefault();
             saveGroupRecord();
         });
     }
+
+    mapRestoreSequences();
 }
 
 // ---- 構建車廂 (放大) ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
-    if (!svg) return;
-
-    mapCabins.forEach(c => {
-        if (c.el && c.el.parentNode) svg.removeChild(c.el);
-    });
+    mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
-
     const total = mapCabinMode;
+    // 放大車廂 (84模式尺寸24，109模式尺寸20)
     const size = mapCabinMode === 109 ? 20 : 24;
     const fontSize = mapCabinMode === 109 ? 22 : 26;
     const ropeLen = mapLengthOf(mapRopePts);
-
-    for (let i = 0; i < total; i++) {
-        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    for(let i=0; i<total; i++) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
         g.setAttribute('class', 'cabin');
-
         const pts = [];
-        for (let j = 0; j < 6; j++) {
-            const a = Math.PI / 3 * j;
-            pts.push((size * Math.cos(a)) + ',' + (size * Math.sin(a)));
+        for(let j=0; j<6; j++) {
+            const a = Math.PI/3 * j;
+            pts.push((size*Math.cos(a)) + ',' + (size*Math.sin(a)));
         }
-        const hex = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const hex = document.createElementNS('http://www.w3.org/2000/svg','polygon');
         hex.setAttribute('points', pts.join(' '));
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
         g.appendChild(hex);
-
-        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
         lbl.setAttribute('class', 'seq-label');
         lbl.setAttribute('y', '5');
         lbl.setAttribute('font-size', fontSize);
@@ -374,12 +251,10 @@ function mapBuildCabins() {
         lbl.setAttribute('dominant-baseline', 'middle');
         lbl.setAttribute('fill', '#111');
         g.appendChild(lbl);
-
-        const cabin = { id: 'cabin-' + i, fields: {}, el: g, shape: hex, label: lbl };
+        const cabin = { id: 'cabin-'+i, fields: {}, el: g, shape: hex, label: lbl };
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
-
         const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -397,49 +272,40 @@ function mapLayoutCabins() {
 }
 
 function mapLengthOf(pts) {
-    let L = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-        L += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
-    }
+    let L=0;
+    for(let i=0;i<pts.length-1;i++) L += Math.hypot(pts[i+1][0]-pts[i][0], pts[i+1][1]-pts[i][1]);
     return L;
 }
 
-function mapPointAt(pts, d) {
-    let sum = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-        const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
-        const seg = Math.hypot(x2 - x1, y2 - y1);
-        if (sum + seg >= d) {
-            const t = (d - sum) / seg;
-            return { x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t };
+function mapPointAt(pts,d) {
+    let sum=0;
+    for(let i=0;i<pts.length-1;i++){
+        const [x1,y1]=pts[i],[x2,y2]=pts[i+1];
+        const seg=Math.hypot(x2-x1, y2-y1);
+        if(sum+seg >= d) {
+            const t=(d-sum)/seg;
+            return {x:x1+(x2-x1)*t, y:y1+(y2-y1)*t};
         }
         sum += seg;
     }
-    return { x: pts[pts.length - 1][0], y: pts[pts.length - 1][1] };
+    return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
 }
 
 function mapRestoreState() {
     const savedMode = localStorage.getItem('mapCabinMode');
     if (savedMode) {
         mapCabinMode = parseInt(savedMode);
-        const toggleBtn = document.getElementById('mapToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.textContent = '切換到 ' + (mapCabinMode === 84 ? '109' : '84') + ' 車廂';
-        }
-        const modeLabel = document.getElementById('modeLabel');
-        if (modeLabel) {
-            modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
-        }
+        document.getElementById('mapToggleBtn').textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+        document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
     }
 }
 
 function mapRestoreSequences() {
-    if (typeof realtimeDb === 'undefined') return;
     realtimeDb.ref('cabins').once('value').then(snap => {
         const data = snap.val();
-        if (!data) return;
+        if(!data) return;
         mapCabins.forEach(c => {
-            if (data[c.id]) {
+            if(data[c.id]) {
                 c.fields = data[c.id];
                 c.label.textContent = c.fields.sequence || '';
             }
@@ -448,61 +314,53 @@ function mapRestoreSequences() {
     });
 }
 
-// ---- 移動模式控制（修正加強） ----
+// ---- 移動模式控制 ----
 function setupMoveMode() {
-    let ropeHit = document.querySelector('#map polyline[stroke="transparent"]');
-    if (!ropeHit) {
-        console.warn('找不到繩索 hit 區域，移動功能無法使用');
-        return;
-    }
-
-    // 用 clone 清掉舊的事件監聽器
+    const ropeHit = document.querySelector('#map polyline[stroke="transparent"]');
+    if (!ropeHit) return;
     const newRopeHit = ropeHit.cloneNode(true);
     ropeHit.parentNode.replaceChild(newRopeHit, ropeHit);
-    ropeHit = newRopeHit;
 
-    ropeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
-    ropeHit.style.pointerEvents = 'all';
-
-    ropeHit.addEventListener('mousedown', (e) => {
+    newRopeHit.addEventListener('mousedown', (e) => {
         if (!mapMoveMode) return;
         isDragging = true;
         dragStartX = e.clientX;
-        ropeHit.style.cursor = 'grabbing';
-        e.preventDefault();
+        newRopeHit.style.cursor = 'grabbing';
     });
 
-    // 全域滑鼠事件（只綁一次）
-    if (!window._mapMoveEventsBound) {
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const delta = e.clientX - dragStartX;
-            mapGlobalOffset += delta * 2;
-            dragStartX = e.clientX;
-            mapLayoutCabins();
-        });
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const delta = e.clientX - dragStartX;
+        mapGlobalOffset += delta * 2;
+        dragStartX = e.clientX;
+        mapLayoutCabins();
+    });
 
-        window.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-                const hit = document.querySelector('#map polyline[stroke="transparent"]');
-                if (hit) hit.style.cursor = mapMoveMode ? 'grab' : 'default';
-                localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
-            }
-        });
-
-        window._mapMoveEventsBound = true;
-    }
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            newRopeHit.style.cursor = 'grab';
+            localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
+        }
+    });
 }
+
+// ---- 移動按鈕 ----
+document.addEventListener('DOMContentLoaded', function() {
+    const moveBtn = document.getElementById('moveToggleBtn');
+    if (moveBtn) {
+        moveBtn.addEventListener('click', function() {
+            mapMoveMode = !mapMoveMode;
+            this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
+            this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
+            this.style.color = mapMoveMode ? 'white' : '#1e293b';
+        });
+    }
+});
 
 // ---- 更新地圖 (依據求助記錄 + guests 狀態) ----
 async function mapUpdateFromFirestore() {
     try {
-        if (typeof db === 'undefined') {
-            console.warn('Firestore db 未定義');
-            return;
-        }
-
         // 1. 取得求助記錄 (rescue_records)
         const rescueSnap = await db.collection('rescue_records').get();
         const rescueRecords = [];
@@ -526,7 +384,7 @@ async function mapUpdateFromFirestore() {
                     cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#dc2626');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return;
+                    return; // 跳過後續判斷
                 }
 
                 // 若無求助記錄，根據 guests 判斷狀態
@@ -534,25 +392,31 @@ async function mapUpdateFromFirestore() {
                 if (matched.length > 0) {
                     let landed = 0, rescuing = 0, waiting = 0;
                     matched.forEach(g => {
-                        const status = (typeof getGroupStatus === 'function') ? getGroupStatus(g) : 'waiting';
+                        const status = getGroupStatus(g); // 使用 common.js 的函數
                         if (status === 'landed') landed++;
                         else if (status === 'rescuing') rescuing++;
                         else waiting++;
                     });
 
+                    // 所有組別已著陸 → 綠色
                     if (landed === matched.length && matched.length > 0) {
                         cabin.el.classList.add("status-green");
                         cabin.shape.setAttribute('fill', '#22c55e');
                         cabin.shape.setAttribute('stroke', '#16a34a');
-                    } else if (waiting === 0 && rescuing > 0) {
+                    }
+                    // 有組別在救援中且無等待 → 黃色
+                    else if (waiting === 0 && rescuing > 0) {
                         cabin.el.classList.add("status-yellow");
                         cabin.shape.setAttribute('fill', '#eab308');
                         cabin.shape.setAttribute('stroke', '#ca8a04');
-                    } else if (waiting > 0) {
+                    }
+                    // 有等待組別 → 紅色 (但已優先被求助記錄覆蓋，此處可能不執行)
+                    else if (waiting > 0) {
                         cabin.el.classList.add("status-red");
                         cabin.shape.setAttribute('fill', '#dc2626');
                         cabin.shape.setAttribute('stroke', '#b91c1c');
                     }
+                    // 若無匹配以上，保持白色 (但實際上不會)
                 } else {
                     // 無組別記錄 → 灰色
                     cabin.shape.setAttribute('fill', '#e2e8f0');
@@ -561,7 +425,7 @@ async function mapUpdateFromFirestore() {
             }
         });
         mapUpdateSummary();
-    } catch (e) {
+    } catch(e) {
         console.error('地圖更新失敗:', e);
     }
 }
@@ -584,115 +448,73 @@ function mapUpdateSummary() {
         }
     });
 
-    const setText = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = value;
-    };
-
-    setText('mapWaiting', waiting);
-    setText('mapRescuing', rescuing);
-    setText('mapLanded', landed);
-    setText('mapWaitingCabins', wc.join(', '));
-    setText('mapRescuingCabins', rc.join(', '));
-    setText('mapLandedCabins', lc.join(', '));
-    setText('waitingText', '等待: ' + waiting);
-    setText('landedText', '已著陸: ' + landed);
+    document.getElementById('mapWaiting').textContent = waiting;
+    document.getElementById('mapRescuing').textContent = rescuing;
+    document.getElementById('mapLanded').textContent = landed;
+    document.getElementById('mapWaitingCabins').textContent = wc.join(', ');
+    document.getElementById('mapRescuingCabins').textContent = rc.join(', ');
+    document.getElementById('mapLandedCabins').textContent = lc.join(', ');
+    document.getElementById('waitingText').textContent = '等待: ' + waiting;
+    document.getElementById('landedText').textContent = '已著陸: ' + landed;
 }
 
 // ---- 其餘功能函數 ----
 function mapApplySequences() {
-    const seqInput = document.getElementById('seqInput');
-    if (!seqInput) return;
-
-    const seqs = seqInput.value.split(/[\s,]+/).filter(s => s);
-    if (!seqs.length) return;
-
-    mapCabins.forEach((c, i) => {
+    const seqs = document.getElementById('seqInput').value.split(/[\s,]+/).filter(s => s);
+    if(!seqs.length) return;
+    mapCabins.forEach((c,i) => {
         const seq = i < seqs.length ? seqs[i] : '';
         c.fields.sequence = seq;
         c.label.textContent = seq;
-        if (typeof realtimeDb !== 'undefined') {
-            realtimeDb.ref('cabins/' + c.id).set(c.fields);
-        }
+        realtimeDb.ref('cabins/'+c.id).set(c.fields);
     });
     mapUpdateFromFirestore();
 }
 
 function mapSearchCabin() {
-    const box = document.getElementById('mapSearchBox');
-    if (!box) {
-        alert('找不到搜尋框');
-        return;
-    }
-    const q = box.value.trim();
-    if (!q) {
-        alert('請輸入車廂號碼');
-        return;
-    }
-
+    const q = document.getElementById('mapSearchBox').value.trim();
+    if(!q) return alert('請輸入車廂號碼');
     const cabin = mapCabins.find(c => c.fields.sequence === q);
-    if (!cabin) {
-        alert('找不到車廂: ' + q);
-        return;
-    }
-
-    // 高亮顯示
+    if(!cabin) return alert('找不到車廂: ' + q);
     cabin.shape.setAttribute('stroke', 'gold');
     cabin.shape.setAttribute('stroke-width', '6');
-    setTimeout(() => {
-        cabin.shape.setAttribute('stroke', '#333');
-        cabin.shape.setAttribute('stroke-width', '1');
-    }, 3000);
-
-    // 短暫放大該車廂
+    setTimeout(() => { cabin.shape.setAttribute('stroke', ''); cabin.shape.setAttribute('stroke-width', ''); }, 3000);
     const svg = document.getElementById('map');
-    if (svg) {
-        const bbox = cabin.el.getBBox();
-        svg.setAttribute('viewBox', `${bbox.x - 100} ${bbox.y - 100} 200 200`);
-        setTimeout(() => svg.setAttribute('viewBox', '0 0 2800 700'), 3000);
-    }
+    const bbox = cabin.el.getBBox();
+    svg.setAttribute('viewBox', `${bbox.x-100} ${bbox.y-100} 200 200`);
+    setTimeout(() => svg.setAttribute('viewBox', '0 0 2800 700'), 3000);
 }
 
 function mapClearAll() {
-    if (!confirm('確定清除所有車廂資料？')) return;
+    if(!confirm('確定清除所有車廂資料？')) return;
     mapCabins.forEach(c => {
         c.fields = {};
         c.label.textContent = '';
-        if (typeof realtimeDb !== 'undefined') {
-            realtimeDb.ref('cabins/' + c.id).remove();
-        }
+        realtimeDb.ref('cabins/'+c.id).remove();
         c.shape.setAttribute('fill', '#ffffff');
         c.shape.setAttribute('stroke', '#333');
         c.el.classList.remove("status-red", "status-yellow", "status-green");
     });
-    const seqInput = document.getElementById('seqInput');
-    if (seqInput) seqInput.value = '';
+    document.getElementById('seqInput').value = '';
     mapUpdateSummary();
 }
 
 function mapExportCSV() {
-    if (typeof db === 'undefined') {
-        alert('資料庫未連線');
-        return;
-    }
     db.collection('guests').get().then(snap => {
         const records = [];
         snap.forEach(d => records.push(d.data()));
-        if (!records.length) {
-            alert('無資料');
-            return;
-        }
+        if(!records.length) { alert('無資料'); return; }
         const BOM = '\uFEFF';
         let csv = BOM + '車廂,組別,姓名,健康狀況,狀態\n';
         records.forEach(r => {
-            const s = (typeof getGroupStatus === 'function') ? getGroupStatus(r) : 'waiting';
+            const s = getGroupStatus(r);
             const status = s === 'landed' ? '已著陸' : s === 'rescuing' ? '救援中' : '等待救援';
-            csv += `${r.cabinNumber || ''},${r.groupNumber || ''},${r.guestName || ''},${r.healthStatus || ''},${status}\n`;
+            csv += `${r.cabinNumber||''},${r.groupNumber||''},${r.guestName||''},${r.healthStatus||''},${status}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `地圖資料_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.download = `地圖資料_${new Date().toISOString().slice(0,10)}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
     });
@@ -700,23 +522,16 @@ function mapExportCSV() {
 
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
-    const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-    };
-    setVal('cabinSeq', cabin.fields.sequence);
-    setVal('cabinTimeReachedTop', cabin.fields.timeReachedTop);
-    setVal('cabinTimeLanded', cabin.fields.timeLanded);
-    setVal('cabinRemarks', cabin.fields.remarks);
-
-    const modal = document.getElementById('cabinModal');
-    if (modal) modal.style.display = 'flex';
+    document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
+    document.getElementById('cabinTimeReachedTop').value = cabin.fields.timeReachedTop || '';
+    document.getElementById('cabinTimeLanded').value = cabin.fields.timeLanded || '';
+    document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
+    document.getElementById('cabinModal').style.display = 'flex';
     loadCabinGroupStatus(cabin);
 }
 
 function closeCabinModal() {
-    const modal = document.getElementById('cabinModal');
-    if (modal) modal.style.display = 'none';
+    document.getElementById('cabinModal').style.display = 'none';
     mapCurrentCabin = null;
 }
 
@@ -725,7 +540,6 @@ async function loadCabinGroupStatus(cabin) {
     let container = document.getElementById('cabinGroupStatus');
     if (!container) {
         const form = document.getElementById('cabinForm');
-        if (!form) return;
         const div = document.createElement('div');
         div.id = 'cabinGroupStatus';
         div.style.marginTop = '16px';
@@ -738,9 +552,7 @@ async function loadCabinGroupStatus(cabin) {
         form.appendChild(div);
         container = div;
     }
-
     const statusList = document.getElementById('cabinGroupList');
-    if (!statusList) return;
     statusList.innerHTML = '<p style="color:#64748b;">載入中...</p>';
 
     const cabinNumber = cabin.fields.sequence;
@@ -750,10 +562,6 @@ async function loadCabinGroupStatus(cabin) {
     }
 
     try {
-        if (typeof db === 'undefined') {
-            statusList.innerHTML = '<p style="color:red;">資料庫未連線</p>';
-            return;
-        }
         const snapshot = await db.collection('guests')
             .where('cabinNumber', '==', cabinNumber)
             .get();
@@ -767,7 +575,7 @@ async function loadCabinGroupStatus(cabin) {
         snapshot.forEach(doc => {
             const data = doc.data();
             const group = data.groupNumber || '?';
-            const status = (typeof getGroupStatus === 'function') ? getGroupStatus(data) : 'waiting';
+            const status = getGroupStatus(data);
             let statusText = '', badgeClass = '';
             if (status === 'landed') {
                 statusText = '已著陸';
@@ -780,9 +588,7 @@ async function loadCabinGroupStatus(cabin) {
                 badgeClass = 'status-waiting';
             }
             html += `
-                <div class="group-item-clickable" data-docid="${doc.id}" 
-                     style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;"
-                     onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                <div class="group-item-clickable" data-docid="${doc.id}" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <span>第 ${group} 組 - ${data.guestName || '未提供姓名'}</span>
                     <span class="status-badge ${badgeClass}">${statusText}</span>
                 </div>
@@ -791,15 +597,16 @@ async function loadCabinGroupStatus(cabin) {
         statusList.innerHTML = html;
 
         statusList.querySelectorAll('.group-item-clickable').forEach(el => {
-            el.addEventListener('click', function () {
+            el.addEventListener('click', function() {
                 const docId = this.dataset.docid;
                 if (typeof window.editGroup === 'function') {
                     window.editGroup(docId);
                 } else {
-                    alert('編輯功能尚未載入');
+                    alert('編輯功能尚未載入，請確認 js/map.js 已正確暴露 editGroup。');
                 }
             });
         });
+
     } catch (e) {
         statusList.innerHTML = `<p style="color:red;">載入失敗: ${e.message}</p>`;
     }
@@ -812,11 +619,7 @@ function editGroup(docId) {
 
 async function loadGroupDetail(docId) {
     try {
-        if (typeof showLoader === 'function') showLoader(true);
-        if (typeof db === 'undefined') {
-            alert('資料庫未連線');
-            return;
-        }
+        showLoader(true);
         const doc = await db.collection('guests').doc(docId).get();
         if (doc.exists) {
             const guestData = doc.data();
@@ -829,48 +632,40 @@ async function loadGroupDetail(docId) {
     } catch (e) {
         alert('載入失敗: ' + e.message);
     } finally {
-        if (typeof hideLoader === 'function') hideLoader();
+        hideLoader();
     }
 }
 
 function openGroupModal(guestData) {
     const modal = document.getElementById('groupModal');
-    if (!modal) {
-        alert('groupModal 不存在');
-        return;
-    }
-
-    const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val || '';
-    };
-
-    setVal('groupDocId', guestData.docId);
-    setVal('groupCabinNumber', guestData.cabinNumber);
-    setVal('groupGroupNumber', guestData.groupNumber);
-    setVal('groupGuestName', guestData.guestName);
-    setVal('groupContactNumber', guestData.contactNumber);
-    setVal('groupGender', guestData.gender);
-    setVal('groupAgeRange', guestData.ageRange);
-    setVal('groupHealthStatus', guestData.healthStatus);
-    setVal('groupAmbulance', guestData.ambulance);
-    setVal('groupAmbulancePlate', guestData.ambulancePlate);
-    setVal('groupHospital', guestData.hospital);
-    setVal('groupExitMethod', guestData.exitMethod);
-    setVal('groupOtherExitInput', '');
-    setVal('groupRescuedBy', guestData.rescuedBy);
-    setVal('groupOtherRescuerInput', '');
-    setVal('groupTimeReachedTop', guestData.timeReachedTop);
-    setVal('groupTimeLanded', guestData.timeLanded);
-    setVal('groupRemarks', guestData.remarks);
-
+    if (!modal) { alert('groupModal 不存在'); return; }
+    // 填入資料 (與之前相同)
+    document.getElementById('groupDocId').value = guestData.docId || '';
+    document.getElementById('groupCabinNumber').value = guestData.cabinNumber || '';
+    document.getElementById('groupGroupNumber').value = guestData.groupNumber || '';
+    document.getElementById('groupGuestName').value = guestData.guestName || '';
+    document.getElementById('groupContactNumber').value = guestData.contactNumber || '';
+    document.getElementById('groupGender').value = guestData.gender || '';
+    document.getElementById('groupAgeRange').value = guestData.ageRange || '';
+    document.getElementById('groupHealthStatus').value = guestData.healthStatus || '';
+    document.getElementById('groupAmbulance').value = guestData.ambulance || '';
+    document.getElementById('groupAmbulancePlate').value = guestData.ambulancePlate || '';
+    document.getElementById('groupHospital').value = guestData.hospital || '';
+    document.getElementById('groupExitMethod').value = guestData.exitMethod || '';
+    document.getElementById('groupOtherExitInput').value = '';
     if (guestData.exitTime) {
         try {
             const d = guestData.exitTime.toDate ? guestData.exitTime.toDate() : new Date(guestData.exitTime);
-            setVal('groupExitTime', d.toISOString().slice(0, 16));
-        } catch (e) {}
+            document.getElementById('groupExitTime').value = d.toISOString().slice(0, 16);
+        } catch(e) {}
     }
+    document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
+    document.getElementById('groupOtherRescuerInput').value = '';
+    document.getElementById('groupTimeReachedTop').value = guestData.timeReachedTop || '';
+    document.getElementById('groupTimeLanded').value = guestData.timeLanded || '';
+    document.getElementById('groupRemarks').value = guestData.remarks || '';
 
+    // 觸發輔助顯示
     if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
     if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
     if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
@@ -880,48 +675,42 @@ function openGroupModal(guestData) {
 
 // ---- 儲存組別記錄 ----
 async function saveGroupRecord() {
-    const docId = document.getElementById('groupDocId')?.value;
-    if (!docId) {
-        alert('無效記錄');
-        return;
-    }
-
+    const docId = document.getElementById('groupDocId').value;
+    if (!docId) { alert('無效記錄'); return; }
+    // 收集更新資料 (與之前相同)
     const updateData = {
-        cabinNumber: document.getElementById('groupCabinNumber')?.value || '',
-        groupNumber: document.getElementById('groupGroupNumber')?.value || '',
-        guestName: document.getElementById('groupGuestName')?.value || '',
-        contactNumber: document.getElementById('groupContactNumber')?.value || '',
-        gender: document.getElementById('groupGender')?.value || '',
-        ageRange: document.getElementById('groupAgeRange')?.value || '',
-        healthStatus: document.getElementById('groupHealthStatus')?.value || '',
-        ambulance: document.getElementById('groupAmbulance')?.value || '',
-        exitMethod: document.getElementById('groupExitMethod')?.value || '',
-        rescuedBy: document.getElementById('groupRescuedBy')?.value || '',
-        timeReachedTop: document.getElementById('groupTimeReachedTop')?.value || '',
-        timeLanded: document.getElementById('groupTimeLanded')?.value || '',
-        remarks: document.getElementById('groupRemarks')?.value || '',
+        cabinNumber: document.getElementById('groupCabinNumber').value,
+        groupNumber: document.getElementById('groupGroupNumber').value,
+        guestName: document.getElementById('groupGuestName').value,
+        contactNumber: document.getElementById('groupContactNumber').value,
+        gender: document.getElementById('groupGender').value,
+        ageRange: document.getElementById('groupAgeRange').value,
+        healthStatus: document.getElementById('groupHealthStatus').value,
+        ambulance: document.getElementById('groupAmbulance').value,
+        exitMethod: document.getElementById('groupExitMethod').value,
+        rescuedBy: document.getElementById('groupRescuedBy').value,
+        timeReachedTop: document.getElementById('groupTimeReachedTop').value,
+        timeLanded: document.getElementById('groupTimeLanded').value,
+        remarks: document.getElementById('groupRemarks').value,
         updatedAt: new Date()
     };
-
     // 處理「其他」選項
     if (updateData.exitMethod === '其他') {
-        const other = document.getElementById('groupOtherExitInput')?.value.trim();
+        const other = document.getElementById('groupOtherExitInput').value.trim();
         if (other) updateData.exitMethod = other;
     }
     if (updateData.rescuedBy === '其他') {
-        const other = document.getElementById('groupOtherRescuerInput')?.value.trim();
+        const other = document.getElementById('groupOtherRescuerInput').value.trim();
         if (other) updateData.rescuedBy = other;
     }
-
     if (updateData.ambulance === '需要') {
-        updateData.ambulancePlate = document.getElementById('groupAmbulancePlate')?.value || '';
-        updateData.hospital = document.getElementById('groupHospital')?.value || '';
+        updateData.ambulancePlate = document.getElementById('groupAmbulancePlate').value;
+        updateData.hospital = document.getElementById('groupHospital').value;
     } else {
         updateData.ambulancePlate = '';
         updateData.hospital = '';
     }
-
-    const exitTime = document.getElementById('groupExitTime')?.value;
+    const exitTime = document.getElementById('groupExitTime').value;
     if (exitTime) {
         updateData.exitTime = new Date(exitTime);
         updateData.status = 'completed';
@@ -929,14 +718,12 @@ async function saveGroupRecord() {
         updateData.exitTime = null;
         updateData.status = 'pending';
     }
-
     if (!updateData.groupNumber) {
         alert('請選擇組別');
         return;
     }
-
     try {
-        if (typeof showLoader === 'function') showLoader(true);
+        showLoader(true);
         await db.collection('guests').doc(docId).update(updateData);
         alert('組別記錄已更新');
         closeGroupModal();
@@ -945,22 +732,20 @@ async function saveGroupRecord() {
     } catch (e) {
         alert('儲存失敗: ' + e.message);
     } finally {
-        if (typeof hideLoader === 'function') hideLoader();
+        hideLoader();
     }
 }
 
 function closeGroupModal() {
-    const modal = document.getElementById('groupModal');
-    if (modal) modal.style.display = 'none';
+    document.getElementById('groupModal').style.display = 'none';
 }
 
 async function deleteGroupRecord() {
-    const docId = document.getElementById('groupDocId')?.value;
+    const docId = document.getElementById('groupDocId').value;
     if (!docId) return;
     if (!confirm('確定刪除？')) return;
-
     try {
-        if (typeof showLoader === 'function') showLoader(true);
+        showLoader(true);
         await db.collection('guests').doc(docId).delete();
         alert('已刪除');
         closeGroupModal();
@@ -969,7 +754,7 @@ async function deleteGroupRecord() {
     } catch (e) {
         alert('刪除失敗: ' + e.message);
     } finally {
-        if (typeof hideLoader === 'function') hideLoader();
+        hideLoader();
     }
 }
 
@@ -994,6 +779,3 @@ window.loadGroupDetail = loadGroupDetail;
 window.closeGroupModal = closeGroupModal;
 window.deleteGroupRecord = deleteGroupRecord;
 window.saveGroupRecord = saveGroupRecord;
-window.setupMoveMode = setupMoveMode;
-window.bindMoveToggle = bindMoveToggle;
-window.bindMapSearch = bindMapSearch;
