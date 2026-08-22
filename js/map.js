@@ -1,5 +1,6 @@
 // ================================================================
 // 救援地圖模組 (完整版 - 放大SVG + 多狀態)
+// 修正：移動功能、搜尋高亮、地圖位置提示
 // ================================================================
 
 let mapCabins = [];
@@ -91,11 +92,13 @@ function mapInit() {
     rope.setAttribute('fill','none'); rope.setAttribute('stroke','#444'); rope.setAttribute('stroke-width','4');
     mapSvg.appendChild(rope);
 
+    // ---------- 修正 1：透明繩索加入 ID ----------
     const ropeHit = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     ropeHit.setAttribute('points', rope.getAttribute('points'));
     ropeHit.setAttribute('stroke','transparent');
     ropeHit.setAttribute('stroke-width','30');
     ropeHit.setAttribute('fill','none');
+    ropeHit.setAttribute('id', 'ropeHit');   // 新增 ID
     ropeHit.style.cursor = 'default';
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
@@ -305,12 +308,15 @@ function mapRestoreSequences() {
     });
 }
 
-// ---- 移動模式控制 ----
+// ---- 修正 2：移動模式控制 (使用 ID 選取，並優化事件) ----
 function setupMoveMode() {
-    const ropeHit = document.querySelector('#map polyline[stroke="transparent"]');
+    const ropeHit = document.getElementById('ropeHit');
     if (!ropeHit) return;
+    // 移除舊事件（透過複製節點避免監聽累積）
     const newRopeHit = ropeHit.cloneNode(true);
     ropeHit.parentNode.replaceChild(newRopeHit, ropeHit);
+    // 重新賦予 ID
+    newRopeHit.id = 'ropeHit';
 
     newRopeHit.addEventListener('mousedown', (e) => {
         if (!mapMoveMode) return;
@@ -319,24 +325,35 @@ function setupMoveMode() {
         newRopeHit.style.cursor = 'grabbing';
     });
 
-    window.addEventListener('mousemove', (e) => {
+    // 移除舊的 window 監聽器 (因為我們會複製節點，但 window 監聽器仍會累積)
+    // 為防止累積，使用一個命名函數並在設定前移除
+    // 但為簡化，我們在每次設定前移除之前的監聽器（透過儲存參考）
+    if (window._moveHandler) {
+        window.removeEventListener('mousemove', window._moveHandler);
+        window.removeEventListener('mouseup', window._moveHandler);
+    }
+    const moveHandler = (e) => {
         if (!isDragging) return;
         const delta = e.clientX - dragStartX;
         mapGlobalOffset += delta * 2;
         dragStartX = e.clientX;
         mapLayoutCabins();
-    });
-
-    window.addEventListener('mouseup', () => {
+    };
+    const upHandler = () => {
         if (isDragging) {
             isDragging = false;
-            newRopeHit.style.cursor = 'grab';
+            const rh = document.getElementById('ropeHit');
+            if (rh) rh.style.cursor = mapMoveMode ? 'grab' : 'default';
             localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
         }
-    });
+    };
+    window.addEventListener('mousemove', moveHandler);
+    window.addEventListener('mouseup', upHandler);
+    window._moveHandler = moveHandler;
+    window._upHandler = upHandler;
 }
 
-// ---- 移動按鈕 ----
+// ---- 移動按鈕 (修正：更新游標) ----
 document.addEventListener('DOMContentLoaded', function() {
     const moveBtn = document.getElementById('moveToggleBtn');
     if (moveBtn) {
@@ -345,6 +362,11 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
             this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
             this.style.color = mapMoveMode ? 'white' : '#1e293b';
+            // 更新游標
+            const rh = document.getElementById('ropeHit');
+            if (rh) {
+                rh.style.cursor = mapMoveMode ? 'grab' : 'default';
+            }
         });
     }
 });
@@ -462,18 +484,69 @@ function mapApplySequences() {
     mapUpdateFromFirestore();
 }
 
+// ---- 修正 3：搜尋車廂 (不修改 viewBox，改用滾動 + 閃爍高亮) ----
 function mapSearchCabin() {
     const q = document.getElementById('mapSearchBox').value.trim();
     if(!q) return alert('請輸入車廂號碼');
     const cabin = mapCabins.find(c => c.fields.sequence === q);
     if(!cabin) return alert('找不到車廂: ' + q);
-    cabin.shape.setAttribute('stroke', 'gold');
-    cabin.shape.setAttribute('stroke-width', '6');
-    setTimeout(() => { cabin.shape.setAttribute('stroke', ''); cabin.shape.setAttribute('stroke-width', ''); }, 3000);
-    const svg = document.getElementById('map');
+    
+    // 清除之前的高亮 (含計時器)
+    if (window._highlightTimer) {
+        clearInterval(window._highlightTimer);
+        window._highlightTimer = null;
+        // 恢復所有車廂樣式
+        mapCabins.forEach(c => {
+            c.shape.style.stroke = '';
+            c.shape.style.strokeWidth = '';
+            c.shape.style.filter = '';
+        });
+    }
+    
+    // 高亮目標：閃爍效果
+    let toggle = true;
+    const originalStroke = cabin.shape.style.stroke || '#333';
+    const originalWidth = cabin.shape.style.strokeWidth || '2';
+    window._highlightTimer = setInterval(() => {
+        if (toggle) {
+            cabin.shape.style.stroke = '#FFD700';
+            cabin.shape.style.strokeWidth = '6';
+            cabin.shape.style.filter = 'drop-shadow(0 0 10px gold)';
+        } else {
+            cabin.shape.style.stroke = originalStroke;
+            cabin.shape.style.strokeWidth = originalWidth;
+            cabin.shape.style.filter = '';
+        }
+        toggle = !toggle;
+    }, 500);
+    
+    // 5 秒後停止閃爍並恢復
+    setTimeout(() => {
+        if (window._highlightTimer) {
+            clearInterval(window._highlightTimer);
+            window._highlightTimer = null;
+            cabin.shape.style.stroke = originalStroke;
+            cabin.shape.style.strokeWidth = originalWidth;
+            cabin.shape.style.filter = '';
+        }
+    }, 5000);
+    
+    // 滾動到車廂位置 (平滑)
+    const svgRect = mapSvg.getBoundingClientRect();
     const bbox = cabin.el.getBBox();
-    svg.setAttribute('viewBox', `${bbox.x-100} ${bbox.y-100} 200 200`);
-    setTimeout(() => svg.setAttribute('viewBox', '0 0 2800 700'), 3000);
+    // 計算車廂中心在頁面上的位置
+    const scaleX = svgRect.width / 2800;  // viewBox 寬度
+    const scaleY = svgRect.height / 700;
+    const centerX = svgRect.left + (bbox.x + bbox.width/2) * scaleX;
+    const centerY = svgRect.top + (bbox.y + bbox.height/2) * scaleY;
+    
+    window.scrollTo({
+        left: centerX - window.innerWidth/2,
+        top: centerY - window.innerHeight/2,
+        behavior: 'smooth'
+    });
+    
+    alert('已找到車廂 ' + q + '，請查看閃爍高亮標示');
 }
 
 function mapClearAll() {
@@ -756,7 +829,7 @@ function initMap() {
 }
 
 // ---- 暴露全域 ----
-window.mapInit = mapInit;
+window.mapInit = initMap;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
 window.mapApplySequences = mapApplySequences;
 window.mapSearchCabin = mapSearchCabin;
