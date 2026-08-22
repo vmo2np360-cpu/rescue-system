@@ -1,6 +1,5 @@
 // ================================================================
-// 救援地圖模組 (最終修正版)
-// 功能：顯示纜車地圖、車廂狀態、搜尋、移動、組別編輯
+// 救援地圖模組 (最終穩定版)
 // ================================================================
 
 let mapCabins = [];
@@ -22,12 +21,11 @@ function mapInit() {
         return;
     }
 
-    // 設定 viewBox (保持與原始一致)
     mapSvg.setAttribute('viewBox', '0 0 4000 700');
     mapGlobalOffset = 0;
     localStorage.removeItem('mapGlobalOffset');
 
-    // ----- 建立白色背景 -----
+    // 白色背景
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bgRect.setAttribute('x', '0');
     bgRect.setAttribute('y', '0');
@@ -114,16 +112,19 @@ function mapInit() {
     rope.setAttribute('stroke-width', '4');
     mapSvg.appendChild(rope);
 
+    // 透明繩索用於拖動
     const ropeHit = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     ropeHit.setAttribute('points', rope.getAttribute('points'));
     ropeHit.setAttribute('stroke', 'transparent');
     ropeHit.setAttribute('stroke-width', '30');
     ropeHit.setAttribute('fill', 'none');
-    ropeHit.style.cursor = 'default';
     ropeHit.style.pointerEvents = 'all';
+    ropeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
     mapSvg.appendChild(ropeHit);
+    // 保存引用以便後續重新綁定
+    window._ropeHit = ropeHit;
 
-    // ----- 圖例 (右下角) -----
+    // ----- 圖例 -----
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('id', 'legend');
     legend.setAttribute('transform', 'translate(3200, 480)');
@@ -182,10 +183,10 @@ function mapInit() {
     mapBuildCabins();
     mapLayoutCabins();
 
-    // 設定移動模式 (綁定事件)
+    // 綁定事件 (移動模式)
     setupMoveMode();
 
-    // ---- 按鈕事件綁定 (使用 addEventListener) ----
+    // ---- 按鈕事件 ----
     // 切換車廂模式
     const toggleBtn = document.getElementById('mapToggleBtn');
     if (toggleBtn) {
@@ -206,7 +207,7 @@ function mapInit() {
         exportBtn.addEventListener('click', mapExportCSV);
     }
 
-    // 套用車廂號碼 (按下 Enter 觸發)
+    // 套用車廂號碼 (按 Enter)
     const seqInput = document.getElementById('seqInput');
     if (seqInput) {
         seqInput.addEventListener('keypress', function(e) {
@@ -214,7 +215,7 @@ function mapInit() {
         });
     }
 
-    // 搜尋車廂 (按下 Enter 觸發)
+    // 搜尋車廂 (按 Enter)
     const searchBox = document.getElementById('mapSearchBox');
     if (searchBox) {
         searchBox.addEventListener('keypress', function(e) {
@@ -251,7 +252,7 @@ function mapInit() {
         });
     }
 
-    // 移動按鈕 (獨立處理)
+    // 移動按鈕
     const moveBtn = document.getElementById('moveToggleBtn');
     if (moveBtn) {
         moveBtn.addEventListener('click', function() {
@@ -259,8 +260,8 @@ function mapInit() {
             this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
             this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
             this.style.color = mapMoveMode ? 'white' : '#1e293b';
-            // 更新游標樣式
-            const ropeHit = document.querySelector('#map polyline[stroke="transparent"]');
+            // 更新游標
+            const ropeHit = window._ropeHit || document.querySelector('#map polyline[stroke="transparent"]');
             if (ropeHit) {
                 ropeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
             }
@@ -273,7 +274,7 @@ function mapInit() {
     console.log('✅ 地圖初始化完成');
 }
 
-// ---- 構建車廂 (放大) ----
+// ---- 構建車廂 ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     if (!svg) return;
@@ -379,13 +380,14 @@ function mapRestoreSequences() {
     });
 }
 
-// ---- 移動模式控制 (重新綁定) ----
+// ---- 移動模式 (綁定事件) ----
 function setupMoveMode() {
-    const ropeHit = document.querySelector('#map polyline[stroke="transparent"]');
+    const ropeHit = window._ropeHit || document.querySelector('#map polyline[stroke="transparent"]');
     if (!ropeHit) return;
-    // 複製節點移除舊監聽
+    // 移除舊的事件監聽（透過複製節點）
     const newRopeHit = ropeHit.cloneNode(true);
     ropeHit.parentNode.replaceChild(newRopeHit, ropeHit);
+    window._ropeHit = newRopeHit;
 
     // 滑鼠事件
     newRopeHit.addEventListener('mousedown', (e) => {
@@ -406,30 +408,24 @@ function setupMoveMode() {
     window.addEventListener('mouseup', () => {
         if (isDragging) {
             isDragging = false;
-            newRopeHit.style.cursor = 'grab';
+            newRopeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
             localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
         }
     });
 
-    // 更新游標
-    if (mapMoveMode) {
-        newRopeHit.style.cursor = 'grab';
-    } else {
-        newRopeHit.style.cursor = 'default';
-    }
+    // 初始化游標
+    newRopeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
 }
 
 // ---- 更新地圖 (依據救助記錄) ----
 async function mapUpdateFromFirestore() {
     try {
-        // 取得所有未處理的求助記錄
         const rescueSnap = await db.collection('rescue_records')
             .where('processed', '==', false)
             .get();
         const rescueRecords = [];
         rescueSnap.forEach(d => rescueRecords.push({ id: d.id, ...d.data() }));
 
-        // 更新每個車廂顏色
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
@@ -496,7 +492,7 @@ function mapApplySequences() {
     mapUpdateFromFirestore();
 }
 
-// ---- 搜尋車廂 ----
+// ---- 搜尋車廂 (修正：不修改 viewBox，僅高亮並滾動) ----
 function mapSearchCabin() {
     const q = document.getElementById('mapSearchBox').value.trim();
     if (!q) {
@@ -508,19 +504,36 @@ function mapSearchCabin() {
         alert('找不到車廂: ' + q);
         return;
     }
-    // 高亮
-    cabin.shape.setAttribute('stroke', 'gold');
+    // 清除所有高亮
+    mapCabins.forEach(c => {
+        c.shape.setAttribute('stroke', '');
+        c.shape.setAttribute('stroke-width', '');
+        c.shape.removeAttribute('filter');
+    });
+    // 高亮目標
+    cabin.shape.setAttribute('stroke', '#FFD700');
     cabin.shape.setAttribute('stroke-width', '6');
+    cabin.shape.setAttribute('filter', 'url(#highlightGlow)');
+    // 3秒後清除高亮
     setTimeout(() => {
         cabin.shape.setAttribute('stroke', '');
         cabin.shape.setAttribute('stroke-width', '');
-    }, 3000);
-
-    // 移動視圖到該車廂
-    const svg = document.getElementById('map');
+        cabin.shape.removeAttribute('filter');
+    }, 4000);
+    // 滾動到車廂位置 (使用 scrollIntoView)
+    const container = document.querySelector('.app-container') || document.body;
+    const svgRect = mapSvg.getBoundingClientRect();
     const bbox = cabin.el.getBBox();
-    svg.setAttribute('viewBox', `${bbox.x - 100} ${bbox.y - 100} 200 200`);
-    setTimeout(() => svg.setAttribute('viewBox', '0 0 4000 700'), 3000);
+    // 計算車廂中心在頁面上的位置
+    const centerX = svgRect.left + (bbox.x + bbox.width/2) * (svgRect.width / 4000);
+    const centerY = svgRect.top + (bbox.y + bbox.height/2) * (svgRect.height / 700);
+    // 滾動到該位置
+    window.scrollTo({
+        left: centerX - window.innerWidth/2,
+        top: centerY - window.innerHeight/2,
+        behavior: 'smooth'
+    });
+    alert('已找到車廂 ' + q + '，請查看高亮標示');
 }
 
 // ---- 清除所有 ----
@@ -720,7 +733,6 @@ async function saveGroupRecord() {
     const docId = document.getElementById('groupDocId').value;
     if (!docId) { alert('無效記錄'); return; }
 
-    // 收集表單資料
     const form = document.getElementById('groupForm');
     const formData = new FormData(form);
     const updateData = {};
@@ -760,7 +772,6 @@ async function saveGroupRecord() {
     }
     updateData.updatedAt = new Date();
 
-    // 驗證
     if (!updateData.groupNumber) {
         alert('請選擇組別');
         return;
@@ -805,12 +816,11 @@ async function deleteGroupRecord() {
 // ---- 初始化函數 ----
 function initMap() {
     console.log('✅ 救援地圖初始化完成');
-    // 先恢復狀態
     mapRestoreState();
     mapInit();
 }
 
-// ---- 暴露給全域 ----
+// ---- 暴露全域 ----
 window.mapInit = initMap;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
 window.mapApplySequences = mapApplySequences;
@@ -826,9 +836,8 @@ window.closeGroupModal = closeGroupModal;
 window.deleteGroupRecord = deleteGroupRecord;
 window.saveGroupRecord = saveGroupRecord;
 
-// 自動初始化 (當 DOM 載入完成)
+// 自動初始化
 document.addEventListener('DOMContentLoaded', function() {
-    // 如果地圖區塊已載入，則初始化
     if (document.getElementById('map')) {
         initMap();
     }
