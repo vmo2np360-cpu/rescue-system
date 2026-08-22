@@ -1,5 +1,5 @@
 // ================================================================
-// 救援地圖模組 (修正版 - 顯示正常)
+// 救援地圖模組 (完整版 - 放大SVG + 多狀態)
 // ================================================================
 
 let mapCabins = [];
@@ -17,29 +17,28 @@ function mapInit() {
     if (mapCabins.length) return;
     mapSvg = document.getElementById('map');
     
-    // 保持原始 viewBox，不縮小
-    mapSvg.setAttribute('viewBox', '0 0 4000 700');
+    // 設定 viewBox 放大內容 (裁切掉多餘空白)
+    mapSvg.setAttribute('viewBox', '0 0 2800 700');
     
     mapGlobalOffset = 0;
     localStorage.removeItem('mapGlobalOffset');
     
-    // ----- 建立白色背景 (防止黑色區域) -----
+    // ----- 建立白色背景 -----
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
-    bgRect.setAttribute('width', '4000'); bgRect.setAttribute('height', '700');
-    bgRect.setAttribute('fill', '#f0f4f8'); // 淺灰色背景
+    bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '700');
+    bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
     
     // 保留 defs
     const defs = mapSvg.querySelector('defs');
-    // 清空 SVG 但保留 defs
     const children = Array.from(mapSvg.children);
     children.forEach(child => {
         if (child.tagName !== 'defs') mapSvg.removeChild(child);
     });
     if (defs) mapSvg.appendChild(defs);
     
-    // 重新建立地圖元素（山、海、塔台、繩索）
+    // ----- 建立地圖元素 -----
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -101,42 +100,64 @@ function mapInit() {
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
 
-    // ----- 動態建立圖例 (legend) -----
+    // ----- 動態建立圖例 (完整狀態) -----
     const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
     legend.setAttribute('id', 'legend');
-    legend.setAttribute('transform', 'translate(3200, 480)'); // 右下角
-    // 背景框
-    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
-    rect.setAttribute('width', '300'); rect.setAttribute('height', '180');
-    rect.setAttribute('fill', 'white'); rect.setAttribute('stroke', '#333'); rect.setAttribute('rx', '8');
-    legend.appendChild(rect);
-    // 標題
+    legend.setAttribute('transform', 'translate(1900, 480)');
+    const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rectBg.setAttribute('x', '0'); rectBg.setAttribute('y', '0');
+    rectBg.setAttribute('width', '340'); rectBg.setAttribute('height', '250');
+    rectBg.setAttribute('fill', 'white'); rectBg.setAttribute('stroke', '#333'); rectBg.setAttribute('rx', '8');
+    legend.appendChild(rectBg);
     const title = document.createElementNS('http://www.w3.org/2000/svg','text');
-    title.setAttribute('x', '150'); title.setAttribute('y', '35');
+    title.setAttribute('x', '170'); title.setAttribute('y', '35');
     title.setAttribute('font-size', '28'); title.setAttribute('font-weight', 'bold');
     title.setAttribute('text-anchor', 'middle'); title.textContent = '車廂狀態';
     legend.appendChild(title);
-    // 等待救援 (紅色)
+
+    // 狀態1: 等待救援 (紅色)
     const g1 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g1.setAttribute('transform', 'translate(20, 65)');
     const r1 = document.createElementNS('http://www.w3.org/2000/svg','rect');
     r1.setAttribute('width', '24'); r1.setAttribute('height', '24'); r1.setAttribute('fill', '#dc2626'); r1.setAttribute('stroke', '#333');
     g1.appendChild(r1);
     const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t1.setAttribute('x', '36'); t1.setAttribute('y', '18'); t1.setAttribute('font-size', '24'); t1.textContent = '等待救援 (求助記錄)';
+    t1.setAttribute('x', '36'); t1.setAttribute('y', '18'); t1.setAttribute('font-size', '22'); t1.textContent = '等待救援 (求助記錄)';
     g1.appendChild(t1);
     legend.appendChild(g1);
-    // 無記錄 (白色)
+
+    // 狀態2: 救援中 (黃色)
     const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
     g2.setAttribute('transform', 'translate(20, 105)');
     const r2 = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r2.setAttribute('width', '24'); r2.setAttribute('height', '24'); r2.setAttribute('fill', '#ffffff'); r2.setAttribute('stroke', '#333');
+    r2.setAttribute('width', '24'); r2.setAttribute('height', '24'); r2.setAttribute('fill', '#eab308'); r2.setAttribute('stroke', '#333');
     g2.appendChild(r2);
     const t2 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t2.setAttribute('x', '36'); t2.setAttribute('y', '18'); t2.setAttribute('font-size', '24'); t2.textContent = '無求助記錄';
+    t2.setAttribute('x', '36'); t2.setAttribute('y', '18'); t2.setAttribute('font-size', '22'); t2.textContent = '救援中 (已有人員)';
     g2.appendChild(t2);
     legend.appendChild(g2);
+
+    // 狀態3: 已著陸 (綠色)
+    const g3 = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g3.setAttribute('transform', 'translate(20, 145)');
+    const r3 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r3.setAttribute('width', '24'); r3.setAttribute('height', '24'); r3.setAttribute('fill', '#22c55e'); r3.setAttribute('stroke', '#333');
+    g3.appendChild(r3);
+    const t3 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t3.setAttribute('x', '36'); t3.setAttribute('y', '18'); t3.setAttribute('font-size', '22'); t3.textContent = '已著陸 (所有組別)';
+    g3.appendChild(t3);
+    legend.appendChild(g3);
+
+    // 狀態4: 無記錄 (灰色)
+    const g4 = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g4.setAttribute('transform', 'translate(20, 185)');
+    const r4 = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r4.setAttribute('width', '24'); r4.setAttribute('height', '24'); r4.setAttribute('fill', '#e2e8f0'); r4.setAttribute('stroke', '#333');
+    g4.appendChild(r4);
+    const t4 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t4.setAttribute('x', '36'); t4.setAttribute('y', '18'); t4.setAttribute('font-size', '22'); t4.textContent = '無組別記錄';
+    g4.appendChild(t4);
+    legend.appendChild(g4);
 
     mapSvg.appendChild(legend);
 
@@ -196,7 +217,7 @@ function mapBuildCabins() {
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
     mapCabins = [];
     const total = mapCabinMode;
-    // 放大車廂
+    // 放大車廂 (84模式尺寸24，109模式尺寸20)
     const size = mapCabinMode === 109 ? 20 : 24;
     const fontSize = mapCabinMode === 109 ? 22 : 26;
     const ropeLen = mapLengthOf(mapRopePts);
@@ -328,12 +349,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ---- 更新地圖 (依據求助記錄) ----
+// ---- 更新地圖 (依據求助記錄 + guests 狀態) ----
 async function mapUpdateFromFirestore() {
     try {
+        // 1. 取得求助記錄 (rescue_records)
         const rescueSnap = await db.collection('rescue_records').get();
         const rescueRecords = [];
         rescueSnap.forEach(d => rescueRecords.push({ id: d.id, ...d.data() }));
+
+        // 2. 取得被救者記錄 (guests)
+        const guestSnap = await db.collection('guests').get();
+        const guestRecords = [];
+        guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
 
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
@@ -342,11 +369,49 @@ async function mapUpdateFromFirestore() {
             cabin.shape.setAttribute('stroke', '#333');
 
             if (seq) {
+                // 優先判斷：是否有未處理的求助記錄 → 紅色 (等待救援)
                 const hasRescue = rescueRecords.some(r => r.cabinNumber === seq && r.processed === false);
                 if (hasRescue) {
                     cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#dc2626');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
+                    return; // 跳過後續判斷
+                }
+
+                // 若無求助記錄，根據 guests 判斷狀態
+                const matched = guestRecords.filter(g => g.cabinNumber === seq);
+                if (matched.length > 0) {
+                    let landed = 0, rescuing = 0, waiting = 0;
+                    matched.forEach(g => {
+                        const status = getGroupStatus(g); // 使用 common.js 的函數
+                        if (status === 'landed') landed++;
+                        else if (status === 'rescuing') rescuing++;
+                        else waiting++;
+                    });
+
+                    // 所有組別已著陸 → 綠色
+                    if (landed === matched.length && matched.length > 0) {
+                        cabin.el.classList.add("status-green");
+                        cabin.shape.setAttribute('fill', '#22c55e');
+                        cabin.shape.setAttribute('stroke', '#16a34a');
+                    }
+                    // 有組別在救援中且無等待 → 黃色
+                    else if (waiting === 0 && rescuing > 0) {
+                        cabin.el.classList.add("status-yellow");
+                        cabin.shape.setAttribute('fill', '#eab308');
+                        cabin.shape.setAttribute('stroke', '#ca8a04');
+                    }
+                    // 有等待組別 → 紅色 (但已優先被求助記錄覆蓋，此處可能不執行)
+                    else if (waiting > 0) {
+                        cabin.el.classList.add("status-red");
+                        cabin.shape.setAttribute('fill', '#dc2626');
+                        cabin.shape.setAttribute('stroke', '#b91c1c');
+                    }
+                    // 若無匹配以上，保持白色 (但實際上不會)
+                } else {
+                    // 無組別記錄 → 灰色
+                    cabin.shape.setAttribute('fill', '#e2e8f0');
+                    cabin.shape.setAttribute('stroke', '#94a3b8');
                 }
             }
         });
@@ -384,7 +449,7 @@ function mapUpdateSummary() {
     document.getElementById('landedText').textContent = '已著陸: ' + landed;
 }
 
-// ---- 其餘功能函數 (簡化，保留核心) ----
+// ---- 其餘功能函數 ----
 function mapApplySequences() {
     const seqs = document.getElementById('seqInput').value.split(/[\s,]+/).filter(s => s);
     if(!seqs.length) return;
@@ -408,7 +473,7 @@ function mapSearchCabin() {
     const svg = document.getElementById('map');
     const bbox = cabin.el.getBBox();
     svg.setAttribute('viewBox', `${bbox.x-100} ${bbox.y-100} 200 200`);
-    setTimeout(() => svg.setAttribute('viewBox', '0 0 4000 700'), 3000);
+    setTimeout(() => svg.setAttribute('viewBox', '0 0 2800 700'), 3000);
 }
 
 function mapClearAll() {
@@ -463,7 +528,6 @@ function closeCabinModal() {
 
 // ---- 載入車廂組別狀態 ----
 async function loadCabinGroupStatus(cabin) {
-    // 動態建立組別狀態區塊（若不存在）
     let container = document.getElementById('cabinGroupStatus');
     if (!container) {
         const form = document.getElementById('cabinForm');
@@ -539,7 +603,7 @@ async function loadCabinGroupStatus(cabin) {
     }
 }
 
-// ---- 組別編輯函數 (完整) ----
+// ---- 組別編輯函數 ----
 function editGroup(docId) {
     loadGroupDetail(docId);
 }
@@ -567,18 +631,90 @@ function openGroupModal(guestData) {
     const modal = document.getElementById('groupModal');
     if (!modal) { alert('groupModal 不存在'); return; }
     // 填入資料 (與之前相同)
-    // ... 為節省篇幅，此處省略，實際請保留完整填入邏輯
+    document.getElementById('groupDocId').value = guestData.docId || '';
+    document.getElementById('groupCabinNumber').value = guestData.cabinNumber || '';
+    document.getElementById('groupGroupNumber').value = guestData.groupNumber || '';
+    document.getElementById('groupGuestName').value = guestData.guestName || '';
+    document.getElementById('groupContactNumber').value = guestData.contactNumber || '';
+    document.getElementById('groupGender').value = guestData.gender || '';
+    document.getElementById('groupAgeRange').value = guestData.ageRange || '';
+    document.getElementById('groupHealthStatus').value = guestData.healthStatus || '';
+    document.getElementById('groupAmbulance').value = guestData.ambulance || '';
+    document.getElementById('groupAmbulancePlate').value = guestData.ambulancePlate || '';
+    document.getElementById('groupHospital').value = guestData.hospital || '';
+    document.getElementById('groupExitMethod').value = guestData.exitMethod || '';
+    document.getElementById('groupOtherExitInput').value = '';
+    if (guestData.exitTime) {
+        try {
+            const d = guestData.exitTime.toDate ? guestData.exitTime.toDate() : new Date(guestData.exitTime);
+            document.getElementById('groupExitTime').value = d.toISOString().slice(0, 16);
+        } catch(e) {}
+    }
+    document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
+    document.getElementById('groupOtherRescuerInput').value = '';
+    document.getElementById('groupTimeReachedTop').value = guestData.timeReachedTop || '';
+    document.getElementById('groupTimeLanded').value = guestData.timeLanded || '';
+    document.getElementById('groupRemarks').value = guestData.remarks || '';
+
+    // 觸發輔助顯示
+    if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
+    if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
+    if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
+
     modal.style.display = 'flex';
 }
 
-// ---- 儲存組別記錄 (防止頁面刷新) ----
+// ---- 儲存組別記錄 ----
 async function saveGroupRecord() {
     const docId = document.getElementById('groupDocId').value;
     if (!docId) { alert('無效記錄'); return; }
-    // 收集資料並更新
+    // 收集更新資料 (與之前相同)
+    const updateData = {
+        cabinNumber: document.getElementById('groupCabinNumber').value,
+        groupNumber: document.getElementById('groupGroupNumber').value,
+        guestName: document.getElementById('groupGuestName').value,
+        contactNumber: document.getElementById('groupContactNumber').value,
+        gender: document.getElementById('groupGender').value,
+        ageRange: document.getElementById('groupAgeRange').value,
+        healthStatus: document.getElementById('groupHealthStatus').value,
+        ambulance: document.getElementById('groupAmbulance').value,
+        exitMethod: document.getElementById('groupExitMethod').value,
+        rescuedBy: document.getElementById('groupRescuedBy').value,
+        timeReachedTop: document.getElementById('groupTimeReachedTop').value,
+        timeLanded: document.getElementById('groupTimeLanded').value,
+        remarks: document.getElementById('groupRemarks').value,
+        updatedAt: new Date()
+    };
+    // 處理「其他」選項
+    if (updateData.exitMethod === '其他') {
+        const other = document.getElementById('groupOtherExitInput').value.trim();
+        if (other) updateData.exitMethod = other;
+    }
+    if (updateData.rescuedBy === '其他') {
+        const other = document.getElementById('groupOtherRescuerInput').value.trim();
+        if (other) updateData.rescuedBy = other;
+    }
+    if (updateData.ambulance === '需要') {
+        updateData.ambulancePlate = document.getElementById('groupAmbulancePlate').value;
+        updateData.hospital = document.getElementById('groupHospital').value;
+    } else {
+        updateData.ambulancePlate = '';
+        updateData.hospital = '';
+    }
+    const exitTime = document.getElementById('groupExitTime').value;
+    if (exitTime) {
+        updateData.exitTime = new Date(exitTime);
+        updateData.status = 'completed';
+    } else {
+        updateData.exitTime = null;
+        updateData.status = 'pending';
+    }
+    if (!updateData.groupNumber) {
+        alert('請選擇組別');
+        return;
+    }
     try {
         showLoader(true);
-        // ... 收集更新資料
         await db.collection('guests').doc(docId).update(updateData);
         alert('組別記錄已更新');
         closeGroupModal();
