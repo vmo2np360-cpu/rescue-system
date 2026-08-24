@@ -273,14 +273,17 @@
 <!--  地圖區塊（唯讀模式，與主地圖同步）                          -->
 <!-- ============================================================ -->
 <div class="card">
-    <div class="card-title"><i class="fas fa-map-marked-alt"></i> 救援地圖即時狀態（同步主地圖）</div>
-    <div class="map-toolbar">
-        <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
-        <button onclick="monSearchCabin()">搜尋</button>
-        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">
-            <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
-        </span>
-    </div>
+<div class="map-toolbar">
+    <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
+    <button onclick="monSearchCabin()">搜尋</button>
+    <!-- ★ 新增刷新按钮 -->
+    <button onclick="monManualRefresh()" style="background:#34A853; color:white;">
+        <i class="fas fa-sync-alt"></i> 更新地圖
+    </button>
+    <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">
+        <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
+    </span>
+</div>
     <div class="summary-enhanced">
         <div class="status-counter waiting">
             <div class="counter-number" id="monWaiting">0</div>
