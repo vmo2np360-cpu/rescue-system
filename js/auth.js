@@ -148,12 +148,14 @@ function switchSection(sectionId) {
         el.classList.remove('active');
     });
 
-    // ★ 隱藏地圖（確保脫離容器的 SVG 也被隱藏）
+    // ★★★★★ 強制控制地圖顯示（最重要）★★★★★
     const mapEl = document.getElementById('map');
     if (mapEl) {
+        // 只有當目標是地圖區塊時才顯示，否則隱藏
         mapEl.style.display = (sectionId === 'section-map') ? 'block' : 'none';
     }
 
+    // 顯示目標區塊
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
