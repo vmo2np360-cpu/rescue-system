@@ -224,6 +224,19 @@
     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
     });
+      document.addEventListener('DOMContentLoaded', function() {
+        // 若地圖區塊預設為顯示，直接初始化
+        if (document.getElementById('section-map') && document.getElementById('section-map').style.display !== 'none') {
+            if (typeof initMap === 'function') initMap();
+        }
+
+        // 如果您有導航按鈕切換區塊的邏輯，請在顯示地圖區塊的程式碼中呼叫 initMap()
+        // 例如：
+        // document.getElementById('map-tab').addEventListener('click', function() {
+        //     document.getElementById('section-map').style.display = 'block';
+        //     if (typeof initMap === 'function') initMap();
+        // });
+    });
 </script>
 </body>
 </html>
