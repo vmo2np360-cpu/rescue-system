@@ -1,4 +1,186 @@
-<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-tv"></i> 總監控平台</h2>
+<style>
+    /* ===== 只作用於總監控平台的深色主題 ===== */
+    #section-monitor {
+        background: #1a1a1a;
+        color: #e0e0e0;
+        padding: 16px;
+        border-radius: 12px;
+    }
+    #section-monitor h2 {
+        color: #ffffff !important;
+    }
+    #section-monitor .card {
+        background: #2d2d2d;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #section-monitor .card-title {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    #section-monitor .card-title i {
+        color: #4285F4;
+    }
+    #section-monitor .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+    }
+    #section-monitor .stat-card {
+        background: #3d3d3d;
+        border-radius: 6px;
+        padding: 14px 10px;
+        text-align: center;
+        border-top: 4px solid #4285F4;
+    }
+    #section-monitor .stat-card .number {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #4285F4;
+    }
+    #section-monitor .stat-card .label {
+        font-size: 0.75rem;
+        color: #aaa;
+    }
+    #section-monitor .health-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+    }
+    #section-monitor .health-card {
+        background: #3d3d3d;
+        border-radius: 6px;
+        padding: 12px 10px;
+        text-align: center;
+        border-left: 4px solid #6c757d;
+    }
+    #section-monitor .health-card .number {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    #section-monitor .health-card .label {
+        font-size: 0.7rem;
+        color: #aaa;
+    }
+    #section-monitor .health-card.green { border-left-color: #34A853; }
+    #section-monitor .health-card.green .number { color: #34A853; }
+    #section-monitor .health-card.yellow { border-left-color: #FBBC05; }
+    #section-monitor .health-card.yellow .number { color: #FBBC05; }
+    #section-monitor .health-card.red { border-left-color: #EA4335; }
+    #section-monitor .health-card.red .number { color: #EA4335; }
+    #section-monitor .health-card.black { border-left-color: #5f6368; }
+    #section-monitor .health-card.black .number { color: #9aa0a6; }
+
+    #section-monitor .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 12px;
+    }
+    #section-monitor .filter-row .form-group {
+        flex: 1;
+        min-width: 160px;
+        margin-bottom: 0;
+    }
+    #section-monitor .filter-row .form-group label {
+        font-size: 0.75rem;
+        color: #aaa;
+        display: block;
+        margin-bottom: 4px;
+    }
+    #section-monitor .filter-row input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        background: #3d3d3d;
+        color: #e0e0e0;
+        font-size: 0.9rem;
+    }
+    #section-monitor .filter-row input:focus {
+        outline: none;
+        border-color: #4285F4;
+    }
+    #section-monitor .btn-secondary {
+        background: #444;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+    #section-monitor .btn-secondary:hover {
+        background: #555;
+    }
+    #section-monitor .table-wrap {
+        overflow-x: auto;
+        margin-top: 8px;
+    }
+    #section-monitor table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    #section-monitor th {
+        background: #3d3d3d;
+        color: #fff;
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 2px solid #555;
+        font-weight: 600;
+    }
+    #section-monitor td {
+        padding: 8px 12px;
+        border-bottom: 1px solid #444;
+        color: #ddd;
+    }
+    #section-monitor tr:hover td {
+        background: #353535;
+    }
+    #section-monitor .status-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    #section-monitor .status-complete { background: #2e7d32; color: #fff; }
+    #section-monitor .status-pending { background: #f57c00; color: #fff; }
+    #section-monitor .status-waiting { background: #c62828; color: #fff; }
+
+    #section-monitor .chart-container {
+        height: 260px;
+        position: relative;
+    }
+    #section-monitor .message {
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+    }
+    #section-monitor .message-error { background: #c62828; }
+    #section-monitor .message-success { background: #2e7d32; }
+    #section-monitor .message-info { background: #1565C0; }
+    #section-monitor .text-muted {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+</style>
+
+<!-- ===== 頁面標題 ===== -->
+<h2 style="color:#ffffff; margin-bottom:16px;"><i class="fas fa-tv" style="color:#4285F4;"></i> 總監控平台</h2>
 <div id="monMessage" class="message"></div>
 
 <!-- ===== 1. OCC 求助記錄統計 ===== -->
@@ -33,7 +215,7 @@
     </div>
 </div>
 
-<!-- ===== 4. 健康狀況統計 ===== -->
+<!-- ===== 4. 賓客健康狀況統計 ===== -->
 <div class="card">
     <div class="card-title"><i class="fas fa-notes-medical"></i> 賓客健康狀況統計</div>
     <div class="health-grid">
@@ -44,7 +226,7 @@
     </div>
 </div>
 
-<!-- ===== 5. 救援狀態分佈 ===== -->
+<!-- ===== 5. 組別救援狀態分佈 ===== -->
 <div class="card">
     <div class="card-title"><i class="fas fa-flag"></i> 組別救援狀態分佈</div>
     <div class="stats-grid">
@@ -58,11 +240,11 @@
 <!-- ===== 6. 救援時間圖表 ===== -->
 <div class="card">
     <div class="card-title"><i class="fas fa-chart-bar"></i> 救援時間分佈</div>
-    <div class="chart-container" style="height:280px;">
+    <div class="chart-container">
         <canvas id="timeChart"></canvas>
     </div>
     <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-        <span style="font-size:0.75rem; color:#94a3b8;">最後更新: <span id="last-chart-update">--:--:--</span></span>
+        <span class="text-muted">最後更新: <span id="last-chart-update">--:--:--</span></span>
     </div>
 </div>
 
@@ -74,23 +256,17 @@
             <label><i class="fas fa-search"></i> 搜尋</label>
             <input type="text" id="searchInput" placeholder="車廂號碼、組別或姓名" oninput="monFilterRecords()">
         </div>
-        <button class="btn btn-secondary" onclick="monLoadAllData()" style="margin-bottom:0;">
+        <button class="btn btn-secondary" onclick="monLoadAllData()">
             <i class="fas fa-sync-alt"></i> 刷新
         </button>
-        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto; align-self:flex-end;">
+        <span class="text-muted" style="margin-left:auto; align-self:flex-end;">
             最後更新: <span id="last-monitor-update">--:--:--</span>
         </span>
     </div>
     <div class="table-wrap">
         <table>
             <thead>
-                <tr>
-                    <th>車廂</th>
-                    <th>組別</th>
-                    <th>開始救援</th>
-                    <th>結束救援</th>
-                    <th>狀態</th>
-                </tr>
+                <tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr>
             </thead>
             <tbody id="monitor-records-list">
                 <!-- 動態載入 -->
@@ -99,7 +275,7 @@
     </div>
 </div>
 
-<!-- ===== 全域監聽器：自動刷新狀態指示 ===== -->
+<!-- ===== 隱藏的輔助時間戳 (供JS更新) ===== -->
 <div style="display:none;">
     <span id="last-map-update"></span>
     <span id="last-data-update"></span>
@@ -109,7 +285,7 @@
     // 確保 initMonitor 在 DOM 載入完成後執行
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof initMonitor === 'function') {
-            console.log('🚀 初始化總監控平台 (從 HTML 內嵌腳本)');
+            console.log('🚀 初始化總監控平台 (深色主題)');
             initMonitor();
         } else {
             console.warn('⚠️ initMonitor 尚未載入，請確保 monitor.js 已正確載入');
