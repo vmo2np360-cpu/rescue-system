@@ -241,3 +241,7 @@ tr:hover td { background: #f8fafc; }
         min-height: 200px;
     }
 }
+/* ===== 強制控制地圖顯示，跟隨父容器 ===== */
+#section-map:not(.active) #map {
+    display: none !important;
+}
