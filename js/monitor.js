@@ -1,12 +1,11 @@
 // ================================================================
 // Monitor 專屬地圖（唯讀模式，資料與主地圖同步）
-// 複用 map.js 的核心邏輯，但操作 monitorMap SVG
 // ================================================================
 
 let monMapCabins = [];
 let monMapRopePts = [];
 let monSvg = null;
-let monGlobalOffset = 0;      // 獨立偏移量，不影響主地圖
+let monGlobalOffset = 0;
 
 function monInitMap() {
     if (monMapCabins.length > 0) {
@@ -23,7 +22,7 @@ function monInitMap() {
     // 清空 SVG
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
-    // ----- 建立 Defs（與主地圖相同） -----
+    // ----- Defs -----
     const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
     const gradMountain = document.createElementNS('http://www.w3.org/2000/svg','linearGradient');
     gradMountain.setAttribute('id', 'monGradMountain');
@@ -47,7 +46,6 @@ function monInitMap() {
     gradBay.appendChild(s3); gradBay.appendChild(s4);
     defs.appendChild(gradBay);
 
-    // 高亮濾鏡（搜尋用）
     const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
     filter.setAttribute('id', 'monHighlightGlow');
     const shadow = document.createElementNS('http://www.w3.org/2000/svg','feDropShadow');
@@ -64,7 +62,7 @@ function monInitMap() {
     bg.setAttribute('fill','#1a2a3a');
     monSvg.appendChild(bg);
 
-    // ----- 繪製地圖元素（與 map.js 相同） -----
+    // 地圖元素
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -121,7 +119,7 @@ function monInitMap() {
     rope.setAttribute('stroke-width','3');
     monSvg.appendChild(rope);
 
-    // ----- 圖例（深色版） -----
+    // 圖例
     const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
     legend.setAttribute('transform', 'translate(1800,420)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -156,10 +154,10 @@ function monInitMap() {
     });
     monSvg.appendChild(legend);
 
-    // ----- 建立車廂（與主地圖相同數量、尺寸） -----
+    // 建立車廂
     monBuildCabins();
 
-    // ----- 監聽車廂資料變化（與主地圖同步） -----
+    // 監聽車廂資料變化
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -185,7 +183,7 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // Firestore 即時監聽（狀態更新）
+    // Firestore 即時監聽
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
@@ -196,12 +194,12 @@ function monInitMap() {
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
 }
 
-// ----- 構建車廂（與主地圖相同） -----
+// ----- 構建車廂 -----
 function monBuildCabins() {
     if (!monSvg) return;
     monMapCabins.forEach(c => { if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
-    const total = 84; // 固定 84 車廂（或可從 localStorage 讀取）
+    const total = 84;
     const size = 20;
     const fontSize = 20;
     const ropeLen = monLengthOf(monMapRopePts);
@@ -227,7 +225,6 @@ function monBuildCabins() {
         lbl.setAttribute('fill', '#111');
         g.appendChild(lbl);
         const cabin = { id: 'cabin-'+i, fields: {}, el: g, shape: hex, label: lbl };
-        // 點擊車廂 → 開啟唯讀詳情
         g.addEventListener('dblclick', () => monOpenCabinReadonly(cabin));
         monMapCabins.push(cabin);
         monSvg.appendChild(g);
@@ -264,7 +261,7 @@ function monPointAt(pts,d) {
     return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
 }
 
-// ----- 更新車廂狀態（與主地圖邏輯一致） -----
+// ----- 更新車廂狀態 -----
 async function monUpdateFromFirestore() {
     try {
         const rescueSnap = await db.collection('rescue_records').get();
@@ -352,7 +349,7 @@ function monGetGroupStatus(guest) {
     return 'waiting';
 }
 
-// ----- 搜尋車廂（與主地圖相同） -----
+// ----- 搜尋車廂 -----
 function monSearchCabin() {
     const q = document.getElementById('monSearchBox').value.trim();
     if (!q) return alert('請輸入車廂號碼');
@@ -374,10 +371,9 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ----- 點擊車廂 → 開啟唯讀詳情（無儲存功能） -----
+// ----- 點擊車廂 → 開啟唯讀詳情 -----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
-    // 從 Firestore 查詢該車廂的組別資料
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
         let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0; max-width:500px; margin:0 auto;">`;
         html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
@@ -403,7 +399,6 @@ function monOpenCabinReadonly(cabin) {
         html += `<button onclick="this.closest('.modal-content').parentElement.style.display='none'" style="padding:8px 24px; background:#4285F4; border:none; border-radius:4px; color:#fff; cursor:pointer;">關閉</button>`;
         html += `</div></div>`;
 
-        // 顯示模態框
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:9999;';
         const content = document.createElement('div');
@@ -412,24 +407,240 @@ function monOpenCabinReadonly(cabin) {
         content.innerHTML = html;
         modal.appendChild(content);
         document.body.appendChild(modal);
-        // 點擊背景關閉
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     }).catch(err => {
         alert('載入車廂資料失敗: ' + err.message);
     });
 }
 
-// ----- 初始化入口 -----
-function monInitMapWrapper() {
-    console.log('📍 初始化 Monitor 地圖（唯讀模式）');
-    // 等待 DOM 渲染
-    if (!document.getElementById('monitorMap')) {
-        setTimeout(monInitMapWrapper, 200);
-        return;
+// ================================================================
+// ★ 新增：監控平台主初始化函式（整合數據、圖表、表格）
+// ================================================================
+
+let monChartInstance = null;
+let monGuestRecords = [];
+let monRescueRecords = [];
+
+async function monLoadAllData() {
+    try {
+        if (typeof showLoader === 'function') showLoader(true);
+        const [guestSnap, rescueSnap] = await Promise.all([
+            db.collection('guests').get(),
+            db.collection('rescue_records').get()
+        ]);
+        monGuestRecords = [];
+        guestSnap.forEach(d => { const data = d.data(); data.id = d.id; monGuestRecords.push(data); });
+        monRescueRecords = [];
+        rescueSnap.forEach(d => { const data = d.data(); data.id = d.id; monRescueRecords.push(data); });
+        console.log(`監控載入：${monGuestRecords.length} 筆賓客，${monRescueRecords.length} 筆求助`);
+        monUpdateAllDisplays();
+        monUpdateTimestamp();
+    } catch(e) {
+        console.error('載入監控數據失敗:', e);
+        if (typeof showMessage === 'function') showMessage('monMessage', '載入失敗: ' + e.message, 'error');
+    } finally {
+        if (typeof hideLoader === 'function') hideLoader();
     }
-    monInitMap();
 }
 
-// 暴露全域
+function monUpdateAllDisplays() {
+    // OCC 統計
+    const total = monRescueRecords.length;
+    const pending = monRescueRecords.filter(r => !r.processed).length;
+    const processed = monRescueRecords.filter(r => r.processed).length;
+    document.getElementById('occ-total').textContent = total;
+    document.getElementById('occ-pending').textContent = pending;
+    document.getElementById('occ-processed').textContent = processed;
+
+    // OCC 健康狀況
+    let g=0,y=0,r=0,b=0;
+    monRescueRecords.forEach(rec => {
+        const h = rec.healthStatus || '';
+        if (h.includes('綠色')) g++;
+        else if (h.includes('黃色')) y++;
+        else if (h.includes('紅色')) r++;
+        else if (h.includes('黑色')) b++;
+    });
+    document.getElementById('occ-green-count').textContent = g;
+    document.getElementById('occ-yellow-count').textContent = y;
+    document.getElementById('occ-red-count').textContent = r;
+    document.getElementById('occ-black-count').textContent = b;
+
+    // 救援記錄統計
+    const totalG = monGuestRecords.length;
+    const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
+    const pendingG = totalG - completed;
+    const ambNeeded = monGuestRecords.filter(rec => rec.ambulance === '需要').length;
+    document.getElementById('totalRecords').textContent = totalG;
+    document.getElementById('completedRecords').textContent = completed;
+    document.getElementById('pendingRecords').textContent = pendingG;
+    document.getElementById('ambulanceNeeded').textContent = ambNeeded;
+
+    // 賓客健康狀況
+    let g2=0,y2=0,r2=0,b2=0;
+    monGuestRecords.forEach(rec => {
+        const h = rec.healthStatus || '';
+        if (h.includes('綠色')) g2++;
+        else if (h.includes('黃色')) y2++;
+        else if (h.includes('紅色')) r2++;
+        else if (h.includes('黑色')) b2++;
+    });
+    document.getElementById('green-count').textContent = g2;
+    document.getElementById('yellow-count').textContent = y2;
+    document.getElementById('red-count').textContent = r2;
+    document.getElementById('black-count').textContent = b2;
+
+    // 救援狀態分佈
+    let waiting=0, rescuing=0, landed=0;
+    monGuestRecords.forEach(rec => {
+        const s = monGetGroupStatus(rec);
+        if (s === 'waiting') waiting++;
+        else if (s === 'rescuing') rescuing++;
+        else if (s === 'landed') landed++;
+    });
+    document.getElementById('waiting-groups').textContent = waiting;
+    document.getElementById('rescuing-groups').textContent = rescuing;
+    document.getElementById('landed-groups').textContent = landed;
+    document.getElementById('total-groups').textContent = monGuestRecords.length;
+
+    // 時間圖表
+    monUpdateTimeChart();
+
+    // 表格
+    monRenderTable();
+
+    // 同步更新地圖（如果地圖已初始化）
+    if (monMapCabins.length > 0) monUpdateFromFirestore();
+}
+
+function monUpdateTimeChart() {
+    const ctx = document.getElementById('timeChart').getContext('2d');
+    if (monChartInstance) monChartInstance.destroy();
+    const ranges = [0,0,0,0,0];
+    monGuestRecords.forEach(rec => {
+        if (rec.timeReachedTop && rec.timeLanded) {
+            const start = rec.timeReachedTop.split(':');
+            const end = rec.timeLanded.split(':');
+            if (start.length===2 && end.length===2) {
+                let diff = (parseInt(end[0])*60 + parseInt(end[1])) - (parseInt(start[0])*60 + parseInt(start[1]));
+                if (diff < 0) diff += 1440;
+                if (diff <= 15) ranges[0]++;
+                else if (diff <= 30) ranges[1]++;
+                else if (diff <= 45) ranges[2]++;
+                else if (diff <= 60) ranges[3]++;
+                else ranges[4]++;
+            }
+        }
+    });
+    monChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['0-15分', '15-30分', '30-45分', '45-60分', '60分以上'],
+            datasets: [{
+                label: '救援時間分佈',
+                data: ranges,
+                backgroundColor: ['rgba(52,168,83,0.7)','rgba(66,133,244,0.7)','rgba(251,188,5,0.7)','rgba(255,152,0,0.7)','rgba(234,67,53,0.7)'],
+                borderColor: ['#34A853','#4285F4','#FBBC05','#FF9800','#EA4335'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { color: '#e0e0e0', precision: 0 }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            },
+            plugins: { legend: { labels: { color: '#e0e0e0' } } }
+        }
+    });
+}
+
+function monRenderTable() {
+    const tbody = document.getElementById('monitor-records-list');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const search = document.getElementById('searchInput');
+    const searchValue = search ? search.value.toLowerCase() : '';
+    let filtered = monGuestRecords;
+    if (searchValue) {
+        filtered = monGuestRecords.filter(rec => {
+            const cabin = (rec.cabinNumber || '').toLowerCase();
+            const group = (rec.groupNumber || '');
+            const name = (rec.guestName || '').toLowerCase();
+            return cabin.includes(searchValue) || group.includes(searchValue) || name.includes(searchValue);
+        });
+    }
+    filtered.sort((a,b) => (a.cabinNumber||'').localeCompare((b.cabinNumber||''), undefined, {numeric:true}));
+    filtered.forEach(rec => {
+        const tr = document.createElement('tr');
+        const status = monGetGroupStatus(rec);
+        let statusText='', badgeClass='';
+        if (status === 'landed') { statusText='已著陸'; badgeClass='status-complete'; }
+        else if (status === 'rescuing') { statusText='救援中'; badgeClass='status-pending'; }
+        else { statusText='等待救援'; badgeClass='status-waiting'; }
+        tr.innerHTML = `
+            <td>${rec.cabinNumber||'-'}</td>
+            <td>${rec.groupNumber ? '第'+rec.groupNumber+'組' : '-'}</td>
+            <td>${rec.timeReachedTop||'-'}</td>
+            <td>${rec.timeLanded||'-'}</td>
+            <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function monFilterRecords() { monRenderTable(); }
+
+function monUpdateTimestamp() {
+    const now = new Date().toLocaleTimeString('zh-TW');
+    ['last-map-update','last-data-update','last-chart-update','last-monitor-update'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = now;
+    });
+}
+
+// ================================================================
+// ★ 主要入口：monInit（供 auth.js 呼叫）
+// ================================================================
+
+function monInit() {
+    console.log('🚀 monInit 被呼叫 (來自 monitor.js)');
+    // 檢查 Firebase 是否就緒
+    if (typeof db === 'undefined' || typeof realtimeDb === 'undefined') {
+        console.warn('Firebase 尚未初始化，500ms 後重試');
+        setTimeout(monInit, 500);
+        return;
+    }
+    // 確保 DOM 元素存在
+    if (!document.getElementById('monitorMap')) {
+        console.warn('#monitorMap 尚未存在，500ms 後重試');
+        setTimeout(monInit, 500);
+        return;
+    }
+    // 防重複初始化
+    if (window._monInitialized) {
+        console.log('Monitor 已初始化，跳過');
+        return;
+    }
+    window._monInitialized = true;
+
+    // 初始化地圖
+    monInitMap();
+    // 載入數據
+    monLoadAllData();
+    // 設置監聽器
+    db.collection('guests').onSnapshot(() => { monLoadAllData(); });
+    db.collection('rescue_records').onSnapshot(() => { monLoadAllData(); });
+    // 自動刷新
+    if (window._monAutoRefresh) clearInterval(window._monAutoRefresh);
+    window._monAutoRefresh = setInterval(monLoadAllData, 60000);
+}
+
+// 暴露全域函式
+window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
-window.monInitMapWrapper = monInitMapWrapper;
+window.monLoadAllData = monLoadAllData;
+window.monFilterRecords = monFilterRecords;
+
+console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
