@@ -182,10 +182,9 @@ tr:hover td { background: #f8fafc; }
 /* ================================================================
    新增：地圖區塊全螢幕適配（不影響其他區塊）
    ================================================================ */
-#section-map {
+#section-map.active {
     display: flex;
     flex-direction: column;
-    /* 扣除導航列高度約 80px 及底部內邊距 30px，實際可依您的導航高度微調 */
     height: calc(100vh - 110px);
     background: #f0f4f8;
     padding: 0;
@@ -195,19 +194,19 @@ tr:hover td { background: #f8fafc; }
 }
 
 /* 地圖區塊內的 toolbar、摘要、SVG 依序排列 */
-#section-map .map-toolbar {
+#section-map.active .map-toolbar {
     flex-shrink: 0;
     margin: 0 16px 12px;      /* 還原左右邊距，避免貼邊 */
     border-radius: 12px;
 }
 
-#section-map .summary-enhanced {
+#section-map.active .summary-enhanced {
     flex-shrink: 0;
     margin: 0 16px 12px;
 }
 
 /* 覆蓋原始 #map 樣式，使其填滿剩餘空間 */
-#section-map #map {
+#section-map.active #map {
     flex: 1;
     width: 100%;
     height: auto !important;   /* 覆蓋原固定高度 700px */
@@ -220,7 +219,7 @@ tr:hover td { background: #f8fafc; }
 }
 
 /* 若地圖區塊內的 SVG 需要完全撐開，確保父層無額外邊距 */
-#section-map #map svg {
+#section-map.active #map svg {
     display: block;
     width: 100%;
     height: 100%;
@@ -228,24 +227,16 @@ tr:hover td { background: #f8fafc; }
 
 /* 響應式調整：行動裝置仍保留適當高度 */
 @media (max-width: 768px) {
-    #section-map {
+    #section-map.active {
         height: calc(100vh - 100px);
         margin: 0 -8px;        /* 對應較小的 .app-container padding */
     }
-    #section-map .map-toolbar,
-    #section-map .summary-enhanced {
+    #section-map.active .map-toolbar,
+    #section-map.active .summary-enhanced {
         margin-left: 8px;
         margin-right: 8px;
     }
-    #section-map #map {
+    #section-map.active #map {
         min-height: 200px;
     }
-}
-/* ===== 強制控制地圖顯示，跟隨父容器 ===== */
-#section-map:not(.active) #map {
-    display: none !important;
-}
-/* 強制隱藏整個地圖區塊容器（當無 active 類別時） */
-#section-map:not(.active) {
-    display: none !important;
 }
