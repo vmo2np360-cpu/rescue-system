@@ -4,32 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>總監控平台</title>
-    <!-- 外部資源（與主系統一致） -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 共用初始化（假設已存在） -->
     <script src="common.js"></script>
 </head>
 <body>
 
-<!-- ===== 深色主題樣式（只作用於此頁面） ===== -->
+<!-- ===== 深色主題樣式（只作用於 #section-monitor） ===== -->
 <style>
-    /* 重置容器背景 */
-    #section-monitor, body {
+    /* 不再設定 body 樣式，所有樣式限定在 #section-monitor 內 */
+    #section-monitor {
         background: #1a1a1a;
         color: #e0e0e0;
         padding: 16px;
         border-radius: 12px;
-        margin: 0;
     }
-    h2 {
+    #section-monitor h2 {
         color: #ffffff !important;
         margin-bottom: 16px;
     }
-    .card {
+    #section-monitor .card {
         background: #2d2d2d;
         border: 1px solid #444;
         border-radius: 8px;
@@ -37,7 +34,7 @@
         margin-bottom: 16px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .card-title {
+    #section-monitor .card-title {
         color: #ffffff;
         font-size: 1rem;
         font-weight: 600;
@@ -46,79 +43,79 @@
         align-items: center;
         gap: 8px;
     }
-    .card-title i {
+    #section-monitor .card-title i {
         color: #4285F4;
     }
-    .stats-grid {
+    #section-monitor .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 12px;
     }
-    .stat-card {
+    #section-monitor .stat-card {
         background: #3d3d3d;
         border-radius: 6px;
         padding: 14px 10px;
         text-align: center;
         border-top: 4px solid #4285F4;
     }
-    .stat-card .number {
+    #section-monitor .stat-card .number {
         font-size: 1.8rem;
         font-weight: 700;
         color: #4285F4;
     }
-    .stat-card .label {
+    #section-monitor .stat-card .label {
         font-size: 0.75rem;
         color: #aaa;
     }
-    .health-grid {
+    #section-monitor .health-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 10px;
     }
-    .health-card {
+    #section-monitor .health-card {
         background: #3d3d3d;
         border-radius: 6px;
         padding: 12px 10px;
         text-align: center;
         border-left: 4px solid #6c757d;
     }
-    .health-card .number {
+    #section-monitor .health-card .number {
         font-size: 1.4rem;
         font-weight: 700;
         margin-bottom: 2px;
     }
-    .health-card .label {
+    #section-monitor .health-card .label {
         font-size: 0.7rem;
         color: #aaa;
     }
-    .health-card.green { border-left-color: #34A853; }
-    .health-card.green .number { color: #34A853; }
-    .health-card.yellow { border-left-color: #FBBC05; }
-    .health-card.yellow .number { color: #FBBC05; }
-    .health-card.red { border-left-color: #EA4335; }
-    .health-card.red .number { color: #EA4335; }
-    .health-card.black { border-left-color: #5f6368; }
-    .health-card.black .number { color: #9aa0a6; }
+    #section-monitor .health-card.green { border-left-color: #34A853; }
+    #section-monitor .health-card.green .number { color: #34A853; }
+    #section-monitor .health-card.yellow { border-left-color: #FBBC05; }
+    #section-monitor .health-card.yellow .number { color: #FBBC05; }
+    #section-monitor .health-card.red { border-left-color: #EA4335; }
+    #section-monitor .health-card.red .number { color: #EA4335; }
+    #section-monitor .health-card.black { border-left-color: #5f6368; }
+    #section-monitor .health-card.black .number { color: #9aa0a6; }
 
-    .filter-row {
+    #section-monitor .filter-row {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         align-items: flex-end;
         margin-bottom: 12px;
     }
-    .filter-row .form-group {
+    #section-monitor .filter-row .form-group {
         flex: 1;
         min-width: 160px;
         margin-bottom: 0;
     }
-    .filter-row .form-group label {
+    #section-monitor .filter-row .form-group label {
         font-size: 0.75rem;
         color: #aaa;
         display: block;
         margin-bottom: 4px;
     }
-    .filter-row input {
+    #section-monitor .filter-row input {
         width: 100%;
         padding: 8px 12px;
         border: 1px solid #444;
@@ -127,11 +124,11 @@
         color: #e0e0e0;
         font-size: 0.9rem;
     }
-    .filter-row input:focus {
+    #section-monitor .filter-row input:focus {
         outline: none;
         border-color: #4285F4;
     }
-    .btn-secondary {
+    #section-monitor .btn-secondary {
         background: #444;
         color: #fff;
         border: none;
@@ -141,19 +138,19 @@
         font-weight: 500;
         margin-bottom: 0;
     }
-    .btn-secondary:hover {
+    #section-monitor .btn-secondary:hover {
         background: #555;
     }
-    .table-wrap {
+    #section-monitor .table-wrap {
         overflow-x: auto;
         margin-top: 8px;
     }
-    table {
+    #section-monitor table {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.85rem;
     }
-    th {
+    #section-monitor th {
         background: #3d3d3d;
         color: #fff;
         text-align: left;
@@ -161,45 +158,45 @@
         border-bottom: 2px solid #555;
         font-weight: 600;
     }
-    td {
+    #section-monitor td {
         padding: 8px 12px;
         border-bottom: 1px solid #444;
         color: #ddd;
     }
-    tr:hover td {
+    #section-monitor tr:hover td {
         background: #353535;
     }
-    .status-badge {
+    #section-monitor .status-badge {
         display: inline-block;
         padding: 3px 10px;
         border-radius: 12px;
         font-size: 0.7rem;
         font-weight: 600;
     }
-    .status-complete { background: #2e7d32; color: #fff; }
-    .status-pending { background: #f57c00; color: #fff; }
-    .status-waiting { background: #c62828; color: #fff; }
+    #section-monitor .status-complete { background: #2e7d32; color: #fff; }
+    #section-monitor .status-pending { background: #f57c00; color: #fff; }
+    #section-monitor .status-waiting { background: #c62828; color: #fff; }
 
-    .chart-container {
+    #section-monitor .chart-container {
         height: 260px;
         position: relative;
     }
-    .message {
+    #section-monitor .message {
         color: #fff;
         padding: 10px;
         border-radius: 6px;
         margin-bottom: 12px;
     }
-    .message-error { background: #c62828; }
-    .message-success { background: #2e7d32; }
-    .message-info { background: #1565C0; }
-    .text-muted {
+    #section-monitor .message-error { background: #c62828; }
+    #section-monitor .message-success { background: #2e7d32; }
+    #section-monitor .message-info { background: #1565C0; }
+    #section-monitor .text-muted {
         font-size: 0.75rem;
         color: #94a3b8;
     }
 
-    /* ===== 地圖專屬樣式（深色版） ===== */
-    .map-toolbar {
+    /* 地圖專屬樣式 */
+    #section-monitor .map-toolbar {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
@@ -210,7 +207,7 @@
         border: 1px solid #444;
         align-items: center;
     }
-    .map-toolbar input[type="text"] {
+    #section-monitor .map-toolbar input[type="text"] {
         flex: 1;
         min-width: 180px;
         padding: 8px 12px;
@@ -220,7 +217,7 @@
         color: #e0e0e0;
         font-size: 0.95rem;
     }
-    .map-toolbar button {
+    #section-monitor .map-toolbar button {
         padding: 8px 20px;
         border: none;
         border-radius: 4px;
@@ -229,10 +226,10 @@
         font-weight: 500;
         cursor: pointer;
     }
-    .map-toolbar button:hover {
+    #section-monitor .map-toolbar button:hover {
         background: #1a73e8;
     }
-    .summary-enhanced {
+    #section-monitor .summary-enhanced {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
@@ -242,17 +239,17 @@
         border-radius: 6px;
         border: 1px solid #444;
     }
-    .status-counter {
+    #section-monitor .status-counter {
         flex: 1;
         min-width: 80px;
         text-align: center;
         padding: 4px 0;
     }
-    .status-counter .counter-number {
+    #section-monitor .status-counter .counter-number {
         font-size: 1.4rem;
         font-weight: 700;
     }
-    .status-counter .counter-label {
+    #section-monitor .status-counter .counter-label {
         font-size: 0.7rem;
         color: #aaa;
         display: flex;
@@ -260,24 +257,24 @@
         justify-content: center;
         gap: 4px;
     }
-    .status-counter .cabin-numbers {
+    #section-monitor .status-counter .cabin-numbers {
         font-size: 0.6rem;
         color: #ccc;
         max-height: 30px;
         overflow-y: auto;
     }
-    .status-counter.waiting .counter-number { color: #EA4335; }
-    .status-counter.rescuing .counter-number { color: #FBBC05; }
-    .status-counter.landed .counter-number { color: #34A853; }
+    #section-monitor .status-counter.waiting .counter-number { color: #EA4335; }
+    #section-monitor .status-counter.rescuing .counter-number { color: #FBBC05; }
+    #section-monitor .status-counter.landed .counter-number { color: #34A853; }
 
-    #monitorMap {
+    #section-monitor #monitorMap {
         width: 100%;
         height: 380px;
         background: #1a2a3a;
         border-radius: 6px;
         border: 1px solid #444;
     }
-    #monitorMap svg {
+    #section-monitor #monitorMap svg {
         display: block;
         width: 100%;
         height: 100%;
@@ -293,7 +290,6 @@
 <!-- ============================================================ -->
 <div class="card">
     <div class="card-title"><i class="fas fa-map-marked-alt"></i> 救援地圖即時狀態（同步主地圖）</div>
-    <!-- 精簡控制列：只保留搜尋 -->
     <div class="map-toolbar">
         <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
         <button onclick="monSearchCabin()">搜尋</button>
@@ -301,39 +297,27 @@
             <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
         </span>
     </div>
-    <!-- 摘要統計 -->
     <div class="summary-enhanced">
         <div class="status-counter waiting">
             <div class="counter-number" id="monWaiting">0</div>
-            <div class="counter-label">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#EA4335;"></span>等待救援
-            </div>
+            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#EA4335;"></span>等待救援</div>
             <div class="cabin-numbers" id="monWaitingCabins"></div>
         </div>
         <div class="status-counter rescuing">
             <div class="counter-number" id="monRescuing">0</div>
-            <div class="counter-label">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FBBC05;"></span>救援中
-            </div>
+            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FBBC05;"></span>救援中</div>
             <div class="cabin-numbers" id="monRescuingCabins"></div>
         </div>
         <div class="status-counter landed">
             <div class="counter-number" id="monLanded">0</div>
-            <div class="counter-label">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34A853;"></span>已著陸
-            </div>
+            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34A853;"></span>已著陸</div>
             <div class="cabin-numbers" id="monLandedCabins"></div>
         </div>
     </div>
-    <!-- SVG 地圖 -->
     <svg id="monitorMap" viewBox="0 0 2800 700"></svg>
 </div>
 
-<!-- ============================================================ -->
-<!--  統計數據區塊                                               -->
-<!-- ============================================================ -->
-
-<!-- 1. OCC 求助記錄統計 -->
+<!-- ===== 統計數據區塊 ===== -->
 <div class="card">
     <div class="card-title"><i class="fas fa-headset"></i> OCC 求助記錄統計</div>
     <div class="stats-grid">
@@ -343,7 +327,6 @@
     </div>
 </div>
 
-<!-- 2. OCC 求助記錄健康狀況 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-heartbeat"></i> OCC 求助記錄健康狀況</div>
     <div class="health-grid">
@@ -354,7 +337,6 @@
     </div>
 </div>
 
-<!-- 3. 救援記錄統計 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-clipboard-list"></i> 救援記錄統計</div>
     <div class="stats-grid">
@@ -365,7 +347,6 @@
     </div>
 </div>
 
-<!-- 4. 賓客健康狀況 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-notes-medical"></i> 賓客健康狀況統計</div>
     <div class="health-grid">
@@ -376,7 +357,6 @@
     </div>
 </div>
 
-<!-- 5. 組別救援狀態分佈 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-flag"></i> 組別救援狀態分佈</div>
     <div class="stats-grid">
@@ -387,18 +367,14 @@
     </div>
 </div>
 
-<!-- 6. 救援時間圖表 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-chart-bar"></i> 救援時間分佈</div>
-    <div class="chart-container">
-        <canvas id="timeChart"></canvas>
-    </div>
+    <div class="chart-container"><canvas id="timeChart"></canvas></div>
     <div style="display:flex; justify-content:flex-end; margin-top:8px;">
         <span class="text-muted">最後更新: <span id="last-chart-update">--:--:--</span></span>
     </div>
 </div>
 
-<!-- 7. 監控表格 -->
 <div class="card">
     <div class="card-title"><i class="fas fa-table"></i> 所有救援記錄</div>
     <div class="filter-row">
@@ -406,33 +382,23 @@
             <label><i class="fas fa-search"></i> 搜尋</label>
             <input type="text" id="searchInput" placeholder="車廂號碼、組別或姓名" oninput="monFilterRecords()">
         </div>
-        <button class="btn-secondary" onclick="monLoadAllData()">
-            <i class="fas fa-sync-alt"></i> 刷新
-        </button>
-        <span class="text-muted" style="margin-left:auto; align-self:flex-end;">
-            最後更新: <span id="last-monitor-update">--:--:--</span>
-        </span>
+        <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
+        <span class="text-muted" style="margin-left:auto; align-self:flex-end;">最後更新: <span id="last-monitor-update">--:--:--</span></span>
     </div>
     <div class="table-wrap">
-        <table>
-            <thead>
-                <tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr>
-            </thead>
-            <tbody id="monitor-records-list">
-                <!-- 動態載入 -->
-            </tbody>
-        </table>
+        <table><thead><tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr></thead>
+        <tbody id="monitor-records-list"></tbody></table>
     </div>
 </div>
 
-<!-- ===== 隱藏輔助元素（用於時間戳更新） ===== -->
+<!-- 隱藏輔助 -->
 <div style="display:none;">
     <span id="last-map-update"></span>
     <span id="last-data-update"></span>
 </div>
 
 <!-- ============================================================ -->
-<!--  所有 JavaScript 邏輯（內嵌，不依賴外部 monitor.js）         -->
+<!--  JavaScript 邏輯（完整內嵌）                                  -->
 <!-- ============================================================ -->
 <script>
     // ================================================================
@@ -442,7 +408,7 @@
     let monMapCabins = [];
     let monMapRopePts = [];
     let monSvg = null;
-    let monGlobalOffset = 0;      // 獨立偏移量（不影響主地圖）
+    let monGlobalOffset = 0;
 
     function monInitMap() {
         if (monMapCabins.length > 0) {
@@ -459,7 +425,7 @@
         // 清空 SVG
         while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
-        // ----- 建立 Defs（與主地圖相同） -----
+        // ----- Defs -----
         const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
         const gradMountain = document.createElementNS('http://www.w3.org/2000/svg','linearGradient');
         gradMountain.setAttribute('id', 'monGradMountain');
@@ -483,7 +449,6 @@
         gradBay.appendChild(s3); gradBay.appendChild(s4);
         defs.appendChild(gradBay);
 
-        // 高亮濾鏡（搜尋用）
         const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
         filter.setAttribute('id', 'monHighlightGlow');
         const shadow = document.createElementNS('http://www.w3.org/2000/svg','feDropShadow');
@@ -500,7 +465,7 @@
         bg.setAttribute('fill','#1a2a3a');
         monSvg.appendChild(bg);
 
-        // ----- 繪製地圖元素（與 map.js 相同） -----
+        // 地圖元素
         const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
         const slots = [2,2,2,2,10,6,5,1,2,7,3];
         const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -557,7 +522,7 @@
         rope.setAttribute('stroke-width','3');
         monSvg.appendChild(rope);
 
-        // ----- 圖例（深色版） -----
+        // 圖例
         const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
         legend.setAttribute('transform', 'translate(1800,420)');
         const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -592,10 +557,10 @@
         });
         monSvg.appendChild(legend);
 
-        // ----- 建立車廂（固定 84 車廂） -----
+        // 建立車廂
         monBuildCabins();
 
-        // ----- 監聽車廂資料變化（與主地圖同步） -----
+        // 監聽車廂資料變化（與主地圖同步）
         realtimeDb.ref('cabins').on('value', (snap) => {
             const data = snap.val();
             if (!data) return;
@@ -621,7 +586,7 @@
             monUpdateFromFirestore();
         });
 
-        // Firestore 即時監聽（狀態更新）
+        // Firestore 即時監聽
         db.collection('guests').onSnapshot(() => {
             if (monMapCabins.length > 0) monUpdateFromFirestore();
         });
@@ -632,7 +597,7 @@
         console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
     }
 
-    // ----- 構建車廂（與主地圖相同） -----
+    // ----- 構建車廂 -----
     function monBuildCabins() {
         if (!monSvg) return;
         monMapCabins.forEach(c => { if(c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
@@ -663,7 +628,6 @@
             lbl.setAttribute('fill', '#111');
             g.appendChild(lbl);
             const cabin = { id: 'cabin-'+i, fields: {}, el: g, shape: hex, label: lbl };
-            // 點擊車廂 → 開啟唯讀詳情
             g.addEventListener('dblclick', () => monOpenCabinReadonly(cabin));
             monMapCabins.push(cabin);
             monSvg.appendChild(g);
@@ -700,7 +664,7 @@
         return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
     }
 
-    // ----- 更新車廂狀態（與主地圖邏輯一致） -----
+    // ----- 更新車廂狀態 -----
     async function monUpdateFromFirestore() {
         try {
             const rescueSnap = await db.collection('rescue_records').get();
@@ -788,7 +752,7 @@
         return 'waiting';
     }
 
-    // ----- 搜尋車廂（與主地圖相同） -----
+    // ----- 搜尋車廂 -----
     function monSearchCabin() {
         const q = document.getElementById('monSearchBox').value.trim();
         if (!q) return alert('請輸入車廂號碼');
@@ -810,7 +774,7 @@
         }, 5000);
     }
 
-    // ----- 點擊車廂 → 開啟唯讀詳情（無儲存功能） -----
+    // ----- 點擊車廂 → 開啟唯讀詳情 -----
     function monOpenCabinReadonly(cabin) {
         const seq = cabin.fields.sequence || '未設定';
         db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
@@ -1040,37 +1004,49 @@
     }
 
     // ================================================================
-    // 初始化入口
+    // 初始化入口（由 auth.js 的 loadSection 呼叫）
     // ================================================================
 
     function monInit() {
-        console.log('🚀 初始化總監控平台（含唯讀地圖）');
-        // 先初始化地圖
+        console.log('🚀 monInit 被呼叫');
+        // 檢查 Firebase 是否就緒
+        if (typeof db === 'undefined' || typeof realtimeDb === 'undefined') {
+            console.warn('Firebase 尚未初始化，500ms 後重試');
+            setTimeout(monInit, 500);
+            return;
+        }
+        // 確保 DOM 元素存在
+        if (!document.getElementById('monitorMap')) {
+            console.warn('#monitorMap 尚未存在，500ms 後重試');
+            setTimeout(monInit, 500);
+            return;
+        }
+        // 防重複初始化
+        if (window._monInitialized) {
+            console.log('Monitor 已初始化，跳過');
+            return;
+        }
+        window._monInitialized = true;
+
+        // 初始化地圖
         monInitMap();
-        // 載入統計數據
+        // 載入數據
         monLoadAllData();
-        // 設置監聽器（數據變更時重新載入）
+        // 設置監聽器
         db.collection('guests').onSnapshot(() => { monLoadAllData(); });
         db.collection('rescue_records').onSnapshot(() => { monLoadAllData(); });
-        // 自動刷新（每60秒）
+        // 自動刷新
         if (window._monAutoRefresh) clearInterval(window._monAutoRefresh);
-        window._monAutoRefresh = setInterval(() => {
-            monLoadAllData();
-        }, 60000);
+        window._monAutoRefresh = setInterval(monLoadAllData, 60000);
     }
 
-    // 暴露全域函數
+    // 暴露全域函式（供 auth.js 調用）
+    window.monInit = monInit;
     window.monSearchCabin = monSearchCabin;
     window.monLoadAllData = monLoadAllData;
     window.monFilterRecords = monFilterRecords;
-    window.monInit = monInit;
 
-    // 自動執行
-    document.addEventListener('DOMContentLoaded', function() {
-        // 延遲執行以確保 DOM 完全渲染
-        setTimeout(monInit, 300);
-    });
+    console.log('Monitor 模組已載入，等待初始化呼叫');
 </script>
-
 </body>
 </html>
