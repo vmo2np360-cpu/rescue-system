@@ -11,10 +11,10 @@ let mapCurrentCabin = null;
 let mapSvg = null;
 let isDragging = false;
 let dragStartX = 0;
+let mapRopeElement = null;          // 透明纜繩元素，用於控制游標
 
-// ---- 初始化地圖 ----
+// ---- 初始化地圖 (加入重試機制) ----
 function mapInit() {
-    // 避免重複初始化
     if (mapCabins.length > 0 && document.querySelector('#map polyline[stroke="transparent"]')) {
         console.log('地圖已初始化，跳過');
         return;
@@ -22,7 +22,8 @@ function mapInit() {
 
     mapSvg = document.getElementById('map');
     if (!mapSvg) {
-        console.error('找不到 #map 元素，請確認地圖容器已載入');
+        console.warn('找不到 #map 元素，300ms 後重試...');
+        setTimeout(mapInit, 300);
         return;
     }
 
@@ -33,7 +34,7 @@ function mapInit() {
     }
     if (defs) mapSvg.appendChild(defs);
 
-    // 設定 viewBox（固定，不再更動）
+    // 設定 viewBox（固定）
     mapSvg.setAttribute('viewBox', '0 0 2800 700');
 
     mapGlobalOffset = parseFloat(localStorage.getItem('mapGlobalOffset')) || 0;
@@ -45,22 +46,37 @@ function mapInit() {
     bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
 
-    // 保留 defs
-    const defs2 = mapSvg.querySelector('defs');
-    // 若 defs 中沒有 highlightGlow 濾鏡，手動補上
-    if (defs2 && !defs2.querySelector('#highlightGlow')) {
-        const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
-        filter.setAttribute('id', 'highlightGlow');
-        const shadow = document.createElementNS('http://www.w3.org/2000/svg','feDropShadow');
-        shadow.setAttribute('dx', '0');
-        shadow.setAttribute('dy', '0');
-        shadow.setAttribute('stdDeviation', '6');
-        shadow.setAttribute('flood-color', 'gold');
-        filter.appendChild(shadow);
-        defs2.appendChild(filter);
+    // 確保 defs 中包含 highlightGlow 濾鏡 (加強亮度)
+    if (defs) {
+        let glowFilter = defs.querySelector('#highlightGlow');
+        if (!glowFilter) {
+            glowFilter = document.createElementNS('http://www.w3.org/2000/svg','filter');
+            glowFilter.setAttribute('id', 'highlightGlow');
+            const shadow = document.createElementNS('http://www.w3.org/2000/svg','feDropShadow');
+            shadow.setAttribute('dx', '0');
+            shadow.setAttribute('dy', '0');
+            shadow.setAttribute('stdDeviation', '8');
+            shadow.setAttribute('flood-color', '#00BFFF');  // 亮藍色
+            shadow.setAttribute('flood-opacity', '0.9');
+            glowFilter.appendChild(shadow);
+            // 增加一個外發光效果
+            const blur = document.createElementNS('http://www.w3.org/2000/svg','feGaussianBlur');
+            blur.setAttribute('in', 'SourceGraphic');
+            blur.setAttribute('stdDeviation', '4');
+            const merge = document.createElementNS('http://www.w3.org/2000/svg','feMerge');
+            const mergeNode1 = document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');
+            mergeNode1.setAttribute('in', blur);
+            const mergeNode2 = document.createElementNS('http://www.w3.org/2000/svg','feMergeNode');
+            mergeNode2.setAttribute('in', 'SourceGraphic');
+            merge.appendChild(mergeNode1);
+            merge.appendChild(mergeNode2);
+            glowFilter.appendChild(blur);
+            glowFilter.appendChild(merge);
+            defs.appendChild(glowFilter);
+        }
     }
 
-    // ----- 建立地圖元素 -----
+    // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 150, endX = 2650, unit = (endX - startX) / 42;
@@ -80,12 +96,8 @@ function mapInit() {
         if (fillColor) r.setAttribute('fill', fillColor);
         mapSvg.appendChild(r);
     };
-
-    // 城市區塊 (TC 到 T2B) – 灰色
     addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, 'city', '#d4d4d4');
-    // 海洋區塊 (T2B 到 T3) – 淺藍色
     addRect(t2bX, baseY, t3X - t2bX, 100, 'sea', '#81D4FA');
-    // 山脈
     const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
     mountain.setAttribute('fill','url(#gradMountain)');
@@ -121,6 +133,7 @@ function mapInit() {
     rope.setAttribute('fill','none'); rope.setAttribute('stroke','#444'); rope.setAttribute('stroke-width','4');
     mapSvg.appendChild(rope);
 
+    // 透明纜繩 (用於拖曳)
     const ropeHit = document.createElementNS('http://www.w3.org/2000/svg','polyline');
     ropeHit.setAttribute('points', rope.getAttribute('points'));
     ropeHit.setAttribute('stroke','transparent');
@@ -129,8 +142,9 @@ function mapInit() {
     ropeHit.style.cursor = 'grab';
     ropeHit.style.pointerEvents = 'all';
     mapSvg.appendChild(ropeHit);
+    mapRopeElement = ropeHit;   // 保存全域引用
 
-    // ----- 動態建立圖例 (完整狀態) -----
+    // ----- 建立圖例 (完整狀態) -----
     const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
     legend.setAttribute('id', 'legend');
     legend.setAttribute('transform', 'translate(1900, 480)');
@@ -145,60 +159,58 @@ function mapInit() {
     title.setAttribute('text-anchor', 'middle'); title.textContent = '車廂狀態';
     legend.appendChild(title);
 
-    // 狀態1: 等待救援 (紅色)
-    const g1 = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g1.setAttribute('transform', 'translate(20, 65)');
-    const r1 = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r1.setAttribute('width', '24'); r1.setAttribute('height', '24'); r1.setAttribute('fill', '#dc2626'); r1.setAttribute('stroke', '#333');
-    g1.appendChild(r1);
-    const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t1.setAttribute('x', '36'); t1.setAttribute('y', '18'); t1.setAttribute('font-size', '22'); t1.textContent = '等待救援 (求助記錄)';
-    g1.appendChild(t1);
-    legend.appendChild(g1);
-
-    // 狀態2: 救援中 (黃色)
-    const g2 = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g2.setAttribute('transform', 'translate(20, 105)');
-    const r2 = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r2.setAttribute('width', '24'); r2.setAttribute('height', '24'); r2.setAttribute('fill', '#eab308'); r2.setAttribute('stroke', '#333');
-    g2.appendChild(r2);
-    const t2 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t2.setAttribute('x', '36'); t2.setAttribute('y', '18'); t2.setAttribute('font-size', '22'); t2.textContent = '救援中 (已有人員)';
-    g2.appendChild(t2);
-    legend.appendChild(g2);
-
-    // 狀態3: 已著陸 (綠色)
-    const g3 = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g3.setAttribute('transform', 'translate(20, 145)');
-    const r3 = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r3.setAttribute('width', '24'); r3.setAttribute('height', '24'); r3.setAttribute('fill', '#22c55e'); r3.setAttribute('stroke', '#333');
-    g3.appendChild(r3);
-    const t3 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t3.setAttribute('x', '36'); t3.setAttribute('y', '18'); t3.setAttribute('font-size', '22'); t3.textContent = '已著陸 (所有組別)';
-    g3.appendChild(t3);
-    legend.appendChild(g3);
-
-    // 狀態4: 無記錄 (灰色)
-    const g4 = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g4.setAttribute('transform', 'translate(20, 185)');
-    const r4 = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r4.setAttribute('width', '24'); r4.setAttribute('height', '24'); r4.setAttribute('fill', '#e2e8f0'); r4.setAttribute('stroke', '#333');
-    g4.appendChild(r4);
-    const t4 = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t4.setAttribute('x', '36'); t4.setAttribute('y', '18'); t4.setAttribute('font-size', '22'); t4.textContent = '無組別記錄';
-    g4.appendChild(t4);
-    legend.appendChild(g4);
-
+    const statuses = [
+        { color: '#dc2626', label: '等待救援 (求助記錄)', y: 65 },
+        { color: '#eab308', label: '救援中 (已有人員)', y: 105 },
+        { color: '#22c55e', label: '已著陸 (所有組別)', y: 145 },
+        { color: '#e2e8f0', label: '無組別記錄', y: 185 }
+    ];
+    statuses.forEach((s) => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('transform', `translate(20, ${s.y})`);
+        const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        r.setAttribute('width', '24'); r.setAttribute('height', '24');
+        r.setAttribute('fill', s.color); r.setAttribute('stroke', '#333');
+        g.appendChild(r);
+        const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+        t.setAttribute('x', '36'); t.setAttribute('y', '18');
+        t.setAttribute('font-size', '22'); t.textContent = s.label;
+        g.appendChild(t);
+        legend.appendChild(g);
+    });
     mapSvg.appendChild(legend);
 
-    // 構建車廂
+    // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
+    const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+    summaryGroup.setAttribute('transform', 'translate(700,0)');
+    const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
+    rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '90');
+    rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
+    rectSum.setAttribute('stroke', '#ccc');
+    summaryGroup.appendChild(rectSum);
+    const waitingText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    waitingText.setAttribute('id', 'waitingText');
+    waitingText.setAttribute('x', '200'); waitingText.setAttribute('y', '45');
+    waitingText.setAttribute('font-size', '34'); waitingText.setAttribute('font-weight', 'bold');
+    waitingText.setAttribute('text-anchor', 'middle'); waitingText.textContent = '等待: 0';
+    summaryGroup.appendChild(waitingText);
+    const landedText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    landedText.setAttribute('id', 'landedText');
+    landedText.setAttribute('x', '420'); landedText.setAttribute('y', '45');
+    landedText.setAttribute('font-size', '34'); landedText.setAttribute('font-weight', 'bold');
+    landedText.setAttribute('text-anchor', 'middle'); landedText.textContent = '已著陸: 0';
+    summaryGroup.appendChild(landedText);
+    mapSvg.appendChild(summaryGroup);
+
+    // ----- 建立車廂 -----
     mapBuildCabins();
     mapLayoutCabins();
 
-    // 移動模式設定
+    // ----- 設定移動模式 -----
     setupMoveMode();
 
-    // 事件綁定 (使用 cloneNode 避免重複監聽)
+    // ----- 事件綁定 (使用 cloneNode 避免重複監聽) -----
     const toggleBtn = document.getElementById('mapToggleBtn');
     if (toggleBtn) {
         const newBtn = toggleBtn.cloneNode(true);
@@ -214,23 +226,26 @@ function mapInit() {
         });
     }
 
-    // 移動按鈕 (已在 setupMoveMode 中處理，但為保險再次綁定)
+    // 移動按鈕 (重新綁定並加入游標控制)
     const moveBtn = document.getElementById('moveToggleBtn');
-    if (moveBtn && !moveBtn._listenerAdded) {
-        moveBtn._listenerAdded = true;
-        moveBtn.addEventListener('click', function() {
+    if (moveBtn) {
+        const newMoveBtn = moveBtn.cloneNode(true);
+        moveBtn.parentNode.replaceChild(newMoveBtn, moveBtn);
+        newMoveBtn.addEventListener('click', function() {
             mapMoveMode = !mapMoveMode;
             this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
             this.style.background = mapMoveMode ? '#dc2626' : '#e2e8f0';
             this.style.color = mapMoveMode ? 'white' : '#1e293b';
+            // 控制透明纜繩游標
+            if (mapRopeElement) {
+                mapRopeElement.style.cursor = mapMoveMode ? 'grab' : 'default';
+            }
         });
     }
 
-    // 匯出 CSV
+    // 其他事件 (匯出、搜尋、清除等)
     document.getElementById('exportCsvBtn').addEventListener('click', mapExportCSV);
-    // 套用序列
     document.getElementById('seqInput').addEventListener('keypress', e => { if(e.key==='Enter') mapApplySequences(); });
-    // 搜尋
     document.getElementById('mapSearchBox').addEventListener('keypress', e => { if(e.key==='Enter') mapSearchCabin(); });
 
     // 車廂表單
@@ -250,7 +265,6 @@ function mapInit() {
         mapUpdateFromFirestore();
     });
 
-    // 綁定 groupForm 提交事件
     const groupForm = document.getElementById('groupForm');
     if (groupForm) {
         groupForm.addEventListener('submit', function(e) {
@@ -356,36 +370,20 @@ function mapRestoreSequences() {
     });
 }
 
-// ---- 移動模式控制 (修復版) ----
+// ---- 移動模式設定 (修復游標與拖曳) ----
 function setupMoveMode() {
-    if (!mapSvg) {
-        console.error('mapSvg 未初始化');
+    if (!mapSvg || !mapRopeElement) {
+        console.error('mapSvg 或 rope 未就緒');
         return;
     }
-    let ropeHit = mapSvg.querySelector('polyline[stroke="transparent"]');
-    if (!ropeHit) {
-        console.warn('找不到透明纜繩，嘗試重新建立');
-        const rope = mapSvg.querySelector('polyline[stroke="#444"]');
-        if (rope) {
-            const clone = rope.cloneNode(true);
-            clone.setAttribute('stroke', 'transparent');
-            clone.setAttribute('stroke-width', '30');
-            clone.style.cursor = 'grab';
-            clone.style.pointerEvents = 'all';
-            mapSvg.appendChild(clone);
-            ropeHit = clone;
-        } else {
-            console.error('無法建立透明纜繩，移動功能失效');
-            return;
-        }
-    }
-
+    const ropeHit = mapRopeElement;
     ropeHit.style.pointerEvents = 'all';
-    ropeHit.style.cursor = 'grab';
+    ropeHit.style.cursor = mapMoveMode ? 'grab' : 'default';
 
-    // 移除舊監聽 (複製節點取代)
+    // 複製節點移除舊監聽
     const newRope = ropeHit.cloneNode(true);
     ropeHit.parentNode.replaceChild(newRope, ropeHit);
+    mapRopeElement = newRope;
 
     newRope.addEventListener('mousedown', (e) => {
         if (!mapMoveMode) return;
@@ -405,7 +403,8 @@ function setupMoveMode() {
     window.addEventListener('mouseup', () => {
         if (isDragging) {
             isDragging = false;
-            newRope.style.cursor = 'grab';
+            // 根據當前模式恢復游標
+            newRope.style.cursor = mapMoveMode ? 'grab' : 'default';
             localStorage.setItem('mapGlobalOffset', mapGlobalOffset);
         }
     });
@@ -474,7 +473,15 @@ async function mapUpdateFromFirestore() {
     }
 }
 
+// ---- 更新地圖摘要 (避免 null 錯誤) ----
 function mapUpdateSummary() {
+    const waitingEl = document.getElementById('waitingText');
+    const landedEl = document.getElementById('landedText');
+    if (!waitingEl || !landedEl) {
+        console.warn('摘要元素尚未建立，跳過更新');
+        return;
+    }
+
     let waiting = 0, rescuing = 0, landed = 0;
     const wc = [], rc = [], lc = [];
 
@@ -498,8 +505,8 @@ function mapUpdateSummary() {
     document.getElementById('mapWaitingCabins').textContent = wc.join(', ');
     document.getElementById('mapRescuingCabins').textContent = rc.join(', ');
     document.getElementById('mapLandedCabins').textContent = lc.join(', ');
-    document.getElementById('waitingText').textContent = '等待: ' + waiting;
-    document.getElementById('landedText').textContent = '已著陸: ' + landed;
+    waitingEl.textContent = '等待: ' + waiting;
+    landedEl.textContent = '已著陸: ' + landed;
 }
 
 // ---- 套用車廂序號 ----
@@ -515,30 +522,58 @@ function mapApplySequences() {
     mapUpdateFromFirestore();
 }
 
-// ---- 搜尋車廂 (修復版：不移除 viewBox，改用濾鏡高亮) ----
+// ---- 搜尋車廂 (改為亮藍色外框 + 明顯發光 + 外圈) ----
 function mapSearchCabin() {
     const q = document.getElementById('mapSearchBox').value.trim();
     if (!q) return alert('請輸入車廂號碼');
     const cabin = mapCabins.find(c => c.fields.sequence === q);
     if (!cabin) return alert('找不到車廂: ' + q);
 
-    // 清除所有車廂的高亮
+    // 清除所有車廂的高亮與附加元素
     mapCabins.forEach(c => {
         c.shape.setAttribute('stroke', '');
         c.shape.setAttribute('stroke-width', '');
         c.shape.removeAttribute('filter');
+        // 移除可能的外圈
+        const existingRing = c.el.querySelector('.search-ring');
+        if (existingRing) c.el.removeChild(existingRing);
     });
 
-    // 高亮目標車廂（紅色邊框 + 發光）
-    cabin.shape.setAttribute('stroke', '#ff0000');
+    // 設定高亮 (亮藍色邊框 + 強發光)
+    cabin.shape.setAttribute('stroke', '#00BFFF');
     cabin.shape.setAttribute('stroke-width', '6');
     cabin.shape.setAttribute('filter', 'url(#highlightGlow)');
 
+    // 增加一個外圈 (更大、更明顯)
+    const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ring.setAttribute('class', 'search-ring');
+    ring.setAttribute('cx', '0');
+    ring.setAttribute('cy', '0');
+    ring.setAttribute('r', '30');
+    ring.setAttribute('fill', 'none');
+    ring.setAttribute('stroke', '#00BFFF');
+    ring.setAttribute('stroke-width', '4');
+    ring.setAttribute('stroke-dasharray', '8 8');
+    ring.setAttribute('opacity', '0.8');
+    // 添加動畫 (使用 SVG animate)
+    const anim = document.createElementNS('http://www.w3.org/2000/svg','animate');
+    anim.setAttribute('attributeName', 'r');
+    anim.setAttribute('from', '28');
+    anim.setAttribute('to', '40');
+    anim.setAttribute('dur', '0.8s');
+    anim.setAttribute('repeatCount', 'indefinite');
+    anim.setAttribute('values', '28;40;28');
+    ring.appendChild(anim);
+    cabin.el.appendChild(ring);
+
+    // 5 秒後清除高亮
     if (window._searchTimeout) clearTimeout(window._searchTimeout);
     window._searchTimeout = setTimeout(() => {
         cabin.shape.setAttribute('stroke', '');
         cabin.shape.setAttribute('stroke-width', '');
         cabin.shape.removeAttribute('filter');
+        const r = cabin.el.querySelector('.search-ring');
+        if (r) cabin.el.removeChild(r);
     }, 5000);
 }
 
@@ -814,9 +849,15 @@ async function deleteGroupRecord() {
     }
 }
 
-// ---- 初始化入口 ----
+// ---- 初始化入口 (含重試) ----
 function initMap() {
     console.log('🚀 初始化救援地圖');
+    const mapEl = document.getElementById('map');
+    if (!mapEl) {
+        console.warn('等待 #map 元素...');
+        setTimeout(initMap, 300);
+        return;
+    }
     mapInit();
 }
 
