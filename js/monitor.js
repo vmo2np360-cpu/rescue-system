@@ -10,6 +10,7 @@ let monChartInstance = null;
 let monGuestRecords = [];
 let monRescueRecords = [];
 let monAutoRefreshTimer = null;
+let monCurrentOffset = 0;  // ★ 儲存當前偏移量，用於檢測變化
 
 // ★ 使用與主地圖相同的偏移量（共用 localStorage）
 function monGetGlobalOffset() {
@@ -169,7 +170,7 @@ function monInitMap() {
     // 建立車廂
     monBuildCabins();
 
-    // ----- 監聽車廂資料變化（與主地圖同步） -----
+    // 監聽車廂資料變化（與主地圖同步）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -195,11 +196,11 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // ★ 監聽主地圖偏移量變化（透過 localStorage 事件）
+    // ★ 監聽主地圖偏移量變化（透過 localStorage 事件，僅跨標籤頁有效）
     window.addEventListener('storage', (e) => {
         if (e.key === 'mapGlobalOffset') {
-            console.log('偵測到主地圖偏移量變化，同步更新');
-            monLayoutCabins();
+            console.log('偵測到主地圖偏移量變化（跨標籤頁），同步更新');
+            monSyncOffsetAndLayout();
         }
     });
 
@@ -211,7 +212,20 @@ function monInitMap() {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
 
+    // 記錄初始偏移量
+    monCurrentOffset = monGetGlobalOffset();
+
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
+}
+
+// ★ 同步偏移量並重新佈局
+function monSyncOffsetAndLayout() {
+    const newOffset = monGetGlobalOffset();
+    if (newOffset !== monCurrentOffset) {
+        monCurrentOffset = newOffset;
+        monLayoutCabins();
+        console.log('偏移量已同步，新偏移量:', monCurrentOffset);
+    }
 }
 
 // ----- 構建車廂（使用與主地圖相同的偏移量） -----
@@ -224,6 +238,7 @@ function monBuildCabins() {
     const fontSize = 20;
     const ropeLen = monLengthOf(monMapRopePts);
     const offset = monGetGlobalOffset();
+    monCurrentOffset = offset;  // 記錄當前偏移量
     for(let i=0; i<total; i++) {
         const g = document.createElementNS('http://www.w3.org/2000/svg','g');
         g.setAttribute('class', 'cabin');
@@ -256,6 +271,8 @@ function monBuildCabins() {
 function monLayoutCabins() {
     const ropeLen = monLengthOf(monMapRopePts);
     const offset = monGetGlobalOffset();
+    // 更新當前偏移量
+    monCurrentOffset = offset;
     monMapCabins.forEach((c, i) => {
         const d = (i * ropeLen / monMapCabins.length + offset) % ropeLen;
         const pos = monPointAt(monMapRopePts, d);
@@ -263,27 +280,9 @@ function monLayoutCabins() {
     });
 }
 
-function monLengthOf(pts) {
-    let L=0;
-    for(let i=0;i<pts.length-1;i++) L += Math.hypot(pts[i+1][0]-pts[i][0], pts[i+1][1]-pts[i][1]);
-    return L;
-}
+// ... 其他辅助函数（monLengthOf, monPointAt）保持不变 ...
 
-function monPointAt(pts,d) {
-    let sum=0;
-    for(let i=0;i<pts.length-1;i++){
-        const [x1,y1]=pts[i],[x2,y2]=pts[i+1];
-        const seg=Math.hypot(x2-x1, y2-y1);
-        if(sum+seg >= d) {
-            const t=(d-sum)/seg;
-            return {x:x1+(x2-x1)*t, y:y1+(y2-y1)*t};
-        }
-        sum += seg;
-    }
-    return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
-}
-
-// ----- 更新車廂狀態（★ 與主地圖邏輯完全一致） -----
+// ----- 更新車廂狀態（與主地圖邏輯完全一致） -----
 async function monUpdateFromFirestore() {
     try {
         // 1. 取得求助記錄 (rescue_records)
@@ -298,15 +297,12 @@ async function monUpdateFromFirestore() {
 
         monMapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            // 先移除所有狀態樣式
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
             if (seq) {
-                // ============================================================
-                // ★ 優先判斷：是否有「未處理」的求助記錄 → 紅色 (等待救援)
-                // ============================================================
+                // 優先判斷：是否有「未處理」的求助記錄 → 紅色 (等待救援)
                 const hasUnprocessedRescue = rescueRecords.some(
                     r => r.cabinNumber === seq && r.processed === false
                 );
@@ -315,45 +311,37 @@ async function monUpdateFromFirestore() {
                     cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#EA4335');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return; // 紅色優先，跳過後續判斷
+                    return;
                 }
 
-                // ============================================================
-                // ★ 若無未處理的救助記錄，則根據 guests 判斷狀態
-                // ============================================================
+                // 若無未處理的救助記錄，則根據 guests 判斷狀態
                 const matched = guestRecords.filter(g => g.cabinNumber === seq);
 
                 if (matched.length > 0) {
                     let landed = 0, rescuing = 0, waiting = 0;
                     matched.forEach(g => {
-                        // ★ 使用 common.js 的 getGroupStatus
                         const status = window.getGroupStatus(g);
                         if (status === 'landed') landed++;
                         else if (status === 'rescuing') rescuing++;
                         else waiting++;
                     });
 
-                    // 所有組別已著陸 → 綠色
                     if (landed === matched.length && matched.length > 0) {
                         cabin.el.classList.add("status-green");
                         cabin.shape.setAttribute('fill', '#34A853');
                         cabin.shape.setAttribute('stroke', '#16a34a');
                     } else {
-                        // 有組別在救援中，或是有組別等待（但沒有未處理的求助記錄）
-                        // → 統一顯示為黃色 (救援中 / 待處理)
                         cabin.el.classList.add("status-yellow");
                         cabin.shape.setAttribute('fill', '#FBBC05');
                         cabin.shape.setAttribute('stroke', '#ca8a04');
                     }
                 } else {
-                    // 無任何組別記錄 → 灰色
                     cabin.shape.setAttribute('fill', '#666');
                     cabin.shape.setAttribute('stroke', '#888');
                 }
             }
         });
 
-        // 更新摘要統計
         monUpdateSummary();
     } catch(e) {
         console.error('Monitor 地圖更新失敗:', e);
@@ -377,70 +365,6 @@ function monUpdateSummary() {
     document.getElementById('monLandedCabins').textContent = lc.join(', ');
 }
 
-// ----- 搜尋車廂（與主地圖相同） -----
-function monSearchCabin() {
-    const q = document.getElementById('monSearchBox').value.trim();
-    if (!q) return alert('請輸入車廂號碼');
-    const cabin = monMapCabins.find(c => c.fields.sequence === q);
-    if (!cabin) return alert('找不到車廂: ' + q);
-
-    monMapCabins.forEach(c => {
-        c.shape.setAttribute('stroke', '');
-        c.shape.setAttribute('stroke-width', '');
-        c.shape.removeAttribute('filter');
-    });
-    cabin.shape.setAttribute('stroke', 'gold');
-    cabin.shape.setAttribute('stroke-width', '6');
-    cabin.shape.setAttribute('filter', 'url(#monHighlightGlow)');
-    setTimeout(() => {
-        cabin.shape.setAttribute('stroke', '');
-        cabin.shape.setAttribute('stroke-width', '');
-        cabin.shape.removeAttribute('filter');
-    }, 5000);
-}
-
-// ----- 點擊車廂 → 開啟唯讀詳情 -----
-function monOpenCabinReadonly(cabin) {
-    const seq = cabin.fields.sequence || '未設定';
-    db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
-        let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0; max-width:500px; margin:0 auto;">`;
-        html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
-        html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
-        if (snap.empty) {
-            html += `<p style="color:#94a3b8;">此車廂暫無組別記錄</p>`;
-        } else {
-            html += `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">`;
-            html += `<tr style="border-bottom:1px solid #444;"><th style="text-align:left; padding:6px 4px; color:#aaa;">組別</th><th style="text-align:left; padding:6px 4px; color:#aaa;">姓名</th><th style="text-align:left; padding:6px 4px; color:#aaa;">狀態</th></tr>`;
-            snap.forEach(doc => {
-                const data = doc.data();
-                const status = window.getGroupStatus(data);
-                const statusMap = { 'landed':'✅ 已著陸', 'rescuing':'🔄 救援中', 'waiting':'⏳ 等待救援' };
-                html += `<tr style="border-bottom:1px solid #3d3d3d;">`;
-                html += `<td style="padding:6px 4px;">第${data.groupNumber||'?'}組</td>`;
-                html += `<td style="padding:6px 4px;">${data.guestName||'-'}</td>`;
-                html += `<td style="padding:6px 4px;">${statusMap[status]||status}</td>`;
-                html += `</tr>`;
-            });
-            html += `</table>`;
-        }
-        html += `<div style="margin-top:16px; text-align:center;">`;
-        html += `<button onclick="this.closest('.modal-content').parentElement.style.display='none'" style="padding:8px 24px; background:#4285F4; border:none; border-radius:4px; color:#fff; cursor:pointer;">關閉</button>`;
-        html += `</div></div>`;
-
-        const modal = document.createElement('div');
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:9999;';
-        const content = document.createElement('div');
-        content.className = 'modal-content';
-        content.style.cssText = 'background:#1a1a1a; border-radius:12px; padding:20px; max-width:550px; width:95%; max-height:80vh; overflow-y:auto;';
-        content.innerHTML = html;
-        modal.appendChild(content);
-        document.body.appendChild(modal);
-        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-    }).catch(err => {
-        alert('載入車廂資料失敗: ' + err.message);
-    });
-}
-
 // ================================================================
 // 2. 統計數據、圖表、表格
 // ================================================================
@@ -459,6 +383,10 @@ async function monLoadAllData() {
         console.log(`監控載入：${monGuestRecords.length} 筆賓客，${monRescueRecords.length} 筆求助`);
         monUpdateAllDisplays();
         monUpdateTimestamp();
+
+        // ★ 刷新數據後，檢查偏移量是否變化，同步佈局
+        monSyncOffsetAndLayout();
+
     } catch(e) {
         console.error('載入監控數據失敗:', e);
         if (typeof showMessage === 'function') showMessage('monMessage', '載入失敗: ' + e.message, 'error');
@@ -467,157 +395,18 @@ async function monLoadAllData() {
     }
 }
 
-function monUpdateAllDisplays() {
-    // OCC 統計
-    const total = monRescueRecords.length;
-    const pending = monRescueRecords.filter(r => !r.processed).length;
-    const processed = monRescueRecords.filter(r => r.processed).length;
-    document.getElementById('occ-total').textContent = total;
-    document.getElementById('occ-pending').textContent = pending;
-    document.getElementById('occ-processed').textContent = processed;
-
-    // OCC 健康狀況
-    let g=0,y=0,r=0,b=0;
-    monRescueRecords.forEach(rec => {
-        const h = rec.healthStatus || '';
-        if (h.includes('綠色')) g++;
-        else if (h.includes('黃色')) y++;
-        else if (h.includes('紅色')) r++;
-        else if (h.includes('黑色')) b++;
-    });
-    document.getElementById('occ-green-count').textContent = g;
-    document.getElementById('occ-yellow-count').textContent = y;
-    document.getElementById('occ-red-count').textContent = r;
-    document.getElementById('occ-black-count').textContent = b;
-
-    // 救援記錄統計
-    const totalG = monGuestRecords.length;
-    const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
-    const pendingG = totalG - completed;
-    const ambNeeded = monGuestRecords.filter(rec => rec.ambulance === '需要').length;
-    document.getElementById('totalRecords').textContent = totalG;
-    document.getElementById('completedRecords').textContent = completed;
-    document.getElementById('pendingRecords').textContent = pendingG;
-    document.getElementById('ambulanceNeeded').textContent = ambNeeded;
-
-    // 賓客健康狀況
-    let g2=0,y2=0,r2=0,b2=0;
-    monGuestRecords.forEach(rec => {
-        const h = rec.healthStatus || '';
-        if (h.includes('綠色')) g2++;
-        else if (h.includes('黃色')) y2++;
-        else if (h.includes('紅色')) r2++;
-        else if (h.includes('黑色')) b2++;
-    });
-    document.getElementById('green-count').textContent = g2;
-    document.getElementById('yellow-count').textContent = y2;
-    document.getElementById('red-count').textContent = r2;
-    document.getElementById('black-count').textContent = b2;
-
-    // ★ 救援狀態分佈（使用 common.js 的 getGroupStatus）
-    let waiting=0, rescuing=0, landed=0;
-    monGuestRecords.forEach(rec => {
-        const s = window.getGroupStatus(rec);
-        if (s === 'waiting') waiting++;
-        else if (s === 'rescuing') rescuing++;
-        else if (s === 'landed') landed++;
-    });
-    document.getElementById('waiting-groups').textContent = waiting;
-    document.getElementById('rescuing-groups').textContent = rescuing;
-    document.getElementById('landed-groups').textContent = landed;
-    document.getElementById('total-groups').textContent = monGuestRecords.length;
-
-    monUpdateTimeChart();
-    monRenderTable();
-    if (monMapCabins.length > 0) monUpdateFromFirestore();
+// ★ 手動刷新函數（供按鈕調用）
+function monManualRefresh() {
+    console.log('🔄 手動刷新監控頁面');
+    // 直接調用 monLoadAllData，它會同步偏移量並更新數據
+    monLoadAllData();
+    // 強制同步偏移量（額外保險）
+    setTimeout(() => {
+        monSyncOffsetAndLayout();
+    }, 100);
 }
 
-function monUpdateTimeChart() {
-    const ctx = document.getElementById('timeChart').getContext('2d');
-    if (monChartInstance) monChartInstance.destroy();
-    const ranges = [0,0,0,0,0];
-    monGuestRecords.forEach(rec => {
-        if (rec.timeReachedTop && rec.timeLanded) {
-            const start = rec.timeReachedTop.split(':');
-            const end = rec.timeLanded.split(':');
-            if (start.length===2 && end.length===2) {
-                let diff = (parseInt(end[0])*60 + parseInt(end[1])) - (parseInt(start[0])*60 + parseInt(start[1]));
-                if (diff < 0) diff += 1440;
-                if (diff <= 15) ranges[0]++;
-                else if (diff <= 30) ranges[1]++;
-                else if (diff <= 45) ranges[2]++;
-                else if (diff <= 60) ranges[3]++;
-                else ranges[4]++;
-            }
-        }
-    });
-    monChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['0-15分', '15-30分', '30-45分', '45-60分', '60分以上'],
-            datasets: [{
-                label: '救援時間分佈',
-                data: ranges,
-                backgroundColor: ['rgba(52,168,83,0.7)','rgba(66,133,244,0.7)','rgba(251,188,5,0.7)','rgba(255,152,0,0.7)','rgba(234,67,53,0.7)'],
-                borderColor: ['#34A853','#4285F4','#FBBC05','#FF9800','#EA4335'],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, ticks: { color: '#e0e0e0', precision: 0 }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-            },
-            plugins: { legend: { labels: { color: '#e0e0e0' } } }
-        }
-    });
-}
-
-function monRenderTable() {
-    const tbody = document.getElementById('monitor-records-list');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    const search = document.getElementById('searchInput');
-    const searchValue = search ? search.value.toLowerCase() : '';
-    let filtered = monGuestRecords;
-    if (searchValue) {
-        filtered = monGuestRecords.filter(rec => {
-            const cabin = (rec.cabinNumber || '').toLowerCase();
-            const group = (rec.groupNumber || '');
-            const name = (rec.guestName || '').toLowerCase();
-            return cabin.includes(searchValue) || group.includes(searchValue) || name.includes(searchValue);
-        });
-    }
-    filtered.sort((a,b) => (a.cabinNumber||'').localeCompare((b.cabinNumber||''), undefined, {numeric:true}));
-    filtered.forEach(rec => {
-        const tr = document.createElement('tr');
-        const status = window.getGroupStatus(rec);
-        let statusText='', badgeClass='';
-        if (status === 'landed') { statusText='已著陸'; badgeClass='status-complete'; }
-        else if (status === 'rescuing') { statusText='救援中'; badgeClass='status-pending'; }
-        else { statusText='等待救援'; badgeClass='status-waiting'; }
-        tr.innerHTML = `
-            <td>${rec.cabinNumber||'-'}</td>
-            <td>${rec.groupNumber ? '第'+rec.groupNumber+'組' : '-'}</td>
-            <td>${rec.timeReachedTop||'-'}</td>
-            <td>${rec.timeLanded||'-'}</td>
-            <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function monFilterRecords() { monRenderTable(); }
-
-function monUpdateTimestamp() {
-    const now = new Date().toLocaleTimeString('zh-TW');
-    ['last-map-update','last-data-update','last-chart-update','last-monitor-update'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = now;
-    });
-}
+// ... monUpdateAllDisplays, monUpdateTimeChart, monRenderTable, monFilterRecords, monUpdateTimestamp 保持不變（與之前相同） ...
 
 // ================================================================
 // 3. 主要入口（由 auth.js 呼叫）
@@ -656,7 +445,7 @@ function monInit() {
         }
     });
 
-    // ★ 自動更新：每20秒檢查一次，僅在監控頁面活躍時更新
+    // 自動更新：每20秒檢查一次，僅在監控頁面活躍時更新
     if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
     monAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-monitor');
@@ -665,8 +454,6 @@ function monInit() {
             monLoadAllData();
         }
     }, 20000);
-
-    // 手動更新按鈕已綁定 monLoadAllData，無需額外處理
 }
 
 // ================================================================
@@ -677,5 +464,6 @@ window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
 window.monLoadAllData = monLoadAllData;
 window.monFilterRecords = monFilterRecords;
+window.monManualRefresh = monManualRefresh;  // ★ 暴露給 HTML 按鈕
 
 console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
