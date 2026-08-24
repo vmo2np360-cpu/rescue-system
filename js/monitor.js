@@ -1,11 +1,19 @@
 // ================================================================
-// Monitor 專屬地圖（唯讀模式，資料與主地圖同步）
+// 總監控平台模組（獨立 JS，與 monitor.html 分離）
 // ================================================================
 
+// ----- 地圖專屬變數 -----
 let monMapCabins = [];
 let monMapRopePts = [];
 let monSvg = null;
 let monGlobalOffset = 0;
+let monChartInstance = null;
+let monGuestRecords = [];
+let monRescueRecords = [];
+
+// ================================================================
+// 1. 地圖初始化
+// ================================================================
 
 function monInitMap() {
     if (monMapCabins.length > 0) {
@@ -19,7 +27,6 @@ function monInitMap() {
         return;
     }
 
-    // 清空 SVG
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
     // ----- Defs -----
@@ -157,7 +164,7 @@ function monInitMap() {
     // 建立車廂
     monBuildCabins();
 
-    // 監聽車廂資料變化
+    // 監聽車廂資料變化（與主地圖同步）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -170,7 +177,6 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // 初始載入序號
     realtimeDb.ref('cabins').once('value').then(snap => {
         const data = snap.val();
         if (!data) return;
@@ -183,7 +189,6 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // Firestore 即時監聽
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
@@ -414,12 +419,8 @@ function monOpenCabinReadonly(cabin) {
 }
 
 // ================================================================
-// ★ 新增：監控平台主初始化函式（整合數據、圖表、表格）
+// 2. 統計數據、圖表、表格
 // ================================================================
-
-let monChartInstance = null;
-let monGuestRecords = [];
-let monRescueRecords = [];
 
 async function monLoadAllData() {
     try {
@@ -503,13 +504,8 @@ function monUpdateAllDisplays() {
     document.getElementById('landed-groups').textContent = landed;
     document.getElementById('total-groups').textContent = monGuestRecords.length;
 
-    // 時間圖表
     monUpdateTimeChart();
-
-    // 表格
     monRenderTable();
-
-    // 同步更新地圖（如果地圖已初始化）
     if (monMapCabins.length > 0) monUpdateFromFirestore();
 }
 
@@ -601,43 +597,39 @@ function monUpdateTimestamp() {
 }
 
 // ================================================================
-// ★ 主要入口：monInit（供 auth.js 呼叫）
+// 3. 主要入口（由 auth.js 呼叫）
 // ================================================================
 
 function monInit() {
     console.log('🚀 monInit 被呼叫 (來自 monitor.js)');
-    // 檢查 Firebase 是否就緒
     if (typeof db === 'undefined' || typeof realtimeDb === 'undefined') {
         console.warn('Firebase 尚未初始化，500ms 後重試');
         setTimeout(monInit, 500);
         return;
     }
-    // 確保 DOM 元素存在
     if (!document.getElementById('monitorMap')) {
         console.warn('#monitorMap 尚未存在，500ms 後重試');
         setTimeout(monInit, 500);
         return;
     }
-    // 防重複初始化
     if (window._monInitialized) {
         console.log('Monitor 已初始化，跳過');
         return;
     }
     window._monInitialized = true;
 
-    // 初始化地圖
     monInitMap();
-    // 載入數據
     monLoadAllData();
-    // 設置監聽器
     db.collection('guests').onSnapshot(() => { monLoadAllData(); });
     db.collection('rescue_records').onSnapshot(() => { monLoadAllData(); });
-    // 自動刷新
     if (window._monAutoRefresh) clearInterval(window._monAutoRefresh);
     window._monAutoRefresh = setInterval(monLoadAllData, 60000);
 }
 
-// 暴露全域函式
+// ================================================================
+// 4. 暴露全域函式
+// ================================================================
+
 window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
 window.monLoadAllData = monLoadAllData;
