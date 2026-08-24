@@ -245,3 +245,7 @@ tr:hover td { background: #f8fafc; }
 #section-map:not(.active) #map {
     display: none !important;
 }
+/* 強制隱藏整個地圖區塊容器（當無 active 類別時） */
+#section-map:not(.active) {
+    display: none !important;
+}
