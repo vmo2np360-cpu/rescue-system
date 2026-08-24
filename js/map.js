@@ -413,30 +413,43 @@ function setupMoveMode() {
 // ---- 更新地圖 (依據求助記錄 + guests 狀態) ----
 async function mapUpdateFromFirestore() {
     try {
+        // 1. 取得求助記錄 (rescue_records)
         const rescueSnap = await db.collection('rescue_records').get();
         const rescueRecords = [];
         rescueSnap.forEach(d => rescueRecords.push({ id: d.id, ...d.data() }));
 
+        // 2. 取得被救者記錄 (guests)
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
 
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
+            // 先移除所有狀態樣式
             cabin.el.classList.remove("status-red", "status-yellow", "status-green");
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
             if (seq) {
-                const hasRescue = rescueRecords.some(r => r.cabinNumber === seq && r.processed === false);
-                if (hasRescue) {
+                // ============================================================
+                // ★ 優先判斷：是否有「未處理」的求助記錄 → 紅色 (等待救援)
+                // ============================================================
+                const hasUnprocessedRescue = rescueRecords.some(
+                    r => r.cabinNumber === seq && r.processed === false
+                );
+
+                if (hasUnprocessedRescue) {
                     cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#dc2626');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return;
+                    return; // 紅色優先，跳過後續判斷
                 }
 
+                // ============================================================
+                // ★ 若無未處理的救助記錄，則根據 guests 判斷狀態
+                // ============================================================
                 const matched = guestRecords.filter(g => g.cabinNumber === seq);
+
                 if (matched.length > 0) {
                     let landed = 0, rescuing = 0, waiting = 0;
                     matched.forEach(g => {
@@ -446,27 +459,27 @@ async function mapUpdateFromFirestore() {
                         else waiting++;
                     });
 
+                    // 所有組別已著陸 → 綠色
                     if (landed === matched.length && matched.length > 0) {
                         cabin.el.classList.add("status-green");
                         cabin.shape.setAttribute('fill', '#22c55e');
                         cabin.shape.setAttribute('stroke', '#16a34a');
-                    }
-                    else if (waiting === 0 && rescuing > 0) {
+                    } else {
+                        // 有組別在救援中，或是有組別等待（但沒有未處理的求助記錄）
+                        // → 統一顯示為黃色 (救援中 / 待處理)
                         cabin.el.classList.add("status-yellow");
                         cabin.shape.setAttribute('fill', '#eab308');
                         cabin.shape.setAttribute('stroke', '#ca8a04');
                     }
-                    else if (waiting > 0) {
-                        cabin.el.classList.add("status-red");
-                        cabin.shape.setAttribute('fill', '#dc2626');
-                        cabin.shape.setAttribute('stroke', '#b91c1c');
-                    }
                 } else {
+                    // 無任何組別記錄 → 灰色
                     cabin.shape.setAttribute('fill', '#e2e8f0');
                     cabin.shape.setAttribute('stroke', '#94a3b8');
                 }
             }
         });
+
+        // 更新摘要統計
         mapUpdateSummary();
     } catch(e) {
         console.error('地圖更新失敗:', e);
