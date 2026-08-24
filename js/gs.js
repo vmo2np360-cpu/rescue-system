@@ -54,7 +54,7 @@ async function gsCreateRecord() {
         ageRange: document.getElementById('gsAgeRange').value,
         healthStatus: health,
         createdAt: new Date(),
-        status: 'pending'
+        status: 'rescuing'
     };
     gsPendingData = data;
 
