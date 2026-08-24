@@ -142,16 +142,24 @@ async function loadSection(sectionId) {
     }
 }
 
-// 切換區塊（顯示 + 載入）
 function switchSection(sectionId) {
     // 隱藏所有區塊
-    document.querySelectorAll('.section-container').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.section-container').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    // ★ 隱藏地圖（確保脫離容器的 SVG 也被隱藏）
+    const mapEl = document.getElementById('map');
+    if (mapEl) {
+        mapEl.style.display = (sectionId === 'section-map') ? 'block' : 'none';
+    }
+
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
-        // 動態載入內容
         loadSection(sectionId);
     }
+
     // 更新導航按鈕樣式
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.target === sectionId);
