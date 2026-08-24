@@ -114,6 +114,18 @@ async function isAdmin() {
 
 // ==================== 通用工具函數 (保留先前已測試通過的內容) ====================
 function getGroupStatus(guest) {
+    // 優先使用顯式儲存的 status
+    if (guest.status) {
+        // 確保回傳值為 'landed', 'rescuing', 'waiting' 之一
+        if (['landed', 'rescuing', 'waiting'].includes(guest.status)) {
+            return guest.status;
+        }
+        // 若 status 為 'completed'，則視為已著陸
+        if (guest.status === 'completed') {
+            return 'landed';
+        }
+    }
+    // 若無 status 或格式不符，則依傳統邏輯推斷
     if (guest.timeLanded) return 'landed';
     if (guest.exitTime && guest.exitMethod) return 'landed';
     if (guest.timeReachedTop || guest.rescuedBy) return 'rescuing';
