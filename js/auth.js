@@ -143,26 +143,25 @@ async function loadSection(sectionId) {
 }
 
 function switchSection(sectionId) {
-    // 隱藏所有區塊
+    // 1. 移除所有區塊的 active 類別
     document.querySelectorAll('.section-container').forEach(el => {
         el.classList.remove('active');
     });
 
-    // ★★★★★ 強制控制地圖顯示（最重要）★★★★★
+    // 2. 直接控制地圖顯示（作為 CSS 的備份）
     const mapEl = document.getElementById('map');
     if (mapEl) {
-        // 只有當目標是地圖區塊時才顯示，否則隱藏
         mapEl.style.display = (sectionId === 'section-map') ? 'block' : 'none';
     }
 
-    // 顯示目標區塊
+    // 3. 顯示目標區塊並加上 active
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
         loadSection(sectionId);
     }
 
-    // 更新導航按鈕樣式
+    // 4. 更新導航按鈕樣式
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.target === sectionId);
     });
