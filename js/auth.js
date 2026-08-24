@@ -129,10 +129,11 @@ async function loadSection(sectionId) {
         container.innerHTML = html;
         container.dataset.loaded = 'true';
 
-        // 執行該區塊的初始化函數（若存在）
-        if (section.init && typeof window[section.init] === 'function') {
-            window[section.init]();
-        }
+      if (section.init && typeof window[section.init] === 'function') {
+    setTimeout(() => {
+        window[section.init]();
+    }, 150);
+}
     } catch (error) {
         console.error('載入區塊失敗:', error);
         container.innerHTML = `<div class="card"><p style="color:red;">載入失敗: ${error.message}</p></div>`;
