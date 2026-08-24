@@ -114,7 +114,7 @@ async function apUpdateRecord() {
         const update = {
             exitMethod, exitTime: new Date(exitTime),
             ambulance, ambulancePlate, hospital,
-            status: 'completed',
+            status: 'landed',
             updatedAt: new Date()
         };
         await db.collection('guests').doc(apCurrentDocId).update(update);
