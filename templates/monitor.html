@@ -1,30 +1,118 @@
 <h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-tv"></i> 總監控平台</h2>
 <div id="monMessage" class="message"></div>
 
-<div class="stats-grid">
-    <div class="stat-card"><div class="number" id="monTotal">0</div><div class="label">求助記錄總數</div></div>
-    <div class="stat-card"><div class="number" id="monPending">0</div><div class="label">待處理</div></div>
-    <div class="stat-card"><div class="number" id="monProcessed">0</div><div class="label">已完成</div></div>
-</div>
-
-<div class="health-grid">
-    <div class="health-card green"><div class="number" id="monGreen">0</div><div class="label">綠色(第三優先)</div></div>
-    <div class="health-card yellow"><div class="number" id="monYellow">0</div><div class="label">黃色(第二優先)</div></div>
-    <div class="health-card red"><div class="number" id="monRed">0</div><div class="label">紅色(第一優先)</div></div>
-    <div class="health-card black"><div class="number" id="monBlack">0</div><div class="label">黑色(沒有生命體徵)</div></div>
-</div>
-
-<div class="card"><div class="chart-container"><canvas id="monTimeChart"></canvas></div></div>
-
+<!-- ===== 1. OCC 求助記錄統計 ===== -->
 <div class="card">
+    <div class="card-title"><i class="fas fa-headset"></i> OCC 求助記錄統計</div>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="number" id="occ-total">0</div><div class="label">求助記錄總數</div></div>
+        <div class="stat-card"><div class="number" id="occ-pending">0</div><div class="label">待處理</div></div>
+        <div class="stat-card"><div class="number" id="occ-processed">0</div><div class="label">已完成</div></div>
+    </div>
+</div>
+
+<!-- ===== 2. OCC 求助記錄健康狀況統計 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-heartbeat"></i> OCC 求助記錄健康狀況</div>
+    <div class="health-grid">
+        <div class="health-card green"><div class="number" id="occ-green-count">0</div><div class="label">綠色 (第三優先)</div></div>
+        <div class="health-card yellow"><div class="number" id="occ-yellow-count">0</div><div class="label">黃色 (第二優先)</div></div>
+        <div class="health-card red"><div class="number" id="occ-red-count">0</div><div class="label">紅色 (第一優先)</div></div>
+        <div class="health-card black"><div class="number" id="occ-black-count">0</div><div class="label">黑色 (無生命體徵)</div></div>
+    </div>
+</div>
+
+<!-- ===== 3. 救援記錄統計 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-clipboard-list"></i> 救援記錄統計</div>
+    <div class="stats-grid">
+        <div class="stat-card" style="border-top-color:#4285F4;"><div class="number" id="totalRecords">0</div><div class="label">總記錄數</div></div>
+        <div class="stat-card" style="border-top-color:#34A853;"><div class="number" id="completedRecords">0</div><div class="label">已完成</div></div>
+        <div class="stat-card" style="border-top-color:#FBBC05;"><div class="number" id="pendingRecords">0</div><div class="label">處理中</div></div>
+        <div class="stat-card" style="border-top-color:#EA4335;"><div class="number" id="ambulanceNeeded">0</div><div class="label">需要救護車</div></div>
+    </div>
+</div>
+
+<!-- ===== 4. 健康狀況統計 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-notes-medical"></i> 賓客健康狀況統計</div>
+    <div class="health-grid">
+        <div class="health-card green"><div class="number" id="green-count">0</div><div class="label">綠色 (第三優先)</div></div>
+        <div class="health-card yellow"><div class="number" id="yellow-count">0</div><div class="label">黃色 (第二優先)</div></div>
+        <div class="health-card red"><div class="number" id="red-count">0</div><div class="label">紅色 (第一優先)</div></div>
+        <div class="health-card black"><div class="number" id="black-count">0</div><div class="label">黑色 (無生命體徵)</div></div>
+    </div>
+</div>
+
+<!-- ===== 5. 救援狀態分佈 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-flag"></i> 組別救援狀態分佈</div>
+    <div class="stats-grid">
+        <div class="stat-card" style="border-top-color:#EA4335;"><div class="number" id="waiting-groups">0</div><div class="label">等待救援</div></div>
+        <div class="stat-card" style="border-top-color:#FBBC05;"><div class="number" id="rescuing-groups">0</div><div class="label">救援中</div></div>
+        <div class="stat-card" style="border-top-color:#34A853;"><div class="number" id="landed-groups">0</div><div class="label">已著陸</div></div>
+        <div class="stat-card" style="border-top-color:#4285F4;"><div class="number" id="total-groups">0</div><div class="label">總組別數</div></div>
+    </div>
+</div>
+
+<!-- ===== 6. 救援時間圖表 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-chart-bar"></i> 救援時間分佈</div>
+    <div class="chart-container" style="height:280px;">
+        <canvas id="timeChart"></canvas>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+        <span style="font-size:0.75rem; color:#94a3b8;">最後更新: <span id="last-chart-update">--:--:--</span></span>
+    </div>
+</div>
+
+<!-- ===== 7. 監控表格 ===== -->
+<div class="card">
+    <div class="card-title"><i class="fas fa-table"></i> 所有救援記錄</div>
     <div class="filter-row">
-        <div class="form-group"><label>搜尋</label><input type="text" id="monSearch" placeholder="車廂或姓名" oninput="monFilterRecords()"></div>
-        <button class="btn btn-secondary" onclick="monLoadData()"><i class="fas fa-sync-alt"></i> 刷新</button>
+        <div class="form-group">
+            <label><i class="fas fa-search"></i> 搜尋</label>
+            <input type="text" id="searchInput" placeholder="車廂號碼、組別或姓名" oninput="monFilterRecords()">
+        </div>
+        <button class="btn btn-secondary" onclick="monLoadAllData()" style="margin-bottom:0;">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto; align-self:flex-end;">
+            最後更新: <span id="last-monitor-update">--:--:--</span>
+        </span>
     </div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr></thead>
-            <tbody id="monTableBody"></tbody>
+            <thead>
+                <tr>
+                    <th>車廂</th>
+                    <th>組別</th>
+                    <th>開始救援</th>
+                    <th>結束救援</th>
+                    <th>狀態</th>
+                </tr>
+            </thead>
+            <tbody id="monitor-records-list">
+                <!-- 動態載入 -->
+            </tbody>
         </table>
     </div>
 </div>
+
+<!-- ===== 全域監聽器：自動刷新狀態指示 ===== -->
+<div style="display:none;">
+    <span id="last-map-update"></span>
+    <span id="last-data-update"></span>
+</div>
+
+<script>
+    // 確保 initMonitor 在 DOM 載入完成後執行
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof initMonitor === 'function') {
+            console.log('🚀 初始化總監控平台 (從 HTML 內嵌腳本)');
+            initMonitor();
+        } else {
+            console.warn('⚠️ initMonitor 尚未載入，請確保 monitor.js 已正確載入');
+        }
+    });
+</script>
