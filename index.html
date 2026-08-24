@@ -220,22 +220,28 @@
 </div>
 
 <script>
-    // 頁面載入後初始化地圖（若有需要）
-    document.addEventListener('DOMContentLoaded', function() {
+     document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
-    });
-      document.addEventListener('DOMContentLoaded', function() {
-        // 若地圖區塊預設為顯示，直接初始化
-        if (document.getElementById('section-map') && document.getElementById('section-map').style.display !== 'none') {
-            if (typeof initMap === 'function') initMap();
+
+        // ============================================================
+        // ★ 在此加入地圖初始化邏輯（確保地圖區塊顯示時自動載入）
+        // ============================================================
+        function tryInitMap() {
+            var mapSection = document.getElementById('section-map');
+            // 如果地圖區塊存在且是顯示狀態（或是預設顯示），就初始化地圖
+            if (mapSection && mapSection.style.display !== 'none') {
+                if (typeof initMap === 'function') {
+                    console.log('📍 偵測到地圖區塊，初始化地圖...');
+                    setTimeout(initMap, 300); // 延遲 300ms 確保 DOM 完整渲染
+                }
+            }
         }
 
-        // 如果您有導航按鈕切換區塊的邏輯，請在顯示地圖區塊的程式碼中呼叫 initMap()
-        // 例如：
-        // document.getElementById('map-tab').addEventListener('click', function() {
-        //     document.getElementById('section-map').style.display = 'block';
-        //     if (typeof initMap === 'function') initMap();
-        // });
+        // 初次載入嘗試
+        tryInitMap();
+
+        // 如果有導航切換事件，也可在此監聽（視您的架構而定）
+        // 但通常導航切換會在 auth.js 中處理，請參考下方「位置二」說明
     });
 </script>
 </body>
