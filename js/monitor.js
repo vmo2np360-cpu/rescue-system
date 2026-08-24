@@ -9,6 +9,7 @@ let monSvg = null;
 let monChartInstance = null;
 let monGuestRecords = [];
 let monRescueRecords = [];
+let monAutoRefreshTimer = null;
 
 // ★ 使用與主地圖相同的偏移量（共用 localStorage）
 function monGetGlobalOffset() {
@@ -222,7 +223,6 @@ function monBuildCabins() {
     const size = 20;
     const fontSize = 20;
     const ropeLen = monLengthOf(monMapRopePts);
-    // ★ 使用主地圖的偏移量
     const offset = monGetGlobalOffset();
     for(let i=0; i<total; i++) {
         const g = document.createElementNS('http://www.w3.org/2000/svg','g');
@@ -255,7 +255,6 @@ function monBuildCabins() {
 
 function monLayoutCabins() {
     const ropeLen = monLengthOf(monMapRopePts);
-    // ★ 使用主地圖的偏移量（確保兩邊同步）
     const offset = monGetGlobalOffset();
     monMapCabins.forEach((c, i) => {
         const d = (i * ropeLen / monMapCabins.length + offset) % ropeLen;
@@ -284,64 +283,77 @@ function monPointAt(pts,d) {
     return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
 }
 
-// ----- 更新車廂狀態（★ 使用 common.js 的 getGroupStatus） -----
+// ----- 更新車廂狀態（★ 與主地圖邏輯完全一致） -----
 async function monUpdateFromFirestore() {
     try {
+        // 1. 取得求助記錄 (rescue_records)
         const rescueSnap = await db.collection('rescue_records').get();
         const rescueRecords = [];
         rescueSnap.forEach(d => rescueRecords.push({ id: d.id, ...d.data() }));
 
+        // 2. 取得被救者記錄 (guests)
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
 
         monMapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            cabin.el.classList.remove('status-red', 'status-yellow', 'status-green');
+            // 先移除所有狀態樣式
+            cabin.el.classList.remove("status-red", "status-yellow", "status-green");
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
             if (seq) {
-                // ★ 優先判斷：是否有未處理的求助記錄 → 紅色
-                const hasRescue = rescueRecords.some(r => r.cabinNumber === seq && r.processed === false);
-                if (hasRescue) {
-                    cabin.el.classList.add('status-red');
+                // ============================================================
+                // ★ 優先判斷：是否有「未處理」的求助記錄 → 紅色 (等待救援)
+                // ============================================================
+                const hasUnprocessedRescue = rescueRecords.some(
+                    r => r.cabinNumber === seq && r.processed === false
+                );
+
+                if (hasUnprocessedRescue) {
+                    cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#EA4335');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return;
+                    return; // 紅色優先，跳過後續判斷
                 }
 
-                // ★ 使用 common.js 的 getGroupStatus 判斷狀態（與主地圖完全一致）
+                // ============================================================
+                // ★ 若無未處理的救助記錄，則根據 guests 判斷狀態
+                // ============================================================
                 const matched = guestRecords.filter(g => g.cabinNumber === seq);
+
                 if (matched.length > 0) {
                     let landed = 0, rescuing = 0, waiting = 0;
                     matched.forEach(g => {
-                        // ★ 直接使用 common.js 的 getGroupStatus
+                        // ★ 使用 common.js 的 getGroupStatus
                         const status = window.getGroupStatus(g);
                         if (status === 'landed') landed++;
                         else if (status === 'rescuing') rescuing++;
                         else waiting++;
                     });
 
+                    // 所有組別已著陸 → 綠色
                     if (landed === matched.length && matched.length > 0) {
-                        cabin.el.classList.add('status-green');
+                        cabin.el.classList.add("status-green");
                         cabin.shape.setAttribute('fill', '#34A853');
                         cabin.shape.setAttribute('stroke', '#16a34a');
-                    } else if (waiting === 0 && rescuing > 0) {
-                        cabin.el.classList.add('status-yellow');
+                    } else {
+                        // 有組別在救援中，或是有組別等待（但沒有未處理的求助記錄）
+                        // → 統一顯示為黃色 (救援中 / 待處理)
+                        cabin.el.classList.add("status-yellow");
                         cabin.shape.setAttribute('fill', '#FBBC05');
                         cabin.shape.setAttribute('stroke', '#ca8a04');
-                    } else if (waiting > 0) {
-                        cabin.el.classList.add('status-red');
-                        cabin.shape.setAttribute('fill', '#EA4335');
-                        cabin.shape.setAttribute('stroke', '#b91c1c');
                     }
                 } else {
+                    // 無任何組別記錄 → 灰色
                     cabin.shape.setAttribute('fill', '#666');
                     cabin.shape.setAttribute('stroke', '#888');
                 }
             }
         });
+
+        // 更新摘要統計
         monUpdateSummary();
     } catch(e) {
         console.error('Monitor 地圖更新失敗:', e);
@@ -365,8 +377,6 @@ function monUpdateSummary() {
     document.getElementById('monLandedCabins').textContent = lc.join(', ');
 }
 
-// ★ 移除 monGetGroupStatus，直接使用 common.js 的 window.getGroupStatus
-
 // ----- 搜尋車廂（與主地圖相同） -----
 function monSearchCabin() {
     const q = document.getElementById('monSearchBox').value.trim();
@@ -389,7 +399,7 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ----- 點擊車廂 → 開啟唯讀詳情（★ 使用 common.js 的 getGroupStatus） -----
+// ----- 點擊車廂 → 開啟唯讀詳情 -----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
@@ -403,7 +413,6 @@ function monOpenCabinReadonly(cabin) {
             html += `<tr style="border-bottom:1px solid #444;"><th style="text-align:left; padding:6px 4px; color:#aaa;">組別</th><th style="text-align:left; padding:6px 4px; color:#aaa;">姓名</th><th style="text-align:left; padding:6px 4px; color:#aaa;">狀態</th></tr>`;
             snap.forEach(doc => {
                 const data = doc.data();
-                // ★ 使用 common.js 的 getGroupStatus
                 const status = window.getGroupStatus(data);
                 const statusMap = { 'landed':'✅ 已著陸', 'rescuing':'🔄 救援中', 'waiting':'⏳ 等待救援' };
                 html += `<tr style="border-bottom:1px solid #3d3d3d;">`;
@@ -433,7 +442,7 @@ function monOpenCabinReadonly(cabin) {
 }
 
 // ================================================================
-// 2. 統計數據、圖表、表格（★ 使用 common.js 的 getGroupStatus）
+// 2. 統計數據、圖表、表格
 // ================================================================
 
 async function monLoadAllData() {
@@ -584,7 +593,6 @@ function monRenderTable() {
     filtered.sort((a,b) => (a.cabinNumber||'').localeCompare((b.cabinNumber||''), undefined, {numeric:true}));
     filtered.forEach(rec => {
         const tr = document.createElement('tr');
-        // ★ 使用 common.js 的 getGroupStatus
         const status = window.getGroupStatus(rec);
         let statusText='', badgeClass='';
         if (status === 'landed') { statusText='已著陸'; badgeClass='status-complete'; }
@@ -635,10 +643,30 @@ function monInit() {
 
     monInitMap();
     monLoadAllData();
-    db.collection('guests').onSnapshot(() => { monLoadAllData(); });
-    db.collection('rescue_records').onSnapshot(() => { monLoadAllData(); });
-    if (window._monAutoRefresh) clearInterval(window._monAutoRefresh);
-    window._monAutoRefresh = setInterval(monLoadAllData, 60000);
+
+    // 設置 Firestore 即時監聽（數據變更時自動更新）
+    db.collection('guests').onSnapshot(() => {
+        if (document.getElementById('section-monitor')?.classList.contains('active')) {
+            monLoadAllData();
+        }
+    });
+    db.collection('rescue_records').onSnapshot(() => {
+        if (document.getElementById('section-monitor')?.classList.contains('active')) {
+            monLoadAllData();
+        }
+    });
+
+    // ★ 自動更新：每20秒檢查一次，僅在監控頁面活躍時更新
+    if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
+    monAutoRefreshTimer = setInterval(() => {
+        const section = document.getElementById('section-monitor');
+        if (section && section.classList.contains('active')) {
+            console.log('🔄 監控平台自動更新 (20秒)');
+            monLoadAllData();
+        }
+    }, 20000);
+
+    // 手動更新按鈕已綁定 monLoadAllData，無需額外處理
 }
 
 // ================================================================
