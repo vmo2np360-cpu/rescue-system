@@ -17,7 +17,8 @@ const SECTIONS = [
     { id: 'section-dashboard', key: 'dashboard', label: '監控面板', icon: 'fa-chart-line', pageKey: 'index_dashboard', template: 'templates/dashboard.html', init: 'initDashboard' },
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
-    { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'initMonitor' }
+    // ★ 修改：init 改為 'monInit'（與 monitor.html 定義一致）
+    { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' }
 ];
 
 // 快取已載入的 HTML
@@ -129,11 +130,12 @@ async function loadSection(sectionId) {
         container.innerHTML = html;
         container.dataset.loaded = 'true';
 
-      if (section.init && typeof window[section.init] === 'function') {
-    setTimeout(() => {
-        window[section.init]();
-    }, 150);
-}
+        // ★ 執行該區塊的初始化函數（若存在）
+        if (section.init && typeof window[section.init] === 'function') {
+            setTimeout(() => {
+                window[section.init]();
+            }, 150);
+        }
     } catch (error) {
         console.error('載入區塊失敗:', error);
         container.innerHTML = `<div class="card"><p style="color:red;">載入失敗: ${error.message}</p></div>`;
