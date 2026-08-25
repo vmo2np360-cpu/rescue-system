@@ -142,8 +142,7 @@ async function dbEditRecordWithModal(id) {
 
     document.getElementById('groupRescuedBy').value = record.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
-    
-    // ★ 使用 extractDateTime 轉換時間格式
+    // ★ 使用 extractDateTime 轉換時間
     document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(record.timeReachedTop) : '';
     document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(record.timeLanded) : '';
     document.getElementById('groupRemarks').value = record.remarks || '';
