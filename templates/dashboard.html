@@ -1,6 +1,7 @@
 <h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-chart-line"></i> 監控面板</h2>
 <div id="dbMessage" class="message"></div>
 
+<!-- 統計卡片（原有，不新增四種狀態卡片） -->
 <div class="stats-grid">
     <div class="stat-card"><div class="number" id="dbTotal">0</div><div class="label">總記錄數</div></div>
     <div class="stat-card"><div class="number" id="dbCompleted">0</div><div class="label">已完成</div></div>
@@ -17,15 +18,52 @@
 <div class="card">
     <div class="filter-row">
         <div class="form-group"><label>搜尋</label><input type="text" id="dbSearch" placeholder="車廂或姓名" oninput="dbFilterRecords()"></div>
-        <div class="form-group"><label>後續處理</label><select id="dbFilterExit" onchange="dbFilterRecords()"><option value="">全部</option><option value="正常或傷勢已處理 自行離開">自行離開</option><option value="現正在救援集合點休息中">休息中</option><option value="已由救護車送往醫院">送醫</option><option value="其他">其他</option></select></div>
-        <div class="form-group"><label>健康狀況</label><select id="dbFilterHealth" onchange="dbFilterRecords()"><option value="">全部</option><option value="綠色(第三優先)">綠色</option><option value="黃色(第二優先)">黃色</option><option value="紅色(第一優先)">紅色</option><option value="黑色(沒有生命體徵)">黑色</option></select></div>
-        <div class="form-group"><label>狀態</label><select id="dbFilterStatus" onchange="dbFilterRecords()"><option value="">全部</option><option value="completed">已完成</option><option value="pending">處理中</option></select></div>
-        <button class="btn btn-secondary" onclick="dbLoadRecords()"><i class="fas fa-sync-alt"></i> 刷新</button>
+        <div class="form-group"><label>後續處理</label>
+            <select id="dbFilterExit" onchange="dbFilterRecords()">
+                <option value="">全部</option>
+                <option value="正常或傷勢已處理 自行離開">自行離開</option>
+                <option value="現正在救援集合點休息中">休息中</option>
+                <option value="已由救護車送往醫院">送醫</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        <div class="form-group"><label>健康狀況</label>
+            <select id="dbFilterHealth" onchange="dbFilterRecords()">
+                <option value="">全部</option>
+                <option value="綠色(第三優先)">綠色</option>
+                <option value="黃色(第二優先)">黃色</option>
+                <option value="紅色(第一優先)">紅色</option>
+                <option value="黑色(沒有生命體徵)">黑色</option>
+            </select>
+        </div>
+        <div class="form-group"><label>狀態</label>
+            <select id="dbFilterStatus" onchange="dbFilterRecords()">
+                <option value="">全部</option>
+                <option value="waiting">等待救援</option>
+                <option value="rescuing">救援中</option>
+                <option value="landed">已著陸</option>
+                <option value="departed">已離開</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" id="dbRefreshBtn"><i class="fas fa-sync-alt"></i> 刷新</button>
         <button class="btn btn-secondary" onclick="dbExportCSV()"><i class="fas fa-file-csv"></i> 匯出 CSV</button>
     </div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>#</th><th>車廂</th><th>姓名</th><th>聯絡方式</th><th>組別</th><th>健康狀況</th><th>後續處理</th><th>狀態</th><th>操作</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>車廂</th>
+                    <th>姓名</th>
+                    <th>聯絡方式</th>
+                    <th>組別</th>
+                    <th>健康狀況</th>
+                    <th>離開時間</th>
+                    <th>後續處理</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
             <tbody id="dbTableBody"></tbody>
         </table>
     </div>
