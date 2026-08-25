@@ -299,7 +299,9 @@ function monPointAt(pts,d) {
     return {x:pts[pts.length-1][0], y:pts[pts.length-1][1]};
 }
 
-// ----- 更新車廂狀態（與主地圖邏輯完全一致） -----
+// ================================================================
+// ★ 更新車廂狀態（新優先順序：已著陸 > 救援中 > 等待救援）
+// ================================================================
 async function monUpdateFromFirestore() {
     try {
         const rescueSnap = await db.collection('rescue_records').get();
@@ -316,41 +318,52 @@ async function monUpdateFromFirestore() {
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
-            if (seq) {
-                const hasUnprocessedRescue = rescueRecords.some(
-                    r => r.cabinNumber === seq && r.processed === false
-                );
-                if (hasUnprocessedRescue) {
-                    cabin.el.classList.add("status-red");
-                    cabin.shape.setAttribute('fill', '#EA4335');
-                    cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return;
-                }
+            if (!seq) return; // 無車廂號碼，保持白色
 
-                const matched = guestRecords.filter(g => g.cabinNumber === seq);
-                if (matched.length > 0) {
-                    let landed = 0, rescuing = 0, waiting = 0;
-                    matched.forEach(g => {
-                        const status = window.getGroupStatus(g);
-                        if (status === 'landed') landed++;
-                        else if (status === 'rescuing') rescuing++;
-                        else waiting++;
-                    });
-                    if (landed === matched.length && matched.length > 0) {
-                        cabin.el.classList.add("status-green");
-                        cabin.shape.setAttribute('fill', '#34A853');
-                        cabin.shape.setAttribute('stroke', '#16a34a');
-                    } else {
-                        cabin.el.classList.add("status-yellow");
-                        cabin.shape.setAttribute('fill', '#FBBC05');
-                        cabin.shape.setAttribute('stroke', '#ca8a04');
-                    }
-                } else {
-                    cabin.shape.setAttribute('fill', '#666');
-                    cabin.shape.setAttribute('stroke', '#888');
-                }
+            // ---- 1. 取得該車廂的 guests 記錄 ----
+            const matched = guestRecords.filter(g => g.cabinNumber === seq);
+
+            // ---- 2. 統計各狀態數量 ----
+            let landed = 0, rescuing = 0, waiting = 0;
+            matched.forEach(g => {
+                const status = window.getGroupStatus(g);
+                if (status === 'landed') landed++;
+                else if (status === 'rescuing') rescuing++;
+                else waiting++;
+            });
+            const total = matched.length;
+
+            // ---- 3. 檢查是否有未處理的求助記錄（視為「等待救援」） ----
+            const hasUnprocessedRescue = rescueRecords.some(
+                r => r.cabinNumber === seq && r.processed === false
+            );
+
+            // ---- 4. 按優先順序決定顏色（已著陸 > 救援中 > 等待救援） ----
+            if (total > 0 && landed === total) {
+                // 🟢 全部已著陸 → 綠色（最高優先）
+                cabin.el.classList.add("status-green");
+                cabin.shape.setAttribute('fill', '#34A853');
+                cabin.shape.setAttribute('stroke', '#16a34a');
+            } 
+            else if (rescuing > 0) {
+                // 🟡 有任何救援中 → 黃色（次高優先）
+                cabin.el.classList.add("status-yellow");
+                cabin.shape.setAttribute('fill', '#FBBC05');
+                cabin.shape.setAttribute('stroke', '#ca8a04');
+            } 
+            else if (total > 0 || hasUnprocessedRescue) {
+                // 🔴 其他情況（全部等待、部分已著陸+部分等待、有求助記錄但無救援中）→ 紅色（最低優先）
+                cabin.el.classList.add("status-red");
+                cabin.shape.setAttribute('fill', '#EA4335');
+                cabin.shape.setAttribute('stroke', '#b91c1c');
+            } 
+            else {
+                // 無任何組別記錄，也無求助記錄 → 灰色
+                cabin.shape.setAttribute('fill', '#666');
+                cabin.shape.setAttribute('stroke', '#888');
             }
         });
+
         monUpdateSummary();
     } catch(e) {
         console.error('Monitor 地圖更新失敗:', e);
