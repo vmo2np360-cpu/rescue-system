@@ -767,6 +767,7 @@ function openGroupModal(guestData) {
     }
     document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
+    // ★ 使用 extractDateTime 轉換時間
     document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(guestData.timeReachedTop) : '';
     document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(guestData.timeLanded) : '';
     document.getElementById('groupRemarks').value = guestData.remarks || '';
