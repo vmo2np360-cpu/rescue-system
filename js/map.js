@@ -410,7 +410,9 @@ function setupMoveMode() {
     });
 }
 
-// ---- 更新地圖 (依據求助記錄 + guests 狀態) ----
+// ================================================================
+// ★ 更新地圖 (新優先順序：已著陸 > 救援中 > 等待救援)
+// ================================================================
 async function mapUpdateFromFirestore() {
     try {
         // 1. 取得求助記錄 (rescue_records)
@@ -430,52 +432,49 @@ async function mapUpdateFromFirestore() {
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
-            if (seq) {
-                // ============================================================
-                // ★ 優先判斷：是否有「未處理」的求助記錄 → 紅色 (等待救援)
-                // ============================================================
-                const hasUnprocessedRescue = rescueRecords.some(
-                    r => r.cabinNumber === seq && r.processed === false
-                );
+            if (!seq) return; // 無車廂號碼，保持白色
 
-                if (hasUnprocessedRescue) {
-                    cabin.el.classList.add("status-red");
-                    cabin.shape.setAttribute('fill', '#dc2626');
-                    cabin.shape.setAttribute('stroke', '#b91c1c');
-                    return; // 紅色優先，跳過後續判斷
-                }
+            // ---- 1. 取得該車廂的 guests 記錄 ----
+            const matched = guestRecords.filter(g => g.cabinNumber === seq);
 
-                // ============================================================
-                // ★ 若無未處理的救助記錄，則根據 guests 判斷狀態
-                // ============================================================
-                const matched = guestRecords.filter(g => g.cabinNumber === seq);
+            // ---- 2. 統計各狀態數量 ----
+            let landed = 0, rescuing = 0, waiting = 0;
+            matched.forEach(g => {
+                const status = getGroupStatus(g);
+                if (status === 'landed') landed++;
+                else if (status === 'rescuing') rescuing++;
+                else waiting++;
+            });
+            const total = matched.length;
 
-                if (matched.length > 0) {
-                    let landed = 0, rescuing = 0, waiting = 0;
-                    matched.forEach(g => {
-                        const status = getGroupStatus(g);
-                        if (status === 'landed') landed++;
-                        else if (status === 'rescuing') rescuing++;
-                        else waiting++;
-                    });
+            // ---- 3. 檢查是否有未處理的求助記錄（視為「等待救援」） ----
+            const hasUnprocessedRescue = rescueRecords.some(
+                r => r.cabinNumber === seq && r.processed === false
+            );
 
-                    // 所有組別已著陸 → 綠色
-                    if (landed === matched.length && matched.length > 0) {
-                        cabin.el.classList.add("status-green");
-                        cabin.shape.setAttribute('fill', '#22c55e');
-                        cabin.shape.setAttribute('stroke', '#16a34a');
-                    } else {
-                        // 有組別在救援中，或是有組別等待（但沒有未處理的求助記錄）
-                        // → 統一顯示為黃色 (救援中 / 待處理)
-                        cabin.el.classList.add("status-yellow");
-                        cabin.shape.setAttribute('fill', '#eab308');
-                        cabin.shape.setAttribute('stroke', '#ca8a04');
-                    }
-                } else {
-                    // 無任何組別記錄 → 灰色
-                    cabin.shape.setAttribute('fill', '#e2e8f0');
-                    cabin.shape.setAttribute('stroke', '#94a3b8');
-                }
+            // ---- 4. 按優先順序決定顏色（已著陸 > 救援中 > 等待救援） ----
+            if (total > 0 && landed === total) {
+                // 🟢 全部已著陸 → 綠色（最高優先）
+                cabin.el.classList.add("status-green");
+                cabin.shape.setAttribute('fill', '#22c55e');
+                cabin.shape.setAttribute('stroke', '#16a34a');
+            } 
+            else if (rescuing > 0) {
+                // 🟡 有任何救援中 → 黃色（次高優先）
+                cabin.el.classList.add("status-yellow");
+                cabin.shape.setAttribute('fill', '#eab308');
+                cabin.shape.setAttribute('stroke', '#ca8a04');
+            } 
+            else if (total > 0 || hasUnprocessedRescue) {
+                // 🔴 其他情況（全部等待、部分已著陸+部分等待、有求助記錄但無救援中）→ 紅色（最低優先）
+                cabin.el.classList.add("status-red");
+                cabin.shape.setAttribute('fill', '#dc2626');
+                cabin.shape.setAttribute('stroke', '#b91c1c');
+            } 
+            else {
+                // 無任何組別記錄，也無求助記錄 → 灰色
+                cabin.shape.setAttribute('fill', '#e2e8f0');
+                cabin.shape.setAttribute('stroke', '#94a3b8');
             }
         });
 
