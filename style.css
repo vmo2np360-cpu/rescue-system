@@ -192,7 +192,34 @@ tr:hover td { background: #f8fafc; }
     overflow: hidden;
     border-radius: 0;
 }
+/* ===== 已離開（藍色）狀態樣式 ===== */
+.status-departed {
+    background: #3b82f6;
+    color: #ffffff;
+}
 
+/* 地圖車廂已離開（藍色） */
+.cabin.status-departed polygon {
+    fill: #3b82f6;
+    stroke: #2563eb;
+}
+
+/* 監控平台地圖車廂已離開（藍色） */
+#section-monitor .cabin.status-departed polygon {
+    fill: #3b82f6;
+    stroke: #2563eb;
+}
+
+/* 地圖摘要中的已離開（若有需要顯示） */
+.status-counter.departed {
+    border-left: 4px solid #3b82f6;
+}
+.status-counter.departed .counter-number {
+    color: #3b82f6;
+}
+
+/* 地圖圖例新增藍色（需同步修改 SVG 圖例） */
+/* 在 map.html 和 monitor.html 中，圖例需加入藍色區塊 */
 /* 地圖區塊內的 toolbar、摘要、SVG 依序排列 */
 #section-map.active .map-toolbar {
     flex-shrink: 0;
