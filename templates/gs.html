@@ -75,20 +75,32 @@
             <option value="未能分類">未能分類</option>
         </select>
     </div>
-    <button class="btn btn-success btn-block" onclick="gsCreateRecord()"><i class="fas fa-plus-circle"></i> 建立記錄並生成 QR 碼</button>
+
+    <!-- ★ 新增：完成救援時間 -->
+    <div class="form-group">
+        <label for="gsTimeLanded"><i class="fas fa-flag-checkered"></i> 完成救援時間</label>
+        <input type="datetime-local" id="gsTimeLanded">
+        <span style="font-size:0.75rem; color:#94a3b8;">
+            💡 若尚未完成可留空，系統會自動記錄開始救援時間；日後可編輯更新
+        </span>
+    </div>
+
+    <button class="btn btn-success btn-block" onclick="gsCreateRecord()">
+        <i class="fas fa-plus-circle"></i> 建立/更新記錄並生成 QR 碼
+    </button>
 </div>
 
 <!-- 重複警告區塊 -->
 <div id="gsDuplicateWarning" class="card" style="display:none; border:2px solid #eab308;">
     <div style="display:flex; align-items:center; gap:10px; color:#92400e;">
         <i class="fas fa-exclamation-triangle" style="font-size:1.5rem;"></i>
-        <strong>發現重複記錄</strong>
+        <strong class="gs-duplicate-title">⚠️ 發現已存在的記錄 (將執行更新)</strong>
     </div>
-    <p style="margin:8px 0;">以下記錄與您輸入的車廂和組別相同：</p>
+    <p style="margin:8px 0;">以下記錄與您輸入的車廂和組別相同，系統將執行「更新」而非新增：</p>
     <div id="gsDuplicateList" style="background:#f8fafc; padding:8px; border-radius:6px; margin:8px 0;"></div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn btn-secondary" onclick="gsCancelDuplicate()"><i class="fas fa-times"></i> 取消建立</button>
-        <button class="btn btn-success" onclick="gsCreateAnyway()"><i class="fas fa-plus-circle"></i> 資料無誤，確定建立記錄</button>
+        <button class="btn btn-secondary" onclick="gsCancelDuplicate()"><i class="fas fa-times"></i> 取消</button>
+        <button class="btn btn-success" onclick="gsCreateAnyway()"><i class="fas fa-save"></i> 確認更新記錄</button>
     </div>
 </div>
 
