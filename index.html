@@ -90,8 +90,8 @@
         <div class="modal-header"><span class="modal-title">車廂資訊</span><button class="modal-close" onclick="closeCabinModal()">&times;</button></div>
         <form id="cabinForm">
             <div class="form-group"><label>車廂號碼</label><input name="sequence" id="cabinSeq" required></div>
-            <div class="form-group"><label>開始救援時間</label><input type="time" name="timeReachedTop" id="cabinTimeReachedTop"></div>
-            <div class="form-group"><label>完成救援時間</label><input type="time" name="timeLanded" id="cabinTimeLanded"></div>
+            <div class="form-group"><label>開始救援時間</label><input type="datetime-local" name="timeReachedTop" id="cabinTimeReachedTop"></div>
+            <div class="form-group"><label>完成救援時間</label><input type="datetime-local" name="timeLanded" id="cabinTimeLanded"></div>
             <div class="form-group"><label>備註</label><textarea name="remarks" id="cabinRemarks"></textarea></div>
             <div class="modal-actions">
                 <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> 儲存</button>
@@ -203,8 +203,8 @@
                 </div>
             </div>
             
-            <div class="form-group"><label>開始救援時間</label><input type="time" id="groupTimeReachedTop" name="timeReachedTop"></div>
-            <div class="form-group"><label>完成救援時間</label><input type="time" id="groupTimeLanded" name="timeLanded"></div>
+            <div class="form-group"><label>開始救援時間</label><input type="datetime-local" id="groupTimeReachedTop" name="timeReachedTop"></div>
+            <div class="form-group"><label>完成救援時間</label><input type="datetime-local" id="groupTimeLanded" name="timeLanded"></div>
             
             <div class="form-group"><label>備註</label><textarea id="groupRemarks" name="remarks" rows="2"></textarea></div>
             
