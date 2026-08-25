@@ -66,7 +66,7 @@ function dbRenderTable(records) {
         if (filterExit && r.exitMethod !== filterExit) return false;
         if (filterHealth && r.healthStatus !== filterHealth) return false;
 
-        // 狀態篩選（使用 getGuestDisplayStatus）
+        // 狀態篩選（使用 getGuestDisplayStatus = getGroupStatus）
         if (filterStatus) {
             const displayStatus = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
             if (displayStatus !== filterStatus) return false;
@@ -81,9 +81,9 @@ function dbRenderTable(records) {
     filtered.forEach(r => {
         const tr = document.createElement('tr');
 
-        // ★ 使用 getGuestDisplayStatus 取得四種狀態
-        const displayStatus = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
-        const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(displayStatus) : { text: '未知', badge: 'status-unknown' };
+        // ★ 使用 getGroupStatus 取得狀態（個別組別優先級：已離開 > 已著陸 > 救援中 > 等待救援）
+        const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
+        const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status) : { text: '未知', badge: 'status-unknown' };
 
         // 格式化離開時間
         let exitTimeStr = '-';
@@ -142,8 +142,10 @@ async function dbEditRecordWithModal(id) {
 
     document.getElementById('groupRescuedBy').value = record.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
-    document.getElementById('groupTimeReachedTop').value = record.timeReachedTop || '';
-    document.getElementById('groupTimeLanded').value = record.timeLanded || '';
+    
+    // ★ 使用 extractDateTime 轉換時間格式
+    document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(record.timeReachedTop) : '';
+    document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(record.timeLanded) : '';
     document.getElementById('groupRemarks').value = record.remarks || '';
 
     document.getElementById('groupModal').style.display = 'flex';
@@ -202,6 +204,7 @@ async function dbUpdateGuestFromGroupModal(docId) {
         closeGroupModal();
         dbLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
     } catch (e) {
         showMessage('dbMessage', '更新失敗: ' + e.message, 'error');
     } finally {
@@ -217,6 +220,7 @@ async function dbDeleteRecord(id) {
         showMessage('dbMessage', '記錄已刪除', 'success');
         dbLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
     } catch (e) {
         showMessage('dbMessage', '刪除失敗: ' + e.message, 'error');
     } finally {
@@ -233,8 +237,8 @@ function dbExportCSV() {
     const BOM = '\uFEFF';
     let csv = BOM + '車廂,姓名,聯絡方式,組別,健康狀況,離開時間,後續處理,狀態\n';
     records.forEach(r => {
-        const status = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
-        const statusText = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status).text : status;
+        const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
+        const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status) : { text: status };
         const exitTimeStr = r.exitTime ? (window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-') : '-';
         const row = [
             r.cabinNumber || '',
@@ -244,7 +248,7 @@ function dbExportCSV() {
             r.healthStatus || '',
             exitTimeStr,
             r.exitMethod || '',
-            statusText
+            statusInfo.text
         ];
         csv += row.join(',') + '\n';
     });
