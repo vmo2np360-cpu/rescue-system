@@ -3,6 +3,7 @@
 // ================================================================
 
 let allGuests = [];
+let dbAutoRefreshTimer = null;
 
 // ---- 載入與統計 ----
 async function dbLoadRecords() {
@@ -15,21 +16,30 @@ async function dbLoadRecords() {
         dbUpdateStats(allGuests);
     } catch (e) {
         showMessage('dbMessage', '載入失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        showLoader(false);
+    }
 }
 
 function dbUpdateStats(records) {
     let total = records.length, completed = 0, pending = 0;
-    let green=0,yellow=0,red=0,black=0;
+    let green = 0, yellow = 0, red = 0, black = 0;
+
     records.forEach(r => {
-        if (r.status === 'completed') completed++;
-        else pending++;
+        // 原有狀態統計（已完成/處理中）
+        if (r.status === 'completed' || r.timeLanded) {
+            completed++;
+        } else {
+            pending++;
+        }
+
         const h = r.healthStatus || '';
         if (h.includes('綠色')) green++;
         else if (h.includes('黃色')) yellow++;
         else if (h.includes('紅色')) red++;
         else if (h.includes('黑色')) black++;
     });
+
     document.getElementById('dbTotal').textContent = total;
     document.getElementById('dbCompleted').textContent = completed;
     document.getElementById('dbPending').textContent = pending;
@@ -42,35 +52,55 @@ function dbUpdateStats(records) {
 function dbRenderTable(records) {
     const tbody = document.getElementById('dbTableBody');
     tbody.innerHTML = '';
+
     const search = document.getElementById('dbSearch').value.toLowerCase();
     const filterExit = document.getElementById('dbFilterExit').value;
     const filterHealth = document.getElementById('dbFilterHealth').value;
     const filterStatus = document.getElementById('dbFilterStatus').value;
 
     let filtered = records.filter(r => {
-        if (search && !(r.cabinNumber||'').toLowerCase().includes(search) && !(r.guestName||'').toLowerCase().includes(search)) return false;
+        if (search && !(r.cabinNumber || '').toLowerCase().includes(search) &&
+            !(r.guestName || '').toLowerCase().includes(search)) {
+            return false;
+        }
         if (filterExit && r.exitMethod !== filterExit) return false;
         if (filterHealth && r.healthStatus !== filterHealth) return false;
-        if (filterStatus && r.status !== filterStatus) return false;
+
+        // 狀態篩選（使用 getGuestDisplayStatus）
+        if (filterStatus) {
+            const displayStatus = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
+            if (displayStatus !== filterStatus) return false;
+        }
         return true;
     });
 
     let idx = filtered.length;
     const canEdit = window.currentRole === 'admin' || window.currentRole === 'occ';
     const canDelete = window.currentRole === 'admin';
+
     filtered.forEach(r => {
         const tr = document.createElement('tr');
-        const statusText = r.status === 'completed' ? '已完成' : '處理中';
-        const badge = r.status === 'completed' ? 'status-complete' : 'status-pending';
+
+        // ★ 使用 getGuestDisplayStatus 取得四種狀態
+        const displayStatus = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
+        const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(displayStatus) : { text: '未知', badge: 'status-unknown' };
+
+        // 格式化離開時間
+        let exitTimeStr = '-';
+        if (r.exitTime) {
+            exitTimeStr = window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-';
+        }
+
         tr.innerHTML = `
             <td>${idx--}</td>
-            <td>${r.cabinNumber||'-'}</td>
-            <td>${r.guestName||'-'}</td>
-            <td>${r.contactNumber||'-'}</td>
-            <td>${r.groupNumber ? '第'+r.groupNumber+'組' : '-'}</td>
-            <td>${r.healthStatus||'-'}</td>
-            <td>${r.exitMethod||'-'}</td>
-            <td><span class="status-badge ${badge}">${statusText}</span></td>
+            <td>${r.cabinNumber || '-'}</td>
+            <td>${r.guestName || '-'}</td>
+            <td>${r.contactNumber || '-'}</td>
+            <td>${r.groupNumber ? '第' + r.groupNumber + '組' : '-'}</td>
+            <td>${r.healthStatus || '-'}</td>
+            <td>${exitTimeStr}</td>
+            <td>${r.exitMethod || '-'}</td>
+            <td><span class="status-badge ${statusInfo.badge}">${statusInfo.text}</span></td>
             <td>
                 ${canEdit ? `<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.8rem;" onclick="dbEditRecordWithModal('${r.id}')"><i class="fas fa-edit"></i></button>` : ''}
                 ${canDelete ? `<button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="dbDeleteRecord('${r.id}')"><i class="fas fa-trash"></i></button>` : ''}
@@ -80,12 +110,15 @@ function dbRenderTable(records) {
     });
 }
 
-function dbFilterRecords() { dbRenderTable(allGuests); }
+function dbFilterRecords() {
+    dbRenderTable(allGuests);
+}
 
 // ---- 編輯與刪除 ----
 async function dbEditRecordWithModal(id) {
     const record = allGuests.find(r => r.id === id);
     if (!record) return;
+
     document.getElementById('groupDocId').value = id;
     document.getElementById('groupCabinNumber').value = record.cabinNumber || '';
     document.getElementById('groupGroupNumber').value = record.groupNumber || '';
@@ -99,24 +132,29 @@ async function dbEditRecordWithModal(id) {
     document.getElementById('groupHospital').value = record.hospital || '';
     document.getElementById('groupExitMethod').value = record.exitMethod || '';
     document.getElementById('groupOtherExitInput').value = '';
+
     if (record.exitTime) {
         try {
             const d = record.exitTime.toDate ? record.exitTime.toDate() : new Date(record.exitTime);
-            document.getElementById('groupExitTime').value = d.toISOString().slice(0,16);
-        } catch(e) {}
+            document.getElementById('groupExitTime').value = d.toISOString().slice(0, 16);
+        } catch (e) {}
     }
+
     document.getElementById('groupRescuedBy').value = record.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
     document.getElementById('groupTimeReachedTop').value = record.timeReachedTop || '';
     document.getElementById('groupTimeLanded').value = record.timeLanded || '';
     document.getElementById('groupRemarks').value = record.remarks || '';
+
     document.getElementById('groupModal').style.display = 'flex';
+
     const form = document.getElementById('groupForm');
-    form.onsubmit = async function(e) {
+    form.onsubmit = async function (e) {
         e.preventDefault();
         await dbUpdateGuestFromGroupModal(id);
     };
-    if (typeof toggleGroupAmbulance === 'function') toggleGroupAmbulance();
+
+    if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
     if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
     if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
 }
@@ -129,6 +167,7 @@ async function dbUpdateGuestFromGroupModal(docId) {
         if (key !== 'docId' && key !== 'cabinNumber') updateData[key] = value;
     }
     updateData.cabinNumber = document.getElementById('groupCabinNumber').value;
+
     if (updateData.exitMethod === '其他') {
         const other = document.getElementById('groupOtherExitInput').value.trim();
         if (other) updateData.exitMethod = other;
@@ -144,6 +183,7 @@ async function dbUpdateGuestFromGroupModal(docId) {
         updateData.ambulancePlate = '';
         updateData.hospital = '';
     }
+
     const exitTime = document.getElementById('groupExitTime').value;
     if (exitTime) {
         updateData.exitTime = new Date(exitTime);
@@ -152,7 +192,9 @@ async function dbUpdateGuestFromGroupModal(docId) {
         updateData.exitTime = null;
         updateData.status = 'pending';
     }
+
     updateData.updatedAt = new Date();
+
     try {
         showLoader(true);
         await db.collection('guests').doc(docId).update(updateData);
@@ -162,7 +204,9 @@ async function dbUpdateGuestFromGroupModal(docId) {
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch (e) {
         showMessage('dbMessage', '更新失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        showLoader(false);
+    }
 }
 
 async function dbDeleteRecord(id) {
@@ -175,27 +219,39 @@ async function dbDeleteRecord(id) {
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch (e) {
         showMessage('dbMessage', '刪除失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        showLoader(false);
+    }
 }
 
 function dbExportCSV() {
     const records = allGuests;
-    if (!records.length) { alert('無資料可匯出'); return; }
+    if (!records.length) {
+        alert('無資料可匯出');
+        return;
+    }
     const BOM = '\uFEFF';
-    let csv = BOM + '車廂,姓名,聯絡方式,組別,健康狀況,後續處理,狀態\n';
+    let csv = BOM + '車廂,姓名,聯絡方式,組別,健康狀況,離開時間,後續處理,狀態\n';
     records.forEach(r => {
+        const status = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
+        const statusText = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status).text : status;
+        const exitTimeStr = r.exitTime ? (window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-') : '-';
         const row = [
-            r.cabinNumber||'', r.guestName||'', r.contactNumber||'',
-            r.groupNumber ? '第'+r.groupNumber+'組' : '',
-            r.healthStatus||'', r.exitMethod||'',
-            r.status === 'completed' ? '已完成' : '處理中'
+            r.cabinNumber || '',
+            r.guestName || '',
+            r.contactNumber || '',
+            r.groupNumber ? '第' + r.groupNumber + '組' : '',
+            r.healthStatus || '',
+            exitTimeStr,
+            r.exitMethod || '',
+            statusText
         ];
         csv += row.join(',') + '\n';
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `救援記錄_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `救援記錄_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
 }
@@ -204,12 +260,34 @@ function dbExportCSV() {
 function initDashboard() {
     console.log('✅ 監控面板初始化完成');
     dbLoadRecords();
+
+    // ★ 自動更新：每 20 秒，僅在監控面板活躍時執行
+    if (dbAutoRefreshTimer) clearInterval(dbAutoRefreshTimer);
+    dbAutoRefreshTimer = setInterval(() => {
+        const section = document.getElementById('section-dashboard');
+        if (section && section.classList.contains('active')) {
+            console.log('🔄 監控面板自動更新 (20秒)');
+            dbLoadRecords();
+        }
+    }, 20000);
+
+    // ★ 修復刷新按鈕（確保綁定）
+    const refreshBtn = document.getElementById('dbRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            console.log('🔄 手動刷新監控面板');
+            dbLoadRecords();
+        });
+    }
 }
 
-// ---- 暴露 ----
+// ---- 暴露全域 ----
 window.dbLoadRecords = dbLoadRecords;
 window.dbFilterRecords = dbFilterRecords;
 window.dbEditRecordWithModal = dbEditRecordWithModal;
 window.dbDeleteRecord = dbDeleteRecord;
 window.dbExportCSV = dbExportCSV;
 window.initDashboard = initDashboard;
+
+console.log('✅ dashboard.js 已載入');
