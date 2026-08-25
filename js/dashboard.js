@@ -1,5 +1,5 @@
 // ================================================================
-// 監控面板模組
+// 監控面板模組（Dashboard）
 // ================================================================
 
 let allGuests = [];
@@ -26,7 +26,6 @@ function dbUpdateStats(records) {
     let green = 0, yellow = 0, red = 0, black = 0;
 
     records.forEach(r => {
-        // 原有狀態統計（已完成/處理中）
         if (r.status === 'completed' || r.timeLanded) {
             completed++;
         } else {
@@ -66,7 +65,6 @@ function dbRenderTable(records) {
         if (filterExit && r.exitMethod !== filterExit) return false;
         if (filterHealth && r.healthStatus !== filterHealth) return false;
 
-        // 狀態篩選（使用 getGuestDisplayStatus = getGroupStatus）
         if (filterStatus) {
             const displayStatus = window.getGuestDisplayStatus ? window.getGuestDisplayStatus(r) : 'waiting';
             if (displayStatus !== filterStatus) return false;
@@ -81,11 +79,9 @@ function dbRenderTable(records) {
     filtered.forEach(r => {
         const tr = document.createElement('tr');
 
-        // ★ 使用 getGroupStatus 取得狀態（個別組別優先級：已離開 > 已著陸 > 救援中 > 等待救援）
         const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
         const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status) : { text: '未知', badge: 'status-unknown' };
 
-        // 格式化離開時間
         let exitTimeStr = '-';
         if (r.exitTime) {
             exitTimeStr = window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-';
@@ -142,7 +138,6 @@ async function dbEditRecordWithModal(id) {
 
     document.getElementById('groupRescuedBy').value = record.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
-    // ★ 使用 extractDateTime 轉換時間
     document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(record.timeReachedTop) : '';
     document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(record.timeLanded) : '';
     document.getElementById('groupRemarks').value = record.remarks || '';
@@ -160,7 +155,31 @@ async function dbEditRecordWithModal(id) {
     if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
 }
 
+// ★ 更新前驗證，避免誤更新其他組別
 async function dbUpdateGuestFromGroupModal(docId) {
+    // ★ 驗證：確保該文件確實對應表單中的車廂+組別
+    try {
+        const docSnap = await db.collection('guests').doc(docId).get();
+        if (!docSnap.exists) {
+            showMessage('dbMessage', '記錄不存在，請重新整理', 'error');
+            return;
+        }
+        const existing = docSnap.data();
+        const formCabin = document.getElementById('groupCabinNumber').value.trim();
+        const formGroup = document.getElementById('groupGroupNumber').value;
+        if (existing.cabinNumber !== formCabin || existing.groupNumber !== formGroup) {
+            showMessage('dbMessage',
+                `⚠️ 錯誤：您正在修改 ${existing.cabinNumber} 號車廂第 ${existing.groupNumber} 組，但表單顯示為 ${formCabin} 號車廂第 ${formGroup} 組。請重新操作。`,
+                'error'
+            );
+            return;
+        }
+    } catch (e) {
+        showMessage('dbMessage', '驗證記錄失敗: ' + e.message, 'error');
+        return;
+    }
+
+    // 原有更新邏輯
     const form = document.getElementById('groupForm');
     const formData = new FormData(form);
     const updateData = {};
@@ -264,7 +283,6 @@ function initDashboard() {
     console.log('✅ 監控面板初始化完成');
     dbLoadRecords();
 
-    // ★ 自動更新：每 20 秒，僅在監控面板活躍時執行
     if (dbAutoRefreshTimer) clearInterval(dbAutoRefreshTimer);
     dbAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-dashboard');
@@ -274,7 +292,6 @@ function initDashboard() {
         }
     }, 20000);
 
-    // ★ 修復刷新按鈕（確保綁定）
     const refreshBtn = document.getElementById('dbRefreshBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function (e) {
