@@ -90,47 +90,96 @@ async function isAdmin() {
 
 // ==================== 通用工具函數 ====================
 
-function getGroupStatus(guest) {
-    if (guest.status) {
-        if (['landed', 'rescuing', 'waiting'].includes(guest.status)) {
-            return guest.status;
+// ★ 將 ISO 時間字串轉換為 datetime-local 可接受的格式 (YYYY-MM-DDTHH:mm)
+function extractDateTime(datetimeStr) {
+    if (!datetimeStr) return '';
+    // 若已是 YYYY-MM-DDTHH:mm 格式，直接回傳
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetimeStr)) return datetimeStr;
+    try {
+        const date = new Date(datetimeStr);
+        if (!isNaN(date)) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
         }
-        if (guest.status === 'completed') {
-            return 'landed';
-        }
-    }
-    if (guest.timeLanded) return 'landed';
-    if (guest.exitTime && guest.exitMethod) return 'landed';
-    if (guest.timeReachedTop || guest.rescuedBy) return 'rescuing';
-    if (guest.ambulance === '需要') return 'rescuing';
-    return 'waiting';
+    } catch (e) {}
+    // 嘗試從 ISO 字串中擷取 YYYY-MM-DDTHH:mm
+    const match = datetimeStr.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+    return match ? match[1] : '';
 }
 
-// ★ 新增：Dashboard 專用狀態判斷（已離開 > 已著陸 > 救援中 > 等待救援）
-function getGuestDisplayStatus(guest) {
-    // 1. 最高優先：已離開（有 exitTime 或 exitMethod）
+// ★ 個別組別狀態判斷（用於 Dashboard 表格、車廂詳情）
+// 優先級：已離開 > 已著陸 > 救援中 > 等待救援
+function getGroupStatus(guest) {
+    // 1. 已離開（最高優先）
     if (guest.exitTime || guest.exitMethod) {
         return 'departed';
     }
-    // 2. 已著陸（有 timeLanded）
+    // 2. 已著陸
     if (guest.timeLanded) {
         return 'landed';
     }
-    // 3. 救援中（有 timeReachedTop）
-    if (guest.timeReachedTop) {
+    // 3. 救援中
+    if (guest.timeReachedTop || guest.rescuedBy) {
         return 'rescuing';
     }
     // 4. 等待救援（預設）
     return 'waiting';
 }
 
-// ★ 新增：取得狀態顯示文字與 CSS 類別
+// ★ 車廂綜合狀態判斷（用於地圖車廂顏色）
+// 優先級：救援中 > 已著陸 > 已離開 > 等待救援
+// 已離開的條件：該車廂所有組別都有 exitTime 或 exitMethod
+function getCabinOverallStatus(guests) {
+    if (!guests || guests.length === 0) {
+        return 'empty'; // 無組別記錄
+    }
+    
+    let hasRescuing = false;
+    let hasLanded = false;
+    let hasDeparted = false;
+    let allDeparted = true;
+    
+    guests.forEach(g => {
+        const status = getGroupStatus(g);
+        if (status === 'rescuing') hasRescuing = true;
+        if (status === 'landed') hasLanded = true;
+        if (status === 'departed') hasDeparted = true;
+        if (status !== 'departed') allDeparted = false;
+    });
+    
+    // 1. 救援中（最高優先）
+    if (hasRescuing) {
+        return 'rescuing';
+    }
+    // 2. 已著陸
+    if (hasLanded) {
+        return 'landed';
+    }
+    // 3. 已離開（全部已離開）
+    if (allDeparted && hasDeparted) {
+        return 'departed';
+    }
+    // 4. 等待救援
+    return 'waiting';
+}
+
+// ★ Dashboard 專用狀態判斷（與 getGroupStatus 一致）
+function getGuestDisplayStatus(guest) {
+    return getGroupStatus(guest);
+}
+
+// ★ 取得狀態顯示文字與 CSS 類別
 function getStatusDisplayInfo(status) {
     const map = {
         'waiting':   { text: '等待救援', badge: 'status-waiting' },
         'rescuing':  { text: '救援中',   badge: 'status-pending' },
         'landed':    { text: '已著陸',   badge: 'status-complete' },
-        'departed':  { text: '已離開',   badge: 'status-departed' }
+        'departed':  { text: '已離開',   badge: 'status-departed' },
+        'empty':     { text: '無記錄',   badge: 'status-empty' }
     };
     return map[status] || { text: '未知', badge: 'status-unknown' };
 }
@@ -277,6 +326,7 @@ window.getUserRole = getUserRole;
 window.canAccessPage = canAccessPage;
 window.canPerformAction = canPerformAction;
 window.isAdmin = isAdmin;
+window.extractDateTime = extractDateTime;
 window.formatTimestamp = formatTimestamp;
 window.formatTimeOnly = formatTimeOnly;
 window.getGroupRescueStatus = getGroupRescueStatus;
@@ -289,6 +339,7 @@ window.logout = logout;
 window.getCurrentUser = getCurrentUser;
 window.onAuthStateChanged = onAuthStateChanged;
 window.getGroupStatus = getGroupStatus;
+window.getCabinOverallStatus = getCabinOverallStatus;
 window.getGuestDisplayStatus = getGuestDisplayStatus;
 window.getStatusDisplayInfo = getStatusDisplayInfo;
 
