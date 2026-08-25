@@ -91,13 +91,25 @@ async function isAdmin() {
 // ==================== 通用工具函數 ====================
 
 // ★ 將 ISO 時間字串轉換為 datetime-local 可接受的格式 (YYYY-MM-DDTHH:mm)
-function extractDateTime(datetimeStr) {
-    if (!datetimeStr) return '';
-    // 若已是 YYYY-MM-DDTHH:mm 格式，直接回傳
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetimeStr)) return datetimeStr;
+function extractDateTime(datetimeInput) {
+    if (!datetimeInput) return '';
+    if (typeof datetimeInput === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetimeInput)) {
+        return datetimeInput;
+    }
+    let date;
     try {
-        const date = new Date(datetimeStr);
-        if (!isNaN(date)) {
+        if (datetimeInput.toDate && typeof datetimeInput.toDate === 'function') {
+            date = datetimeInput.toDate();
+        } else if (datetimeInput instanceof Date) {
+            date = datetimeInput;
+        } else if (typeof datetimeInput === 'string') {
+            date = new Date(datetimeInput);
+        } else if (typeof datetimeInput === 'number') {
+            date = new Date(datetimeInput);
+        } else if (datetimeInput.seconds !== undefined) {
+            date = new Date(datetimeInput.seconds * 1000);
+        }
+        if (date && !isNaN(date.getTime())) {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
@@ -106,9 +118,11 @@ function extractDateTime(datetimeStr) {
             return `${year}-${month}-${day}T${hours}:${minutes}`;
         }
     } catch (e) {}
-    // 嘗試從 ISO 字串中擷取 YYYY-MM-DDTHH:mm
-    const match = datetimeStr.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
-    return match ? match[1] : '';
+    if (typeof datetimeInput === 'string') {
+        const match = datetimeInput.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+        if (match) return match[1];
+    }
+    return '';
 }
 
 // ★ 個別組別狀態判斷（用於 Dashboard 表格、車廂詳情）
