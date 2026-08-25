@@ -1,5 +1,5 @@
 // ================================================================
-// 總監控平台模組（完整版，含地圖繪製）
+// 總監控平台模組（完整版）
 // ================================================================
 
 let monMapCabins = [];
@@ -11,10 +11,12 @@ let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 
+// 取得與主地圖相同的偏移量
 function monGetGlobalOffset() {
     return parseFloat(localStorage.getItem('mapGlobalOffset')) || 0;
 }
 
+// 同步偏移量並重新佈局
 function monSyncOffsetAndLayout() {
     const newOffset = monGetGlobalOffset();
     if (newOffset !== monCurrentOffset) {
@@ -174,14 +176,14 @@ function monInitMap() {
     rope.setAttribute('stroke-width', '3');
     monSvg.appendChild(rope);
 
-    // ----- 圖例（深色版，含五種狀態） -----
+    // ----- 圖例（深色版，含四種狀態） -----
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1800,420)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rectBg.setAttribute('x', '0');
     rectBg.setAttribute('y', '0');
     rectBg.setAttribute('width', '280');
-    rectBg.setAttribute('height', '220');
+    rectBg.setAttribute('height', '200');
     rectBg.setAttribute('fill', '#2d2d2d');
     rectBg.setAttribute('stroke', '#555');
     rectBg.setAttribute('rx', '6');
@@ -469,7 +471,7 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ----- 點擊車廂 → 開啟唯讀詳情 -----
+// ----- 點擊車廂 → 開啟唯讀詳情（時間使用 extractDateTime） -----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
@@ -670,6 +672,7 @@ function monUpdateTimeChart() {
     });
 }
 
+// ★ 修改：使用 formatTimestamp 顯示友好時間
 function monRenderTable() {
     const tbody = document.getElementById('monitor-records-list');
     if (!tbody) return;
@@ -689,30 +692,21 @@ function monRenderTable() {
     filtered.forEach(rec => {
         const tr = document.createElement('tr');
         const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
-        let statusText = '',
-            badgeClass = '';
+        let statusText = '', badgeClass = '';
         switch (status) {
-            case 'departed':
-                statusText = '已離開';
-                badgeClass = 'status-departed';
-                break;
-            case 'landed':
-                statusText = '已著陸';
-                badgeClass = 'status-complete';
-                break;
-            case 'rescuing':
-                statusText = '救援中';
-                badgeClass = 'status-pending';
-                break;
-            default:
-                statusText = '等待救援';
-                badgeClass = 'status-waiting';
+            case 'departed': statusText = '已離開'; badgeClass = 'status-departed'; break;
+            case 'landed': statusText = '已著陸'; badgeClass = 'status-complete'; break;
+            case 'rescuing': statusText = '救援中'; badgeClass = 'status-pending'; break;
+            default: statusText = '等待救援'; badgeClass = 'status-waiting';
         }
+        // ★ 使用 formatTimestamp 顯示友好時間
+        const startTime = window.formatTimestamp ? window.formatTimestamp(rec.timeReachedTop) : rec.timeReachedTop || '-';
+        const endTime = window.formatTimestamp ? window.formatTimestamp(rec.timeLanded) : rec.timeLanded || '-';
         tr.innerHTML = `
-            <td>${rec.cabinNumber||'-'}</td>
-            <td>${rec.groupNumber ? '第'+rec.groupNumber+'組' : '-'}</td>
-            <td>${rec.timeReachedTop||'-'}</td>
-            <td>${rec.timeLanded||'-'}</td>
+            <td>${rec.cabinNumber || '-'}</td>
+            <td>${rec.groupNumber ? '第' + rec.groupNumber + '組' : '-'}</td>
+            <td>${startTime}</td>
+            <td>${endTime}</td>
             <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
         `;
         tbody.appendChild(tr);
