@@ -1,5 +1,51 @@
 <h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-qrcode"></i> 掃描 QR 碼 (Assembly Point)</h2>
 <div id="apMessage" class="message"></div>
+
+<!-- ===== 手動搜尋區塊 ===== -->
+<div class="card" style="border:2px solid #2563eb; background:#f0f7ff;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <i class="fas fa-search" style="color:#2563eb; font-size:1.2rem;"></i>
+        <h4 style="margin:0; color:#1e3a5f;">手動尋找記錄</h4>
+        <span style="font-size:0.75rem; color:#64748b;">(無法掃描 QR 碼時使用)</span>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+        <div class="form-group" style="flex:1; min-width:120px; margin-bottom:0;">
+            <label for="apManualCabin" style="font-size:0.85rem;">車廂號碼</label>
+            <input type="text" id="apManualCabin" placeholder="例如: 1">
+        </div>
+        <div class="form-group" style="flex:1; min-width:120px; margin-bottom:0;">
+            <label for="apManualGroup" style="font-size:0.85rem;">組別</label>
+            <select id="apManualGroup">
+                <option value="">請選擇</option>
+                <option value="1">第1組</option>
+                <option value="2">第2組</option>
+                <option value="3">第3組</option>
+                <option value="4">第4組</option>
+                <option value="5">第5組</option>
+                <option value="6">第6組</option>
+                <option value="7">第7組</option>
+                <option value="8">第8組</option>
+                <option value="9">第9組</option>
+                <option value="10">第10組</option>
+                <option value="11">第11組</option>
+                <option value="12">第12組</option>
+                <option value="13">第13組</option>
+                <option value="14">第14組</option>
+                <option value="15">第15組</option>
+                <option value="16">第16組</option>
+                <option value="17">第17組</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="apManualSearch()" style="margin-bottom:0; background:#2563eb; color:white; border:none; padding:8px 20px; border-radius:6px; cursor:pointer;">
+            <i class="fas fa-search"></i> 尋找
+        </button>
+        <button class="btn btn-secondary" onclick="apClearManualSearch()" style="margin-bottom:0; padding:8px 16px; border:none; border-radius:6px; cursor:pointer; background:#e2e8f0; color:#1e293b;">
+            <i class="fas fa-times"></i> 清除
+        </button>
+    </div>
+</div>
+
+<!-- ===== 掃描器區塊 ===== -->
 <div class="card">
     <div class="scanner-container">
         <video id="scanner-video" autoplay playsinline></video>
@@ -10,12 +56,16 @@
         <button class="btn btn-danger" onclick="stopScanner()"><i class="fas fa-stop"></i> 停止掃描器</button>
     </div>
 </div>
+
+<!-- ===== 記錄詳情區塊 ===== -->
 <div id="apRecordDetails" class="card" style="display:none;">
     <h3 class="card-title"><i class="fas fa-user-circle"></i> 賓客資訊</h3>
-    <div class="form-group"><label>車廂號碼</label><p id="apCabinNumber" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
-    <div class="form-group"><label>組別</label><p id="apGroupNumber" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
-    <div class="form-group"><label>被救者姓名</label><p id="apGuestName" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
-    <div class="form-group"><label>健康狀況</label><p id="apHealthStatus" style="padding:8px 12px; background:#f8fafc; border-radius:6px;"></p></div>
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; padding:12px; background:#f0f4f8; border-radius:6px;">
+        <div><strong>車廂：</strong><span id="apCabinNumber" style="font-weight:600; color:#1e3a5f;"></span></div>
+        <div><strong>組別：</strong><span id="apGroupNumber" style="font-weight:600; color:#1e3a5f;"></span></div>
+        <div><strong>姓名：</strong><span id="apGuestName"></span></div>
+        <div><strong>健康狀況：</strong><span id="apHealthStatus"></span></div>
+    </div>
     <div class="form-group">
         <label for="apAmbulance"><i class="fas fa-ambulance"></i> 救護車需求</label>
         <select id="apAmbulance" onchange="toggleApAmbulance()">
