@@ -26,7 +26,9 @@ function dbUpdateStats(records) {
     let green = 0, yellow = 0, red = 0, black = 0;
 
     records.forEach(r => {
-        if (r.status === 'completed' || r.timeLanded) {
+        // ★ 已完成條件：有 timeLanded、status 為 completed/landed、或有 exitTime
+        const isCompleted = r.timeLanded || r.status === 'completed' || r.status === 'landed' || r.exitTime;
+        if (isCompleted) {
             completed++;
         } else {
             pending++;
