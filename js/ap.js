@@ -53,6 +53,77 @@ function stopScanner() {
     apScanning = false;
 }
 
+// ================================================================
+// ★ 手動搜尋記錄（新增）
+// ================================================================
+async function apManualSearch() {
+    const cabin = document.getElementById('apManualCabin').value.trim();
+    const group = document.getElementById('apManualGroup').value;
+
+    if (!cabin) {
+        showMessage('apMessage', '請輸入車廂號碼', 'error');
+        return;
+    }
+    if (!group) {
+        showMessage('apMessage', '請選擇組別', 'error');
+        return;
+    }
+
+    try {
+        showLoader(true);
+        const snapshot = await db.collection('guests')
+            .where('cabinNumber', '==', cabin)
+            .where('groupNumber', '==', group)
+            .get();
+
+        if (snapshot.empty) {
+            showMessage('apMessage', `找不到車廂 ${cabin} 第 ${group} 組的記錄`, 'error');
+            return;
+        }
+
+        // 取第一筆（理論上應只有一筆）
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+        apCurrentDocId = doc.id;
+
+        // 顯示記錄詳情
+        document.getElementById('apRecordDetails').style.display = 'block';
+        document.getElementById('apCabinNumber').textContent = data.cabinNumber || '-';
+        document.getElementById('apGroupNumber').textContent = data.groupNumber ? `第${data.groupNumber}組` : '-';
+        document.getElementById('apGuestName').textContent = data.guestName || '-';
+        document.getElementById('apHealthStatus').textContent = data.healthStatus || '-';
+
+        // 填入既有資料（若有）
+        document.getElementById('apAmbulance').value = data.ambulance || '';
+        document.getElementById('apAmbulancePlate').value = data.ambulancePlate || '';
+        document.getElementById('apHospital').value = data.hospital || '';
+        document.getElementById('apExitMethod').value = data.exitMethod || '';
+        document.getElementById('apOtherExitInput').value = '';
+        document.getElementById('apExitTime').value = '';
+
+        toggleApAmbulance();
+        toggleApOtherExit();
+
+        showMessage('apMessage', `✅ 已載入車廂 ${cabin} 第 ${group} 組的記錄，請填寫離場資訊`, 'success');
+        document.getElementById('apRecordDetails').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (e) {
+        showMessage('apMessage', '搜尋失敗: ' + e.message, 'error');
+    } finally {
+        showLoader(false);
+    }
+}
+
+// ★ 清除手動搜尋
+function apClearManualSearch() {
+    document.getElementById('apManualCabin').value = '';
+    document.getElementById('apManualGroup').value = '';
+    showMessage('apMessage', '已清除搜尋條件', 'info');
+}
+
+// ================================================================
+// 載入記錄（QR Code 掃描後呼叫，也供手動搜尋呼叫）
+// ================================================================
 async function apLoadRecord(docId) {
     try {
         showLoader(true);
@@ -91,7 +162,7 @@ function toggleApOtherExit() {
 }
 
 async function apUpdateRecord() {
-    if (!apCurrentDocId) { showMessage('apMessage', '請先掃描 QR 碼', 'error'); return; }
+    if (!apCurrentDocId) { showMessage('apMessage', '請先掃描 QR 碼或手動尋找記錄', 'error'); return; }
     let exitMethod = document.getElementById('apExitMethod').value;
     const exitTime = document.getElementById('apExitTime').value;
     const ambulance = document.getElementById('apAmbulance').value;
@@ -123,6 +194,7 @@ async function apUpdateRecord() {
         apCurrentDocId = null;
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
         if (typeof dbLoadRecords === 'function') dbLoadRecords();
+        if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
         setTimeout(startScanner, 2000);
     } catch (e) {
         showMessage('apMessage', '更新失敗: ' + e.message, 'error');
@@ -132,15 +204,18 @@ async function apUpdateRecord() {
 // ---- 初始化函數 ----
 function initAssemblyPoint() {
     console.log('✅ Assembly Point 初始化完成');
-    // 重置顯示
     document.getElementById('apRecordDetails').style.display = 'none';
     document.getElementById('apMessage').className = 'message';
-    // 若掃描器已停止，確保按鈕狀態正確
+    // 重置手動搜尋欄位
+    document.getElementById('apManualCabin').value = '';
+    document.getElementById('apManualGroup').value = '';
 }
 
 // ---- 暴露 ----
 window.startScanner = startScanner;
 window.stopScanner = stopScanner;
+window.apManualSearch = apManualSearch;
+window.apClearManualSearch = apClearManualSearch;
 window.apUpdateRecord = apUpdateRecord;
 window.toggleApAmbulance = toggleApAmbulance;
 window.toggleApOtherExit = toggleApOtherExit;
