@@ -4,7 +4,7 @@
 
 let gsCurrentDocId = null;
 let gsPendingData = null;
-let gsDuplicateDocId = null;        // ★ 儲存重複記錄的 docId
+let gsDuplicateDocId = null;
 
 // ---- 聯絡方式輔助 ----
 function setGsContact(type) {
@@ -34,25 +34,25 @@ function toggleGsSmsSuffix() {
 
 // ---- 建立記錄 (檢查重複) ----
 async function gsCreateRecord() {
+    // ★ 重置重複文件 ID
+    gsDuplicateDocId = null;
+
     const cabin = document.getElementById('gsCabinNumber').value.trim();
     const group = document.getElementById('gsGroupNumber').value;
     const name = document.getElementById('gsGuestName').value.trim();
     const health = document.getElementById('gsHealthStatus').value;
     const timeLanded = document.getElementById('gsTimeLanded').value;
 
-    // 基本驗證
     if (!cabin || !group || !name || !health) {
         showMessage('gsMessage', '請填寫車廂、組別、姓名和健康狀況', 'error');
         return;
     }
 
-    // 聯絡方式
     let contact = document.getElementById('gsContactNumber').value.trim();
     const other = document.getElementById('gsOtherContactInput').value.trim();
     if (other) contact = other;
     if (!contact) contact = '未提供';
 
-    // 準備資料
     const data = {
         cabinNumber: cabin,
         groupNumber: group,
@@ -65,25 +65,21 @@ async function gsCreateRecord() {
         updatedAt: new Date()
     };
 
-    // ★ 如果有填寫完成救援時間，則加入
     if (timeLanded) {
         data.timeLanded = timeLanded;
-        data.status = 'landed';  // 若有完成時間，狀態改為已著陸
+        data.status = 'landed';
     }
 
     gsPendingData = data;
 
     try {
-        // 檢查是否已有相同車廂+組別的記錄
         const dup = await db.collection('guests')
             .where('cabinNumber', '==', cabin)
             .where('groupNumber', '==', group)
             .get();
 
         if (!dup.empty) {
-            // ★ 儲存重複文件的 ID
             gsDuplicateDocId = dup.docs[0].id;
-            
             const list = document.getElementById('gsDuplicateList');
             list.innerHTML = '';
             dup.forEach(doc => {
@@ -91,11 +87,8 @@ async function gsCreateRecord() {
                 const div = document.createElement('div');
                 div.style.padding = '8px 0';
                 div.style.borderBottom = '1px solid #e2e8f0';
-                
-                // ★ 顯示既有記錄的詳細資訊（包含時間）
                 const reachedTop = existing.timeReachedTop || '未記錄';
                 const landed = existing.timeLanded || '未記錄';
-                
                 div.innerHTML = `
                     <div><strong>姓名：</strong>${existing.guestName || '未提供'}</div>
                     <div><strong>聯絡方式：</strong>${existing.contactNumber || '-'}</div>
@@ -108,10 +101,7 @@ async function gsCreateRecord() {
                 `;
                 list.appendChild(div);
             });
-            
-            // 更新重複警告標題
             document.querySelector('#gsDuplicateWarning .gs-duplicate-title').textContent = '⚠️ 發現已存在的記錄 (將執行更新)';
-            
             document.getElementById('gsDuplicateWarning').style.display = 'block';
             document.getElementById('gsDuplicateWarning').scrollIntoView({ behavior: 'smooth' });
             return;
@@ -136,8 +126,26 @@ function gsCancelDuplicate() {
 async function gsCreateAnyway() {
     document.getElementById('gsDuplicateWarning').style.display = 'none';
     if (!gsPendingData) return;
-    
-    // ★ 傳入重複文件的 ID（若有）或 null（無重複）
+
+    // ★ 驗證 gsDuplicateDocId 是否仍有效且匹配
+    if (gsDuplicateDocId) {
+        try {
+            const doc = await db.collection('guests').doc(gsDuplicateDocId).get();
+            if (doc.exists) {
+                const existing = doc.data();
+                if (existing.cabinNumber !== gsPendingData.cabinNumber ||
+                    existing.groupNumber !== gsPendingData.groupNumber) {
+                    // 不匹配，視為無重複
+                    gsDuplicateDocId = null;
+                }
+            } else {
+                gsDuplicateDocId = null;
+            }
+        } catch (e) {
+            gsDuplicateDocId = null;
+        }
+    }
+
     await gsSaveOrUpdateRecord(gsPendingData, gsDuplicateDocId);
     gsPendingData = null;
     gsDuplicateDocId = null;
@@ -148,46 +156,34 @@ async function gsSaveOrUpdateRecord(data, docId) {
     try {
         showLoader(true);
 
-        // 決定是新增還是更新
         let ref;
         let isUpdate = false;
 
         if (docId) {
             // 🔄 更新既有記錄
             isUpdate = true;
-            
-            // ★ 檢查是否有 timeLanded，若有則更新 status
             const updateData = { ...data };
-            
-            // 如果是更新，不要覆蓋原有的 timeReachedTop
-            // 先取得既有記錄的 timeReachedTop
+
+            // 保留原有的 timeReachedTop
             const existingDoc = await db.collection('guests').doc(docId).get();
             if (existingDoc.exists) {
                 const existingData = existingDoc.data();
-                // 保留原有的 timeReachedTop（開始救援時間）
                 if (existingData.timeReachedTop) {
                     updateData.timeReachedTop = existingData.timeReachedTop;
-                }
-                // 如果沒有 timeReachedTop（舊資料），則補上
-                if (!updateData.timeReachedTop) {
+                } else {
                     updateData.timeReachedTop = new Date().toISOString();
                 }
             }
 
-            // 更新時間戳
             updateData.updatedAt = new Date();
-
             await db.collection('guests').doc(docId).update(updateData);
             ref = { id: docId };
             gsCurrentDocId = docId;
-
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
 
         } else {
-            // ➕ 新增記錄（自動填入開始救援時間）
+            // ➕ 新增記錄
             isUpdate = false;
-            
-            // ★ 自動生成開始救援時間
             data.timeReachedTop = new Date().toISOString();
             data.createdAt = new Date();
             data.status = data.timeLanded ? 'landed' : 'rescuing';
@@ -195,7 +191,6 @@ async function gsSaveOrUpdateRecord(data, docId) {
             const newRef = await db.collection('guests').add(data);
             ref = newRef;
             gsCurrentDocId = newRef.id;
-
             showMessage('gsMessage', '✅ 記錄建立成功！', 'success');
         }
 
@@ -206,8 +201,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
         document.getElementById('gsPrintCabin').textContent = data.cabinNumber;
         document.getElementById('gsPrintGroup').textContent = `第${data.groupNumber}組`;
 
-        // 清空表單（僅在新增成功時清空，更新時保留？依需求而定）
-        // 此處統一清空，使用者可重新輸入
+        // 清空表單
         document.getElementById('gsCabinNumber').value = '';
         document.getElementById('gsGroupNumber').value = '';
         document.getElementById('gsGuestName').value = '';
