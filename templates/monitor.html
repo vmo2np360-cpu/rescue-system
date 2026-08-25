@@ -158,6 +158,7 @@
         font-weight: 600;
     }
     #section-monitor .status-complete { background: #2e7d32; color: #fff; }
+    #section-monitor .status-departed { background: #3b82f6; color: #fff; }
     #section-monitor .status-pending { background: #f57c00; color: #fff; }
     #section-monitor .status-waiting { background: #c62828; color: #fff; }
 
@@ -273,17 +274,16 @@
 <!--  地圖區塊（唯讀模式，與主地圖同步）                          -->
 <!-- ============================================================ -->
 <div class="card">
-<div class="map-toolbar">
-    <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
-    <button onclick="monSearchCabin()">搜尋</button>
-    <!-- ★ 新增刷新按钮 -->
-    <button onclick="monManualRefresh()" style="background:#34A853; color:white;">
-        <i class="fas fa-sync-alt"></i> 更新地圖
-    </button>
-    <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">
-        <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
-    </span>
-</div>
+    <div class="map-toolbar">
+        <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
+        <button onclick="monSearchCabin()">搜尋</button>
+        <button onclick="monManualRefresh()" style="background:#34A853; color:white;">
+            <i class="fas fa-sync-alt"></i> 更新地圖
+        </button>
+        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">
+            <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
+        </span>
+    </div>
     <div class="summary-enhanced">
         <div class="status-counter waiting">
             <div class="counter-number" id="monWaiting">0</div>
@@ -301,7 +301,22 @@
             <div class="cabin-numbers" id="monLandedCabins"></div>
         </div>
     </div>
-    <svg id="monitorMap" viewBox="0 0 2800 700"></svg>
+    <svg id="monitorMap" viewBox="0 0 2800 700">
+        <defs>
+            <linearGradient id="monGradMountain" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#388E3C"/>
+                <stop offset="100%" stop-color="#A5D6A7"/>
+            </linearGradient>
+            <linearGradient id="monGradBay" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#81D4FA"/>
+                <stop offset="100%" stop-color="#0288D1"/>
+            </linearGradient>
+            <filter id="monHighlightGlow">
+                <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="gold"/>
+            </filter>
+        </defs>
+        <!-- 地圖內容將由 JavaScript 動態生成 -->
+    </svg>
 </div>
 
 <!-- ============================================================ -->
@@ -376,8 +391,14 @@
         <span class="text-muted" style="margin-left:auto; align-self:flex-end;">最後更新: <span id="last-monitor-update">--:--:--</span></span>
     </div>
     <div class="table-wrap">
-        <table><thead><tr><th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th></tr></thead>
-        <tbody id="monitor-records-list"></tbody></table>
+        <table>
+            <thead>
+                <tr>
+                    <th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th>
+                </tr>
+            </thead>
+            <tbody id="monitor-records-list"></tbody>
+        </table>
     </div>
 </div>
 
@@ -386,3 +407,8 @@
     <span id="last-map-update"></span>
     <span id="last-data-update"></span>
 </div>
+
+<!-- ============================================================ -->
+<!--  JavaScript 引用（外部檔案，由 index.html 動態載入）        -->
+<!-- ============================================================ -->
+<script src="js/monitor.js"></script>
