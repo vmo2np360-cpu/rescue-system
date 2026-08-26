@@ -888,9 +888,17 @@ function openGroupModal(guestData) {
     document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(guestData.timeLanded) : '';
     document.getElementById('groupRemarks').value = guestData.remarks || '';
 
-    if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
-    if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
-    if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
+    // ★ 手動控制救護車相關欄位顯示
+    const ambulanceVal = document.getElementById('groupAmbulance').value;
+    document.getElementById('groupAmbulanceFields').style.display = (ambulanceVal === '需要') ? 'block' : 'none';
+
+    // ★ 手動控制「其他」後續處理顯示
+    const exitMethodVal = document.getElementById('groupExitMethod').value;
+    document.getElementById('groupOtherExitContainer').style.display = (exitMethodVal === '其他') ? 'block' : 'none';
+
+    // ★ 手動控制「其他」救援人員顯示
+    const rescuedByVal = document.getElementById('groupRescuedBy').value;
+    document.getElementById('groupOtherRescuerContainer').style.display = (rescuedByVal === '其他') ? 'block' : 'none';
 
     modal.style.display = 'flex';
 }
