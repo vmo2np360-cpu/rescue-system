@@ -294,7 +294,8 @@ function monLayoutCabins() {
     const offset = monGetGlobalOffset();
     monCurrentOffset = offset;
     monMapCabins.forEach((c, i) => {
-        const d = (i * ropeLen / monMapCabins.length + offset) % ropeLen;
+        // ★ 修正：確保 d 為正數
+        const d = ((i * ropeLen / monMapCabins.length + offset) % ropeLen + ropeLen) % ropeLen;
         const pos = monPointAt(monMapRopePts, d);
         if (pos) {
             c.el.setAttribute('transform', `translate(${pos.x},${pos.y})`);
