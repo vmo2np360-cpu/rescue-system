@@ -108,6 +108,9 @@ async function occMarkProcessed(id) {
             processed: true, 
             processedAt: new Date() 
         });
+        const update = { processed: true, processedAt: new Date() };
+await db.collection('rescue_records').doc(id).update(update);
+await logAction('rescue_records', id, 'update', update, null);
         showMessage('occMessage', '✅ 求助記錄已標記為已處理', 'success');
         occLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
