@@ -330,7 +330,8 @@ function mapBuildCabins() {
 function mapLayoutCabins() {
     const ropeLen = mapLengthOf(mapRopePts);
     mapCabins.forEach((c, i) => {
-        const d = (i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen;
+        // ★ 修正：確保 d 為正數
+        const d = ((i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen + ropeLen) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         c.el.setAttribute('transform', `translate(${pos.x},${pos.y})`);
     });
