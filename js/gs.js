@@ -106,7 +106,6 @@ async function gsCreateRecord() {
             return;
         }
 
-        // 無重複，直接新增
         gsDuplicateDocId = null;
         await gsSaveOrUpdateRecord(data, null);
 
@@ -121,7 +120,6 @@ function gsCancelDuplicate() {
     gsDuplicateDocId = null;
 }
 
-// ★ 強制建立/更新（當使用者確認重複時）
 async function gsCreateAnyway() {
     document.getElementById('gsDuplicateWarning').style.display = 'none';
     if (!gsPendingData) return;
@@ -154,18 +152,16 @@ async function gsSaveOrUpdateRecord(data, docId) {
         showLoader(true);
 
         let ref;
-        let previousData = null;  // ★ 定義變數
+        let previousData = null;
 
         if (docId) {
-            // 🔄 更新既有記錄
+            // 更新模式
             const existingDoc = await db.collection('guests').doc(docId).get();
             if (existingDoc.exists) {
-                previousData = existingDoc.data();   // ★ 儲存變更前資料
+                previousData = existingDoc.data();
             }
 
             const updateData = { ...data };
-
-            // 保留原有的 timeReachedTop
             if (existingDoc.exists && existingDoc.data().timeReachedTop) {
                 updateData.timeReachedTop = existingDoc.data().timeReachedTop;
             } else {
@@ -175,7 +171,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
             updateData.updatedAt = new Date();
             await db.collection('guests').doc(docId).update(updateData);
 
-            // ★ 記錄日誌（使用 previousData）
+            // ★ 記錄日誌（取消註解）
             await logAction('guests', docId, 'update', updateData, previousData);
 
             ref = { id: docId };
@@ -183,13 +179,14 @@ async function gsSaveOrUpdateRecord(data, docId) {
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
 
         } else {
-            // ➕ 新增記錄
+            // 新增模式
             data.timeReachedTop = new Date().toISOString();
             data.createdAt = new Date();
             data.status = data.timeLanded ? 'landed' : 'rescuing';
 
             const newRef = await db.collection('guests').add(data);
-            // ★ 記錄日誌
+
+            // ★ 記錄日誌（取消註解）
             await logAction('guests', newRef.id, 'create', data, null);
 
             ref = newRef;
@@ -223,7 +220,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
         const action = docId ? '更新' : '建立';
         showMessage('gsMessage', `${action}失敗: ` + e.message, 'error');
     } finally {
-        showLoader(false);
+        hideLoader();
     }
 }
 
@@ -278,4 +275,4 @@ window.gsCreateAnyway = gsCreateAnyway;
 window.gsSavePDF = gsSavePDF;
 window.initGroundSupport = initGroundSupport;
 
-console.log('✅ gs.js 已載入 (支援新增/更新邏輯)');
+console.log('✅ gs.js 已載入 (日誌已啟用)');
