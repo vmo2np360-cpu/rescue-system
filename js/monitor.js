@@ -352,7 +352,7 @@ function monPointAt(pts, d) {
 }
 
 // ================================================================
-// 2. 更新車廂狀態（使用車廂綜合狀態）
+// 2. 更新車廂狀態 + 計算車廂綜合時間
 // ================================================================
 
 async function monUpdateFromFirestore() {
@@ -364,6 +364,9 @@ async function monUpdateFromFirestore() {
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
+
+        // 準備批次更新 Realtime Database
+        const updates = {};
 
         monMapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
@@ -389,7 +392,6 @@ async function monUpdateFromFirestore() {
                 overallStatus = window.getCabinOverallStatus ? window.getCabinOverallStatus(matched) : 'waiting';
             }
 
-            // ★ 只有當車廂狀態為 empty 或 waiting 時，求助記錄才能觸發紅色
             let finalStatus = overallStatus;
             if (hasUnprocessedRescue && (overallStatus === 'empty' || overallStatus === 'waiting')) {
                 finalStatus = 'waiting';
@@ -422,7 +424,56 @@ async function monUpdateFromFirestore() {
                     cabin.shape.setAttribute('stroke', '#888');
                     break;
             }
+
+            // ============================================================
+            // ★ 計算車廂綜合時間（與 map.js 邏輯一致）
+            // ============================================================
+            let overallStart = null;
+            let overallEnd = null;
+
+            if (matched.length > 0) {
+                const startTimes = matched
+                    .map(g => g.timeReachedTop)
+                    .filter(t => t);
+                
+                if (startTimes.length > 0) {
+                    overallStart = startTimes.reduce((a, b) => {
+                        const da = new Date(a), db = new Date(b);
+                        return da < db ? a : b;
+                    });
+                }
+
+                const allCompleted = matched.every(g => {
+                    const status = window.getGroupStatus ? window.getGroupStatus(g) : 'waiting';
+                    return status === 'landed' || status === 'departed';
+                });
+
+                if (allCompleted) {
+                    const endTimes = matched
+                        .map(g => g.timeLanded)
+                        .filter(t => t);
+                    
+                    if (endTimes.length > 0) {
+                        overallEnd = endTimes.reduce((a, b) => {
+                            const da = new Date(a), db = new Date(b);
+                            return da > db ? a : b;
+                        });
+                    }
+                }
+            }
+
+            // ★ 儲存到 cabin.fields
+            cabin.fields.overallTimeReachedTop = overallStart;
+            cabin.fields.overallTimeLanded = overallEnd;
+
+            // ★ 儲存到 Realtime Database
+            updates[`cabins/${cabin.id}/overallTimeReachedTop`] = overallStart || null;
+            updates[`cabins/${cabin.id}/overallTimeLanded`] = overallEnd || null;
         });
+
+        if (Object.keys(updates).length > 0) {
+            await realtimeDb.ref().update(updates);
+        }
 
         monUpdateSummary();
     } catch(e) {
@@ -473,13 +524,33 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ----- 點擊車廂 → 開啟唯讀詳情（時間使用 extractDateTime） -----
+// ----- 點擊車廂 → 開啟唯讀詳情（顯示綜合時間） -----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
-        let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0; max-width:500px; margin:0 auto;">`;
+        // ★ 取得綜合時間
+        const overallStart = cabin.fields.overallTimeReachedTop;
+        const overallEnd = cabin.fields.overallTimeLanded;
+
+        let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0; max-width:550px; margin:0 auto;">`;
         html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
         html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
+
+        // ★ 顯示綜合時間
+        html += `<div style="background:#1a3a5f; padding:10px 14px; border-radius:6px; margin-bottom:12px; border:1px solid #2a5a8f;">`;
+        html += `<div style="display:flex; flex-wrap:wrap; gap:16px; color:#cde;">`;
+        html += `<div><strong>📊 綜合開始救援：</strong> ${overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—'}</div>`;
+        if (overallEnd) {
+            html += `<div><strong>📊 綜合完成救援：</strong> ${window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd}</div>`;
+        } else if (overallStart) {
+            html += `<div><strong>📊 綜合完成救援：</strong> ⏳ 進行中</div>`;
+        } else {
+            html += `<div><strong>📊 綜合完成救援：</strong> —</div>`;
+        }
+        html += `</div>`;
+        html += `<div style="font-size:0.7rem; color:#8ab; margin-top:4px;">💡 自動計算，僅供參考</div>`;
+        html += `</div>`;
+
         if (snap.empty) {
             html += `<p style="color:#94a3b8;">此車廂暫無組別記錄</p>`;
         } else {
