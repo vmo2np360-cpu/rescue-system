@@ -34,7 +34,6 @@ function toggleGsSmsSuffix() {
 
 // ---- 建立記錄 (檢查重複) ----
 async function gsCreateRecord() {
-    // ★ 重置重複文件 ID
     gsDuplicateDocId = null;
 
     const cabin = document.getElementById('gsCabinNumber').value.trim();
@@ -127,7 +126,6 @@ async function gsCreateAnyway() {
     document.getElementById('gsDuplicateWarning').style.display = 'none';
     if (!gsPendingData) return;
 
-    // ★ 驗證 gsDuplicateDocId 是否仍有效且匹配
     if (gsDuplicateDocId) {
         try {
             const doc = await db.collection('guests').doc(gsDuplicateDocId).get();
@@ -135,7 +133,6 @@ async function gsCreateAnyway() {
                 const existing = doc.data();
                 if (existing.cabinNumber !== gsPendingData.cabinNumber ||
                     existing.groupNumber !== gsPendingData.groupNumber) {
-                    // 不匹配，視為無重複
                     gsDuplicateDocId = null;
                 }
             } else {
@@ -151,47 +148,50 @@ async function gsCreateAnyway() {
     gsDuplicateDocId = null;
 }
 
-// ★ 核心函式：新增或更新記錄
+// ★ 核心函式：新增或更新記錄（含日誌記錄）
 async function gsSaveOrUpdateRecord(data, docId) {
     try {
         showLoader(true);
 
         let ref;
-        let isUpdate = false;
+        let previousData = null;  // ★ 定義變數
 
         if (docId) {
             // 🔄 更新既有記錄
-            isUpdate = true;
+            const existingDoc = await db.collection('guests').doc(docId).get();
+            if (existingDoc.exists) {
+                previousData = existingDoc.data();   // ★ 儲存變更前資料
+            }
+
             const updateData = { ...data };
 
             // 保留原有的 timeReachedTop
-            const existingDoc = await db.collection('guests').doc(docId).get();
-            if (existingDoc.exists) {
-                const existingData = existingDoc.data();
-                if (existingData.timeReachedTop) {
-                    updateData.timeReachedTop = existingData.timeReachedTop;
-                } else {
-                    updateData.timeReachedTop = new Date().toISOString();
-                }
+            if (existingDoc.exists && existingDoc.data().timeReachedTop) {
+                updateData.timeReachedTop = existingDoc.data().timeReachedTop;
+            } else {
+                updateData.timeReachedTop = new Date().toISOString();
             }
 
             updateData.updatedAt = new Date();
             await db.collection('guests').doc(docId).update(updateData);
-            
-await logAction('guests', docId, 'update', updateData, previousData);  // 需先取得 previousData
+
+            // ★ 記錄日誌（使用 previousData）
+            await logAction('guests', docId, 'update', updateData, previousData);
+
             ref = { id: docId };
             gsCurrentDocId = docId;
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
 
         } else {
             // ➕ 新增記錄
-            isUpdate = false;
             data.timeReachedTop = new Date().toISOString();
             data.createdAt = new Date();
             data.status = data.timeLanded ? 'landed' : 'rescuing';
 
             const newRef = await db.collection('guests').add(data);
+            // ★ 記錄日誌
             await logAction('guests', newRef.id, 'create', data, null);
+
             ref = newRef;
             gsCurrentDocId = newRef.id;
             showMessage('gsMessage', '✅ 記錄建立成功！', 'success');
