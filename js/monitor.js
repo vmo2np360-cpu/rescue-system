@@ -11,12 +11,10 @@ let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 
-// 取得與主地圖相同的偏移量
 function monGetGlobalOffset() {
     return parseFloat(localStorage.getItem('mapGlobalOffset')) || 0;
 }
 
-// 同步偏移量並重新佈局
 function monSyncOffsetAndLayout() {
     const newOffset = monGetGlobalOffset();
     if (newOffset !== monCurrentOffset) {
@@ -25,10 +23,6 @@ function monSyncOffsetAndLayout() {
         console.log('偏移量已同步，新偏移量:', monCurrentOffset);
     }
 }
-
-// ================================================================
-// 1. 地圖初始化（完整繪製）
-// ================================================================
 
 function monInitMap() {
     if (monMapCabins.length > 0) {
@@ -42,10 +36,8 @@ function monInitMap() {
         return;
     }
 
-    // 清空 SVG
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
-    // ----- Defs -----
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     const gradMountain = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     gradMountain.setAttribute('id', 'monGradMountain');
@@ -90,7 +82,6 @@ function monInitMap() {
     defs.appendChild(filter);
     monSvg.appendChild(defs);
 
-    // 背景
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
@@ -99,25 +90,17 @@ function monInitMap() {
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
-    // ----- 地圖元素（城市、海洋、山脈） -----
     const segments = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
     const slots = [2, 2, 2, 2, 10, 6, 5, 1, 2, 7, 3];
-    const startX = 150,
-        endX = 2650,
-        unit = (endX - startX) / 42;
-    const baseY = 600,
-        topY = 300,
-        npY = 340;
+    const startX = 150, endX = 2650, unit = (endX - startX) / 42;
+    const baseY = 600, topY = 300, npY = 340;
     let x = startX;
     const xCoords = [x];
     for (let i = 0; i < slots.length; i++) {
         x += slots[i] * unit;
         xCoords.push(x);
     }
-    const t2bX = xCoords[4],
-        t3X = xCoords[5],
-        nlsX = xCoords[8],
-        npX = xCoords[11];
+    const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
     const addRect = (x, y, w, h, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -136,11 +119,9 @@ function monInitMap() {
     mountain.setAttribute('fill', 'url(#monGradMountain)');
     monSvg.appendChild(mountain);
 
-    // 站點
     let groundPts = [];
     segments.forEach((s, i) => {
-        let gx = xCoords[i],
-            gy = baseY;
+        let gx = xCoords[i], gy = baseY;
         if (s === 'NLS') gy = topY;
         else if (s === 'NP') gy = npY;
         else if (s === 'T3' || (i > 5 && i < segments.indexOf('NLS'))) gy = baseY - (baseY - topY) * ((gx - t3X) / (nlsX - t3X));
@@ -165,7 +146,6 @@ function monInitMap() {
         monSvg.appendChild(txt);
     });
 
-    // 纜繩（必須在車廂之前）
     const up = groundPts.map(p => [p[0], p[1] - 60]);
     const down = groundPts.map(p => [p[0], p[1] + 60]).reverse();
     monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
@@ -176,7 +156,6 @@ function monInitMap() {
     rope.setAttribute('stroke-width', '3');
     monSvg.appendChild(rope);
 
-    // ----- 圖例（深色版，含四種狀態） -----
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1800,420)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -224,10 +203,8 @@ function monInitMap() {
     });
     monSvg.appendChild(legend);
 
-    // ----- 建立車廂 -----
     monBuildCabins();
 
-    // ----- 監聽車廂序號變化（與主地圖同步） -----
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -252,14 +229,12 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // 監聽偏移量變化
     window.addEventListener('storage', (e) => {
         if (e.key === 'mapGlobalOffset') {
             monSyncOffsetAndLayout();
         }
     });
 
-    // 監聽狀態更新
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
@@ -271,7 +246,6 @@ function monInitMap() {
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
 }
 
-// ----- 構建車廂 -----
 function monBuildCabins() {
     if (!monSvg) return;
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
@@ -339,8 +313,7 @@ function monLengthOf(pts) {
 function monPointAt(pts, d) {
     let sum = 0;
     for (let i = 0; i < pts.length - 1; i++) {
-        const [x1, y1] = pts[i],
-            [x2, y2] = pts[i + 1];
+        const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
         const seg = Math.hypot(x2 - x1, y2 - y1);
         if (sum + seg >= d) {
             const t = (d - sum) / seg;
@@ -350,10 +323,6 @@ function monPointAt(pts, d) {
     }
     return { x: pts[pts.length - 1][0], y: pts[pts.length - 1][1] };
 }
-
-// ================================================================
-// 2. 更新車廂狀態 + 計算車廂綜合時間
-// ================================================================
 
 async function monUpdateFromFirestore() {
     try {
@@ -365,7 +334,6 @@ async function monUpdateFromFirestore() {
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
 
-        // 準備批次更新 Realtime Database
         const updates = {};
 
         monMapCabins.forEach(cabin => {
@@ -425,17 +393,11 @@ async function monUpdateFromFirestore() {
                     break;
             }
 
-            // ============================================================
-            // ★ 計算車廂綜合時間（與 map.js 邏輯一致）
-            // ============================================================
             let overallStart = null;
             let overallEnd = null;
 
             if (matched.length > 0) {
-                const startTimes = matched
-                    .map(g => g.timeReachedTop)
-                    .filter(t => t);
-                
+                const startTimes = matched.map(g => g.timeReachedTop).filter(t => t);
                 if (startTimes.length > 0) {
                     overallStart = startTimes.reduce((a, b) => {
                         const da = new Date(a), db = new Date(b);
@@ -449,10 +411,7 @@ async function monUpdateFromFirestore() {
                 });
 
                 if (allCompleted) {
-                    const endTimes = matched
-                        .map(g => g.timeLanded)
-                        .filter(t => t);
-                    
+                    const endTimes = matched.map(g => g.timeLanded).filter(t => t);
                     if (endTimes.length > 0) {
                         overallEnd = endTimes.reduce((a, b) => {
                             const da = new Date(a), db = new Date(b);
@@ -462,11 +421,8 @@ async function monUpdateFromFirestore() {
                 }
             }
 
-            // ★ 儲存到 cabin.fields
             cabin.fields.overallTimeReachedTop = overallStart;
             cabin.fields.overallTimeLanded = overallEnd;
-
-            // ★ 儲存到 Realtime Database
             updates[`cabins/${cabin.id}/overallTimeReachedTop`] = overallStart || null;
             updates[`cabins/${cabin.id}/overallTimeLanded`] = overallEnd || null;
         });
@@ -482,17 +438,14 @@ async function monUpdateFromFirestore() {
 }
 
 function monUpdateSummary() {
-    let waiting = 0,
-        rescuing = 0,
-        landed = 0,
-        departed = 0;
-    const wc = [],
-        rc = [],
-        lc = [],
-        dc = [];
+    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
+    const wc = [], rc = [], lc = [], dc = [];
     monMapCabins.forEach(c => {
         const seq = c.fields.sequence || '';
-        if (c.el.classList.contains('status-red')) { waiting++; if (seq) wc.push(seq); } else if (c.el.classList.contains('status-yellow')) { rescuing++; if (seq) rc.push(seq); } else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); } else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
+        if (c.el.classList.contains('status-red')) { waiting++; if (seq) wc.push(seq); }
+        else if (c.el.classList.contains('status-yellow')) { rescuing++; if (seq) rc.push(seq); }
+        else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); }
+        else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
     });
     document.getElementById('monWaiting').textContent = waiting;
     document.getElementById('monRescuing').textContent = rescuing;
@@ -502,7 +455,6 @@ function monUpdateSummary() {
     document.getElementById('monLandedCabins').textContent = lc.join(', ');
 }
 
-// ----- 搜尋車廂 -----
 function monSearchCabin() {
     const q = document.getElementById('monSearchBox').value.trim();
     if (!q) return alert('請輸入車廂號碼');
@@ -524,11 +476,9 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ----- 點擊車廂 → 開啟唯讀詳情（顯示綜合時間） -----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
-        // ★ 取得綜合時間
         const overallStart = cabin.fields.overallTimeReachedTop;
         const overallEnd = cabin.fields.overallTimeLanded;
 
@@ -536,7 +486,6 @@ function monOpenCabinReadonly(cabin) {
         html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
         html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
 
-        // ★ 顯示綜合時間
         html += `<div style="background:#1a3a5f; padding:10px 14px; border-radius:6px; margin-bottom:12px; border:1px solid #2a5a8f;">`;
         html += `<div style="display:flex; flex-wrap:wrap; gap:16px; color:#cde;">`;
         html += `<div><strong>📊 綜合開始救援：</strong> ${overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—'}</div>`;
@@ -547,9 +496,7 @@ function monOpenCabinReadonly(cabin) {
         } else {
             html += `<div><strong>📊 綜合完成救援：</strong> —</div>`;
         }
-        html += `</div>`;
-        html += `<div style="font-size:0.7rem; color:#8ab; margin-top:4px;">💡 自動計算，僅供參考</div>`;
-        html += `</div>`;
+        html += `</div><div style="font-size:0.7rem; color:#8ab; margin-top:4px;">💡 自動計算，僅供參考</div></div>`;
 
         if (snap.empty) {
             html += `<p style="color:#94a3b8;">此車廂暫無組別記錄</p>`;
@@ -596,10 +543,6 @@ function monOpenCabinReadonly(cabin) {
     });
 }
 
-// ================================================================
-// 3. 統計數據、圖表、表格
-// ================================================================
-
 async function monLoadAllData() {
     try {
         if (typeof showLoader === 'function') showLoader(true);
@@ -608,13 +551,9 @@ async function monLoadAllData() {
             db.collection('rescue_records').get()
         ]);
         monGuestRecords = [];
-        guestSnap.forEach(d => { const data = d.data();
-            data.id = d.id;
-            monGuestRecords.push(data); });
+        guestSnap.forEach(d => { const data = d.data(); data.id = d.id; monGuestRecords.push(data); });
         monRescueRecords = [];
-        rescueSnap.forEach(d => { const data = d.data();
-            data.id = d.id;
-            monRescueRecords.push(data); });
+        rescueSnap.forEach(d => { const data = d.data(); data.id = d.id; monRescueRecords.push(data); });
         console.log(`監控載入：${monGuestRecords.length} 筆賓客，${monRescueRecords.length} 筆求助`);
         monUpdateAllDisplays();
         monUpdateTimestamp();
@@ -628,7 +567,6 @@ async function monLoadAllData() {
 }
 
 function monUpdateAllDisplays() {
-    // OCC 統計
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
     const processed = monRescueRecords.filter(r => r.processed).length;
@@ -636,11 +574,7 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-pending').textContent = pending;
     document.getElementById('occ-processed').textContent = processed;
 
-    // OCC 健康狀況
-    let g = 0,
-        y = 0,
-        r = 0,
-        b = 0;
+    let g = 0, y = 0, r = 0, b = 0;
     monRescueRecords.forEach(rec => {
         const h = rec.healthStatus || '';
         if (h.includes('綠色')) g++;
@@ -653,7 +587,6 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-red-count').textContent = r;
     document.getElementById('occ-black-count').textContent = b;
 
-    // 救援記錄統計
     const totalG = monGuestRecords.length;
     const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
     const pendingG = totalG - completed;
@@ -663,11 +596,7 @@ function monUpdateAllDisplays() {
     document.getElementById('pendingRecords').textContent = pendingG;
     document.getElementById('ambulanceNeeded').textContent = ambNeeded;
 
-    // 賓客健康狀況
-    let g2 = 0,
-        y2 = 0,
-        r2 = 0,
-        b2 = 0;
+    let g2 = 0, y2 = 0, r2 = 0, b2 = 0;
     monGuestRecords.forEach(rec => {
         const h = rec.healthStatus || '';
         if (h.includes('綠色')) g2++;
@@ -680,11 +609,7 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
-    // ★ 救援狀態分佈（使用 getGroupStatus 個別組別狀態）
-    let waiting = 0,
-        rescuing = 0,
-        landed = 0,
-        departed = 0;
+    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     monGuestRecords.forEach(rec => {
         const s = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
         if (s === 'departed') departed++;
@@ -745,7 +670,6 @@ function monUpdateTimeChart() {
     });
 }
 
-// ★ 修改：使用 formatTimestamp 顯示友好時間
 function monRenderTable() {
     const tbody = document.getElementById('monitor-records-list');
     if (!tbody) return;
@@ -772,7 +696,6 @@ function monRenderTable() {
             case 'rescuing': statusText = '救援中'; badgeClass = 'status-pending'; break;
             default: statusText = '等待救援'; badgeClass = 'status-waiting';
         }
-        // ★ 使用 formatTimestamp 顯示友好時間
         const startTime = window.formatTimestamp ? window.formatTimestamp(rec.timeReachedTop) : rec.timeReachedTop || '-';
         const endTime = window.formatTimestamp ? window.formatTimestamp(rec.timeLanded) : rec.timeLanded || '-';
         tr.innerHTML = `
@@ -801,10 +724,6 @@ function monManualRefresh() {
     monLoadAllData();
     setTimeout(() => { monSyncOffsetAndLayout(); }, 100);
 }
-
-// ================================================================
-// 4. 初始化入口
-// ================================================================
 
 function monInit() {
     console.log('🚀 monInit 被呼叫 (來自 monitor.js)');
@@ -848,7 +767,6 @@ function monInit() {
     }, 20000);
 }
 
-// 暴露全域
 window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
 window.monLoadAllData = monLoadAllData;
