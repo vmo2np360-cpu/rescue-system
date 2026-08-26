@@ -19,6 +19,9 @@ const SECTIONS = [
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
     // ★ 修改：init 改為 'monInit'（與 monitor.html 定義一致）
     { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' }
+    const SECTIONS = [
+    // ... 現有區塊 ...
+    { id: 'section-audit', key: 'audit', label: '操作日誌', icon: 'fa-history', pageKey: 'audit', template: 'templates/audit.html', init: 'initAudit' }
 ];
 
 // 快取已載入的 HTML
