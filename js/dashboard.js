@@ -26,7 +26,6 @@ function dbUpdateStats(records) {
     let green = 0, yellow = 0, red = 0, black = 0;
 
     records.forEach(r => {
-        // ★ 已完成條件：有 timeLanded、status 為 completed/landed、或有 exitTime
         const isCompleted = r.timeLanded || r.status === 'completed' || r.status === 'landed' || r.exitTime;
         if (isCompleted) {
             completed++;
@@ -165,14 +164,8 @@ async function dbEditRecordWithModal(id) {
     };
 }
 
-    if (typeof toggleGroupAmbulanceFields === 'function') toggleGroupAmbulanceFields();
-    if (typeof toggleGroupOtherExit === 'function') toggleGroupOtherExit();
-    if (typeof toggleGroupOtherRescuer === 'function') toggleGroupOtherRescuer();
-}
-
 // ★ 更新前驗證，避免誤更新其他組別
 async function dbUpdateGuestFromGroupModal(docId) {
-    // ★ 驗證：確保該文件確實對應表單中的車廂+組別
     try {
         const docSnap = await db.collection('guests').doc(docId).get();
         if (!docSnap.exists) {
@@ -194,7 +187,6 @@ async function dbUpdateGuestFromGroupModal(docId) {
         return;
     }
 
-    // 原有更新邏輯
     const form = document.getElementById('groupForm');
     const formData = new FormData(form);
     const updateData = {};
@@ -233,10 +225,13 @@ async function dbUpdateGuestFromGroupModal(docId) {
     try {
         showLoader(true);
         const existingDoc = await db.collection('guests').doc(docId).get();
-const previousData = existingDoc.exists ? existingDoc.data() : null;
+        const previousData = existingDoc.exists ? existingDoc.data() : null;
 
-await db.collection('guests').doc(docId).update(updateData);
-await logAction('guests', docId, 'update', updateData, previousData);
+        await db.collection('guests').doc(docId).update(updateData);
+        // 日誌記錄（若 common.js 中有 logAction 定義，會自動處理；若無，則忽略）
+        if (typeof logAction === 'function') {
+            await logAction('guests', docId, 'update', updateData, previousData);
+        }
         showMessage('dbMessage', '記錄更新成功！', 'success');
         closeGroupModal();
         dbLoadRecords();
