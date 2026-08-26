@@ -188,7 +188,11 @@ async function apUpdateRecord() {
             status: 'landed',
             updatedAt: new Date()
         };
-        await db.collection('guests').doc(apCurrentDocId).update(update);
+        const existingDoc = await db.collection('guests').doc(apCurrentDocId).get();
+const previousData = existingDoc.exists ? existingDoc.data() : null;
+
+await db.collection('guests').doc(apCurrentDocId).update(update);
+await logAction('guests', apCurrentDocId, 'update', update, previousData);
         showMessage('apMessage', '記錄更新成功！', 'success');
         document.getElementById('apRecordDetails').style.display = 'none';
         apCurrentDocId = null;
