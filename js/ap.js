@@ -171,11 +171,16 @@ async function apUpdateRecord() {
         if (!other) { showMessage('apMessage', '請輸入其他後續處理方式', 'error'); return; }
         exitMethod = other;
     }
-    if (!exitMethod) { showMessage('apMessage', '請選擇後續處理方式', 'error'); return; }
+
+    // ★ 驗證後續處理方式是否選擇
+    if (!exitMethod) {
+        showMessage('apMessage', '請選擇後續處理方式', 'error');
+        return;
+    }
 
     // ★ 若未填寫離場時間，提示確認
     if (!exitTime) {
-        if (!confirm('您尚未填寫離場時間，確定要更新記錄嗎？')) {
+        if (!confirm('您尚未填寫離場時間，確定要繼續更新嗎？')) {
             return;
         }
     }
@@ -192,26 +197,21 @@ async function apUpdateRecord() {
             ambulance,
             ambulancePlate,
             hospital,
+            status: 'landed',
             updatedAt: new Date()
         };
-        // 若有離場時間，則設定 exitTime 和 status
+        // ★ 只有當 exitTime 有值時才加入
         if (exitTime) {
             update.exitTime = new Date(exitTime);
-            update.status = 'landed';
         } else {
-            // ★ 沒有離場時間，不更新 exitTime 和 status（保留原值）
-            // 但將 exitTime 設為 null（如果原先有，使用者想清空？通常不會）
-            // 為了避免意外清空，我們選擇不傳這兩個欄位
-            // 注意：如果使用者想清空 exitTime，需要額外邏輯，暫時不處理
+            update.exitTime = null; // 或省略，但設為 null 可清除舊值
         }
 
         const existingDoc = await db.collection('guests').doc(apCurrentDocId).get();
         const previousData = existingDoc.exists ? existingDoc.data() : null;
 
         await db.collection('guests').doc(apCurrentDocId).update(update);
-        if (typeof logAction === 'function') {
-            await logAction('guests', apCurrentDocId, 'update', update, previousData);
-        }
+        await logAction('guests', apCurrentDocId, 'update', update, previousData);
         showMessage('apMessage', '記錄更新成功！', 'success');
         document.getElementById('apRecordDetails').style.display = 'none';
         apCurrentDocId = null;
