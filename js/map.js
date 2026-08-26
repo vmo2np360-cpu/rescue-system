@@ -958,7 +958,31 @@ function initMap() {
     }
     mapInit();
 }
+// ---- 手動刷新地圖（僅限地圖頁面） ----
+function mapManualRefresh() {
+    console.log('🔄 手動刷新地圖');
+    // 檢查是否在地圖頁面
+    const section = document.getElementById('section-map');
+    if (section && section.classList.contains('active')) {
+        mapUpdateFromFirestore();
+        // 可選：顯示短暫提示
+        const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 更新中';
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 1500);
+        }
+    } else {
+        console.warn('地圖頁面未啟用，跳過刷新');
+    }
+}
 
+// 暴露為全域
+window.mapManualRefresh = mapManualRefresh;
 // ---- 暴露全域 ----
 window.mapInit = mapInit;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
