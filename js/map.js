@@ -948,6 +948,7 @@ async function deleteGroupRecord() {
 }
 
 // ---- 初始化入口 (含重試) ----
+// ---- 初始化入口 (含重試) ----
 function initMap() {
     console.log('🚀 初始化救援地圖');
     const mapEl = document.getElementById('map');
@@ -958,14 +959,13 @@ function initMap() {
     }
     mapInit();
 }
+
 // ---- 手動刷新地圖（僅限地圖頁面） ----
 function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
-    // 檢查是否在地圖頁面
     const section = document.getElementById('section-map');
     if (section && section.classList.contains('active')) {
         mapUpdateFromFirestore();
-        // 可選：顯示短暫提示
         const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
         if (btn) {
             const originalHtml = btn.innerHTML;
@@ -981,8 +981,6 @@ function mapManualRefresh() {
     }
 }
 
-// 暴露為全域
-window.mapManualRefresh = mapManualRefresh;
 // ---- 暴露全域 ----
 window.mapInit = mapInit;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
@@ -998,5 +996,6 @@ window.loadGroupDetail = loadGroupDetail;
 window.closeGroupModal = closeGroupModal;
 window.deleteGroupRecord = deleteGroupRecord;
 window.saveGroupRecord = saveGroupRecord;
+window.mapManualRefresh = mapManualRefresh;   // ★ 新增
 
 console.log('✅ map.js 已載入');
