@@ -943,7 +943,12 @@ async function saveGroupRecord() {
     }
     try {
         showLoader(true);
-        await db.collection('guests').doc(docId).update(updateData);
+       // 更新前讀取舊資料
+const existingDoc = await db.collection('guests').doc(docId).get();
+const previousData = existingDoc.exists ? existingDoc.data() : null;
+
+await db.collection('guests').doc(docId).update(updateData);
+await logAction('guests', docId, 'update', updateData, previousData);
         alert('組別記錄已更新');
         closeGroupModal();
         mapUpdateFromFirestore();
