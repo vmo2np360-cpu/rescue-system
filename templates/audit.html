@@ -1,0 +1,208 @@
+<style>
+    #section-audit .audit-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    #section-audit .audit-stat-card {
+        background: white;
+        padding: 14px 10px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        border-top: 3px solid #4285F4;
+    }
+    #section-audit .audit-stat-card .number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2563eb;
+    }
+    #section-audit .audit-stat-card .label {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    #section-audit .audit-stat-card.creates { border-top-color: #22c55e; }
+    #section-audit .audit-stat-card.creates .number { color: #22c55e; }
+    #section-audit .audit-stat-card.updates { border-top-color: #eab308; }
+    #section-audit .audit-stat-card.updates .number { color: #eab308; }
+    #section-audit .audit-stat-card.deletes { border-top-color: #dc2626; }
+    #section-audit .audit-stat-card.deletes .number { color: #dc2626; }
+    
+    #section-audit .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 12px;
+    }
+    #section-audit .filter-row .form-group {
+        flex: 1;
+        min-width: 120px;
+        margin-bottom: 0;
+    }
+    #section-audit .filter-row .form-group label {
+        font-size: 0.75rem;
+        color: #64748b;
+        display: block;
+        margin-bottom: 4px;
+    }
+    #section-audit .filter-row select,
+    #section-audit .filter-row input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    #section-audit .btn-secondary {
+        background: #e2e8f0;
+        color: #1e293b;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    #section-audit .btn-secondary:hover {
+        background: #cbd5e1;
+    }
+    #section-audit .btn-primary {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+    #section-audit .btn-primary:hover {
+        background: #1d4ed8;
+    }
+    #section-audit code {
+        font-family: 'Courier New', monospace;
+        font-size: 0.75rem;
+        background: #f1f5f9;
+        padding: 2px 4px;
+        border-radius: 2px;
+    }
+    #section-audit .table-wrap {
+        overflow-x: auto;
+    }
+    #section-audit table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    #section-audit th {
+        background: #f1f5f9;
+        text-align: left;
+        padding: 8px 10px;
+        font-weight: 600;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+    #section-audit td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    #section-audit tr:hover td {
+        background: #f8fafc;
+    }
+    #section-audit .status-unknown {
+        background: #94a3b8;
+        color: white;
+    }
+</style>
+
+<h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-history"></i> 操作日誌審計</h2>
+<div id="auditMessage" class="message"></div>
+
+<!-- 統計卡片 -->
+<div class="audit-stats-grid">
+    <div class="audit-stat-card"><div class="number" id="auditTotal">0</div><div class="label">總記錄數</div></div>
+    <div class="audit-stat-card creates"><div class="number" id="auditCreates">0</div><div class="label">新增</div></div>
+    <div class="audit-stat-card updates"><div class="number" id="auditUpdates">0</div><div class="label">更新</div></div>
+    <div class="audit-stat-card deletes"><div class="number" id="auditDeletes">0</div><div class="label">刪除</div></div>
+</div>
+
+<!-- 篩選列 -->
+<div class="card">
+    <div class="filter-row">
+        <div class="form-group">
+            <label><i class="fas fa-search"></i> 搜尋</label>
+            <input type="text" id="auditSearch" placeholder="關鍵字搜尋…" oninput="auditFilterLogs()">
+        </div>
+        <div class="form-group">
+            <label>操作類型</label>
+            <select id="auditFilterOperation" onchange="auditFilterLogs()">
+                <option value="">全部</option>
+                <option value="create">新增</option>
+                <option value="update">更新</option>
+                <option value="delete">刪除</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>資料集合</label>
+            <select id="auditFilterCollection" onchange="auditFilterLogs()">
+                <option value="">全部</option>
+                <option value="guests">guests (被救者)</option>
+                <option value="rescue_records">rescue_records (求助記錄)</option>
+                <option value="cabins">cabins (車廂)</option>
+                <option value="audit_log">audit_log (日誌)</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" onclick="auditLoadLogs()"><i class="fas fa-sync-alt"></i> 刷新</button>
+        <button class="btn btn-secondary" onclick="auditExportCSV()"><i class="fas fa-file-csv"></i> 匯出 CSV</button>
+    </div>
+</div>
+
+<!-- 表格 -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-size:0.85rem; color:#64748b;">
+            顯示 <span id="auditDisplayCount">0</span> 筆記錄
+        </div>
+        <div style="font-size:0.75rem; color:#94a3b8;">
+            💡 自動更新：30 秒
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>時間</th>
+                    <th>操作者</th>
+                    <th>操作</th>
+                    <th>集合</th>
+                    <th>文件 ID</th>
+                    <th>資料預覽</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="auditTableBody">
+                <tr><td colspan="7" style="text-align:center; color:#94a3b8;">載入中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 詳情模態框 -->
+<div id="auditDetailModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:700px;">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-file-alt"></i> 日誌詳情</span>
+            <button class="modal-close" onclick="auditCloseDetail()">&times;</button>
+        </div>
+        <div id="auditDetailContent" style="padding:4px 0;">
+            <!-- 動態內容 -->
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="auditCloseDetail()">關閉</button>
+        </div>
+    </div>
+</div>
