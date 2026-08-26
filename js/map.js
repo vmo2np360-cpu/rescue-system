@@ -408,7 +408,7 @@ function setupMoveMode() {
 }
 
 // ================================================================
-// ★ 更新地圖（使用車廂綜合狀態：救援中 > 已著陸 > 已離開 > 等待救援）
+// ★ 更新地圖 + 計算車廂綜合時間
 // ================================================================
 async function mapUpdateFromFirestore() {
     try {
@@ -419,6 +419,9 @@ async function mapUpdateFromFirestore() {
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
+
+        // 準備批次更新 Realtime Database
+        const updates = {};
 
         mapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
@@ -450,11 +453,9 @@ async function mapUpdateFromFirestore() {
             }
 
             // ---- 4. 決定最終狀態 ----
-            // ★ 只有當車廂狀態為 empty 或 waiting 時，求助記錄才能觸發紅色
-            // 如果車廂已有救援中、已著陸或已離開，則不受求助記錄影響
             let finalStatus = overallStatus;
             if (hasUnprocessedRescue && (overallStatus === 'empty' || overallStatus === 'waiting')) {
-                finalStatus = 'waiting'; // 紅色（等待救援）
+                finalStatus = 'waiting';
             }
 
             // ---- 5. 根據最終狀態設置顏色 ----
@@ -485,7 +486,63 @@ async function mapUpdateFromFirestore() {
                     cabin.shape.setAttribute('stroke', '#94a3b8');
                     break;
             }
+
+            // ============================================================
+            // ★ 計算車廂綜合時間（新增）
+            // ============================================================
+            let overallStart = null;
+            let overallEnd = null;
+            let allCompleted = false;
+
+            if (matched.length > 0) {
+                // 找出所有有效的 timeReachedTop
+                const startTimes = matched
+                    .map(g => g.timeReachedTop)
+                    .filter(t => t);
+                
+                if (startTimes.length > 0) {
+                    // 取最早的時間
+                    overallStart = startTimes.reduce((a, b) => {
+                        const da = new Date(a), db = new Date(b);
+                        return da < db ? a : b;
+                    });
+                }
+
+                // 檢查是否所有組別都已完成（landed 或 departed）
+                allCompleted = matched.every(g => {
+                    const status = window.getGroupStatus ? window.getGroupStatus(g) : 'waiting';
+                    return status === 'landed' || status === 'departed';
+                });
+
+                if (allCompleted) {
+                    // 取最晚的 timeLanded
+                    const endTimes = matched
+                        .map(g => g.timeLanded)
+                        .filter(t => t);
+                    
+                    if (endTimes.length > 0) {
+                        overallEnd = endTimes.reduce((a, b) => {
+                            const da = new Date(a), db = new Date(b);
+                            return da > db ? a : b;
+                        });
+                    }
+                }
+                // 若非全部完成，overallEnd 保持 null（顯示「進行中」）
+            }
+
+            // ★ 儲存到 cabin.fields（供顯示用）
+            cabin.fields.overallTimeReachedTop = overallStart;
+            cabin.fields.overallTimeLanded = overallEnd;
+
+            // ★ 儲存到 Realtime Database
+            updates[`cabins/${cabin.id}/overallTimeReachedTop`] = overallStart || null;
+            updates[`cabins/${cabin.id}/overallTimeLanded`] = overallEnd || null;
         });
+
+        // 批次寫入 Realtime Database
+        if (Object.keys(updates).length > 0) {
+            await realtimeDb.ref().update(updates);
+        }
 
         mapUpdateSummary();
     } catch(e) {
@@ -545,7 +602,7 @@ function mapApplySequences() {
     mapUpdateFromFirestore();
 }
 
-// ---- 搜尋車廂 (改為亮藍色外框 + 明顯發光 + 外圈) ----
+// ---- 搜尋車廂 ----
 function mapSearchCabin() {
     const q = document.getElementById('mapSearchBox').value.trim();
     if (!q) return alert('請輸入車廂號碼');
@@ -632,13 +689,64 @@ function mapExportCSV() {
     });
 }
 
-// ---- 開啟車廂資訊 (時間顯示修正) ----
+// ---- 開啟車廂資訊 (顯示綜合時間) ----
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
     document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
+
+    // 手動編輯時間（保留原功能）
     document.getElementById('cabinTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeReachedTop) : '';
     document.getElementById('cabinTimeLanded').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeLanded) : '';
     document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
+
+    // ★ 顯示綜合時間（新增）
+    const overallStart = cabin.fields.overallTimeReachedTop;
+    const overallEnd = cabin.fields.overallTimeLanded;
+
+    // 檢查是否已存在綜合時間顯示區塊
+    let overallContainer = document.getElementById('cabinOverallTimeContainer');
+    if (!overallContainer) {
+        // 在「備註」欄位之前插入
+        const remarksGroup = document.querySelector('#cabinForm .form-group:last-of-type');
+        if (remarksGroup) {
+            overallContainer = document.createElement('div');
+            overallContainer.id = 'cabinOverallTimeContainer';
+            overallContainer.className = 'form-group';
+            overallContainer.style.marginBottom = '12px';
+            overallContainer.style.padding = '10px 14px';
+            overallContainer.style.background = '#f0f7ff';
+            overallContainer.style.borderRadius = '6px';
+            overallContainer.style.border = '1px solid #dbeafe';
+            overallContainer.innerHTML = `
+                <div style="display:flex; flex-wrap:wrap; gap:16px;">
+                    <div><strong>📊 綜合開始救援：</strong> <span id="cabinOverallStartDisplay">—</span></div>
+                    <div><strong>📊 綜合完成救援：</strong> <span id="cabinOverallEndDisplay">—</span></div>
+                </div>
+                <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">💡 此為車廂所有組別的自動計算時間，僅供參考</div>
+            `;
+            remarksGroup.parentNode.insertBefore(overallContainer, remarksGroup);
+        }
+    }
+
+    // 更新顯示值
+    if (overallContainer) {
+        const startDisplay = document.getElementById('cabinOverallStartDisplay');
+        const endDisplay = document.getElementById('cabinOverallEndDisplay');
+        if (startDisplay) {
+            startDisplay.textContent = overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—';
+        }
+        if (endDisplay) {
+            if (overallEnd) {
+                endDisplay.textContent = window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd;
+            } else if (mapCabins.some(c => c.fields.sequence === cabin.fields.sequence && c.fields.overallTimeReachedTop)) {
+                // 有組別但未全部完成
+                endDisplay.textContent = '⏳ 進行中';
+            } else {
+                endDisplay.textContent = '—';
+            }
+        }
+    }
+
     document.getElementById('cabinModal').style.display = 'flex';
     loadCabinGroupStatus(cabin);
 }
@@ -767,7 +875,6 @@ function openGroupModal(guestData) {
     }
     document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
     document.getElementById('groupOtherRescuerInput').value = '';
-    // ★ 使用 extractDateTime 轉換時間
     document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(guestData.timeReachedTop) : '';
     document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(guestData.timeLanded) : '';
     document.getElementById('groupRemarks').value = guestData.remarks || '';
