@@ -14,18 +14,39 @@ let dragStartX = 0;
 let mapRopeElement = null;
 
 // ---- 初始化地圖 (加入重試機制) ----
+// ---- 初始化地圖 (加入重試機制，限制次數) ----
+let _mapInitRetryCount = 0;
+const MAP_INIT_MAX_RETRIES = 10;
+
 function mapInit() {
     if (mapCabins.length > 0 && document.querySelector('#map polyline[stroke="transparent"]')) {
         console.log('地圖已初始化，跳過');
+        _mapInitRetryCount = 0; // 重置計數
         return;
     }
 
     mapSvg = document.getElementById('map');
     if (!mapSvg) {
-        console.warn('找不到 #map 元素，300ms 後重試...');
+        _mapInitRetryCount++;
+        // ★ 檢查是否超過最大重試次數，或地圖頁面未激活
+        const section = document.getElementById('section-map');
+        const isActive = section && section.classList.contains('active');
+        if (_mapInitRetryCount >= MAP_INIT_MAX_RETRIES || !isActive) {
+            if (_mapInitRetryCount >= MAP_INIT_MAX_RETRIES) {
+                console.error('❌ 地圖初始化失敗：超過最大重試次數，請檢查 #map 元素是否存在');
+            } else {
+                console.log('📍 地圖頁面未激活，停止重試');
+            }
+            _mapInitRetryCount = 0;
+            return;
+        }
+        console.warn(`找不到 #map 元素，300ms 後重試 (${_mapInitRetryCount}/${MAP_INIT_MAX_RETRIES})...`);
         setTimeout(mapInit, 300);
         return;
     }
+
+    // ★ 找到元素，重置計數
+    _mapInitRetryCount = 0;
 
     // 清空 SVG（保留 defs）
     const defs = mapSvg.querySelector('defs');
@@ -33,6 +54,9 @@ function mapInit() {
         mapSvg.removeChild(mapSvg.firstChild);
     }
     if (defs) mapSvg.appendChild(defs);
+
+    // ... 其餘原有程式碼（不變） ...
+}
 
     // 設定 viewBox（固定）
     mapSvg.setAttribute('viewBox', '0 0 2800 700');
