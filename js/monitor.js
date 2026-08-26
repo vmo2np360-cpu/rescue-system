@@ -367,7 +367,7 @@ async function monUpdateFromFirestore() {
 
         monMapCabins.forEach(cabin => {
             const seq = cabin.fields.sequence;
-            cabin.el.classList.remove('status-red', 'status-yellow', 'status-green', 'status-departed', 'status-empty');
+            cabin.el.classList.remove("status-red", "status-yellow", "status-green", "status-departed", "status-empty");
             cabin.shape.setAttribute('fill', '#ffffff');
             cabin.shape.setAttribute('stroke', '#333');
 
@@ -389,28 +389,30 @@ async function monUpdateFromFirestore() {
                 overallStatus = window.getCabinOverallStatus ? window.getCabinOverallStatus(matched) : 'waiting';
             }
 
-            if (hasUnprocessedRescue && overallStatus === 'waiting') {
-                overallStatus = 'waiting';
+            // ★ 只有當車廂狀態為 empty 或 waiting 時，求助記錄才能觸發紅色
+            let finalStatus = overallStatus;
+            if (hasUnprocessedRescue && (overallStatus === 'empty' || overallStatus === 'waiting')) {
+                finalStatus = 'waiting';
             }
 
-            switch (overallStatus) {
+            switch(finalStatus) {
                 case 'landed':
-                    cabin.el.classList.add('status-green');
+                    cabin.el.classList.add("status-green");
                     cabin.shape.setAttribute('fill', '#34A853');
                     cabin.shape.setAttribute('stroke', '#16a34a');
                     break;
                 case 'departed':
-                    cabin.el.classList.add('status-departed');
+                    cabin.el.classList.add("status-departed");
                     cabin.shape.setAttribute('fill', '#3b82f6');
                     cabin.shape.setAttribute('stroke', '#2563eb');
                     break;
                 case 'rescuing':
-                    cabin.el.classList.add('status-yellow');
+                    cabin.el.classList.add("status-yellow");
                     cabin.shape.setAttribute('fill', '#FBBC05');
                     cabin.shape.setAttribute('stroke', '#ca8a04');
                     break;
                 case 'waiting':
-                    cabin.el.classList.add('status-red');
+                    cabin.el.classList.add("status-red");
                     cabin.shape.setAttribute('fill', '#EA4335');
                     cabin.shape.setAttribute('stroke', '#b91c1c');
                     break;
@@ -423,7 +425,7 @@ async function monUpdateFromFirestore() {
         });
 
         monUpdateSummary();
-    } catch (e) {
+    } catch(e) {
         console.error('Monitor 地圖更新失敗:', e);
     }
 }
