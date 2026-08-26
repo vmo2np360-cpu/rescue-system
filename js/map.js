@@ -428,7 +428,6 @@ async function mapUpdateFromFirestore() {
             cabin.shape.setAttribute('stroke', '#333');
 
             if (!seq) {
-                // 無車廂號碼，保持白色
                 cabin.shape.setAttribute('fill', '#ffffff');
                 cabin.shape.setAttribute('stroke', '#333');
                 return;
@@ -442,7 +441,7 @@ async function mapUpdateFromFirestore() {
                 r => r.cabinNumber === seq && r.processed === false
             );
 
-            // ---- 3. 使用 getCabinOverallStatus 取得車廂綜合狀態 ----
+            // ---- 3. 計算組別綜合狀態 ----
             let overallStatus = 'empty';
             if (matched.length === 0) {
                 overallStatus = 'empty';
@@ -450,15 +449,16 @@ async function mapUpdateFromFirestore() {
                 overallStatus = window.getCabinOverallStatus ? window.getCabinOverallStatus(matched) : 'waiting';
             }
 
-            // ---- 4. 若有未處理求助記錄，且車廂狀態是等待救援，則顯示紅色 ----
-            if (hasUnprocessedRescue && overallStatus === 'waiting') {
-                overallStatus = 'waiting';
-            } else if (hasUnprocessedRescue && (overallStatus === 'landed' || overallStatus === 'departed')) {
-                // 已有進度，不覆蓋
+            // ---- 4. 決定最終狀態 ----
+            // ★ 只有當車廂狀態為 empty 或 waiting 時，求助記錄才能觸發紅色
+            // 如果車廂已有救援中、已著陸或已離開，則不受求助記錄影響
+            let finalStatus = overallStatus;
+            if (hasUnprocessedRescue && (overallStatus === 'empty' || overallStatus === 'waiting')) {
+                finalStatus = 'waiting'; // 紅色（等待救援）
             }
 
-            // ---- 5. 根據綜合狀態設置顏色 ----
-            switch(overallStatus) {
+            // ---- 5. 根據最終狀態設置顏色 ----
+            switch(finalStatus) {
                 case 'landed':
                     cabin.el.classList.add("status-green");
                     cabin.shape.setAttribute('fill', '#22c55e');
