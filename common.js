@@ -308,7 +308,52 @@ function hideLoader() {
     const loader = document.getElementById('global-loader');
     if (loader) loader.remove();
 }
+// ================================================================
+// ★ 日誌記錄模組（方案 A + 抽象層）
+// ================================================================
 
+let _logActionImpl = null;
+
+function setLogImplementation(impl) {
+    _logActionImpl = impl;
+}
+
+async function logAction(collection, docId, operation, data, previousData) {
+    if (typeof _logActionImpl === 'function') {
+        try {
+            await _logActionImpl(collection, docId, operation, data, previousData);
+        } catch (e) {
+            console.warn('日誌記錄失敗（非關鍵錯誤）:', e);
+        }
+    } else {
+        console.log('[日誌]', { collection, docId, operation, data, previousData });
+    }
+}
+
+function createDefaultLogImplementation() {
+    return async function(collection, docId, operation, data, previousData) {
+        try {
+            const user = auth.currentUser ? auth.currentUser.email : 'unknown';
+            await db.collection('audit_log').add({
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                user: user,
+                userUid: auth.currentUser ? auth.currentUser.uid : null,
+                collection: collection,
+                docId: docId,
+                operation: operation,
+                data: data || null,
+                previousData: previousData || null,
+                collectionGroup: collection,
+                operationType: operation
+            });
+        } catch (e) {
+            console.warn('日誌寫入 Firestore 失敗（非關鍵錯誤）:', e);
+        }
+    };
+}
+
+// 預設使用方案 A
+setLogImplementation(createDefaultLogImplementation());
 // ==================== 認證函數 ====================
 async function login(email, password) {
     try {
@@ -356,5 +401,7 @@ window.getGroupStatus = getGroupStatus;
 window.getCabinOverallStatus = getCabinOverallStatus;
 window.getGuestDisplayStatus = getGuestDisplayStatus;
 window.getStatusDisplayInfo = getStatusDisplayInfo;
+window.setLogImplementation = setLogImplementation;
+window.logAction = logAction;
 
 console.log('✅ common.js 已載入');
