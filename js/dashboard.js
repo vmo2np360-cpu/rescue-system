@@ -219,7 +219,11 @@ async function dbUpdateGuestFromGroupModal(docId) {
 
     try {
         showLoader(true);
-        await db.collection('guests').doc(docId).update(updateData);
+        const existingDoc = await db.collection('guests').doc(docId).get();
+const previousData = existingDoc.exists ? existingDoc.data() : null;
+
+await db.collection('guests').doc(docId).update(updateData);
+await logAction('guests', docId, 'update', updateData, previousData);
         showMessage('dbMessage', '記錄更新成功！', 'success');
         closeGroupModal();
         dbLoadRecords();
