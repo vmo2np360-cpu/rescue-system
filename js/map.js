@@ -15,20 +15,20 @@ let mapRopeElement = null;
 
 // ---- 初始化地圖 (加入重試機制) ----
 // ---- 初始化地圖 (加入重試機制，限制次數) ----
+// ---- 初始化地圖 (加入重試機制，限制次數) ----
 let _mapInitRetryCount = 0;
 const MAP_INIT_MAX_RETRIES = 10;
 
 function mapInit() {
     if (mapCabins.length > 0 && document.querySelector('#map polyline[stroke="transparent"]')) {
         console.log('地圖已初始化，跳過');
-        _mapInitRetryCount = 0; // 重置計數
+        _mapInitRetryCount = 0;
         return;
     }
 
     mapSvg = document.getElementById('map');
     if (!mapSvg) {
         _mapInitRetryCount++;
-        // ★ 檢查是否超過最大重試次數，或地圖頁面未激活
         const section = document.getElementById('section-map');
         const isActive = section && section.classList.contains('active');
         if (_mapInitRetryCount >= MAP_INIT_MAX_RETRIES || !isActive) {
@@ -54,9 +54,6 @@ function mapInit() {
         mapSvg.removeChild(mapSvg.firstChild);
     }
     if (defs) mapSvg.appendChild(defs);
-
-    // ... 其餘原有程式碼（不變） ...
-}
 
     // 設定 viewBox（固定）
     mapSvg.setAttribute('viewBox', '0 0 2800 700');
