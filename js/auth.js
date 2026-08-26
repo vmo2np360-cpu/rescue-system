@@ -93,7 +93,6 @@ function renderNavigation(role) {
     const menu = document.getElementById('navMenu');
     menu.innerHTML = '';
     SECTIONS.forEach(section => {
-        // ★ 使用全域 PERMISSIONS（由 common.js 提供）
         const allowedRoles = window.PERMISSIONS?.pages?.[section.pageKey] || [];
         if (role === 'admin' || allowedRoles.includes(role)) {
             const btn = document.createElement('button');
