@@ -18,7 +18,7 @@ const SECTIONS = [
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
     { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' },
-    // ★ 新增：日誌審計頁面
+    // ★ 新增：操作日誌（僅 admin / occ 可見）
     { id: 'section-audit', key: 'audit', label: '操作日誌', icon: 'fa-history', pageKey: 'audit', template: 'templates/audit.html', init: 'initAudit' }
 ];
 
@@ -92,10 +92,9 @@ async function getUserRole(uid) {
 function renderNavigation(role) {
     const menu = document.getElementById('navMenu');
     menu.innerHTML = '';
-    // ★ 使用 window.PERMISSIONS（由 common.js 提供）
-    const permissions = window.PERMISSIONS || { pages: {} };
     SECTIONS.forEach(section => {
-        const allowedRoles = permissions.pages[section.pageKey] || [];
+        // ★ 使用全域 PERMISSIONS（由 common.js 提供）
+        const allowedRoles = window.PERMISSIONS?.pages?.[section.pageKey] || [];
         if (role === 'admin' || allowedRoles.includes(role)) {
             const btn = document.createElement('button');
             btn.className = 'nav-btn';
