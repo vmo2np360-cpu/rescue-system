@@ -171,20 +171,13 @@ async function apUpdateRecord() {
         if (!other) { showMessage('apMessage', '請輸入其他後續處理方式', 'error'); return; }
         exitMethod = other;
     }
-
-    // ★ 驗證後續處理方式是否選擇
-    if (!exitMethod) {
-        showMessage('apMessage', '請選擇後續處理方式', 'error');
-        return;
-    }
-
-    // ★ 若未填寫離場時間，提示確認
+    if (!exitMethod) { showMessage('apMessage', '請填寫後續處理', 'error'); return; }
     if (!exitTime) {
-        if (!confirm('您尚未填寫離場時間，確定要繼續更新嗎？')) {
+        // ★ 若未填寫離場時間，詢問是否確認更新（不更新 exitTime）
+        if (!confirm('⚠️ 您尚未填寫離場時間，確定要更新記錄嗎？（離場時間將保持不變）')) {
             return;
         }
     }
-
     if (ambulance === '需要' && (!ambulancePlate || !hospital)) {
         showMessage('apMessage', '請填寫救護車車牌和醫院名稱', 'error');
         return;
@@ -192,26 +185,28 @@ async function apUpdateRecord() {
 
     try {
         showLoader(true);
-        const update = {
-            exitMethod,
-            ambulance,
-            ambulancePlate,
-            hospital,
+        // ★ 構建更新物件，僅包含有變更的欄位
+        const updateData = {
+            exitMethod: exitMethod,
+            ambulance: ambulance,
+            ambulancePlate: ambulancePlate,
+            hospital: hospital,
             status: 'landed',
             updatedAt: new Date()
         };
-        // ★ 只有當 exitTime 有值時才加入
+
+        // ★ 僅當 exitTime 有值時才加入，否則保留原有值
         if (exitTime) {
-            update.exitTime = new Date(exitTime);
-        } else {
-            update.exitTime = null; // 或省略，但設為 null 可清除舊值
+            updateData.exitTime = new Date(exitTime);
         }
 
+        // 讀取更新前資料（用於日誌）
         const existingDoc = await db.collection('guests').doc(apCurrentDocId).get();
         const previousData = existingDoc.exists ? existingDoc.data() : null;
 
-        await db.collection('guests').doc(apCurrentDocId).update(update);
-        await logAction('guests', apCurrentDocId, 'update', update, previousData);
+        await db.collection('guests').doc(apCurrentDocId).update(updateData);
+        await logAction('guests', apCurrentDocId, 'update', updateData, previousData);
+
         showMessage('apMessage', '記錄更新成功！', 'success');
         document.getElementById('apRecordDetails').style.display = 'none';
         apCurrentDocId = null;
@@ -221,7 +216,9 @@ async function apUpdateRecord() {
         setTimeout(startScanner, 2000);
     } catch (e) {
         showMessage('apMessage', '更新失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        showLoader(false);
+    }
 }
 
 // ---- 初始化函數 ----
