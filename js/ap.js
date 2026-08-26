@@ -54,7 +54,7 @@ function stopScanner() {
 }
 
 // ================================================================
-// ★ 手動搜尋記錄（新增）
+// ★ 手動搜尋記錄
 // ================================================================
 async function apManualSearch() {
     const cabin = document.getElementById('apManualCabin').value.trim();
@@ -81,19 +81,16 @@ async function apManualSearch() {
             return;
         }
 
-        // 取第一筆（理論上應只有一筆）
         const doc = snapshot.docs[0];
         const data = doc.data();
         apCurrentDocId = doc.id;
 
-        // 顯示記錄詳情
         document.getElementById('apRecordDetails').style.display = 'block';
         document.getElementById('apCabinNumber').textContent = data.cabinNumber || '-';
         document.getElementById('apGroupNumber').textContent = data.groupNumber ? `第${data.groupNumber}組` : '-';
         document.getElementById('apGuestName').textContent = data.guestName || '-';
         document.getElementById('apHealthStatus').textContent = data.healthStatus || '-';
 
-        // 填入既有資料（若有）
         document.getElementById('apAmbulance').value = data.ambulance || '';
         document.getElementById('apAmbulancePlate').value = data.ambulancePlate || '';
         document.getElementById('apHospital').value = data.hospital || '';
@@ -114,7 +111,6 @@ async function apManualSearch() {
     }
 }
 
-// ★ 清除手動搜尋
 function apClearManualSearch() {
     document.getElementById('apManualCabin').value = '';
     document.getElementById('apManualGroup').value = '';
@@ -161,6 +157,7 @@ function toggleApOtherExit() {
     document.getElementById('apOtherExitContainer').style.display = v === '其他' ? 'block' : 'none';
 }
 
+// ---- ★ 修改：更新記錄（不再強制要求離場時間，但會提示確認） ----
 async function apUpdateRecord() {
     if (!apCurrentDocId) { showMessage('apMessage', '請先掃描 QR 碼或手動尋找記錄', 'error'); return; }
     let exitMethod = document.getElementById('apExitMethod').value;
@@ -174,7 +171,15 @@ async function apUpdateRecord() {
         if (!other) { showMessage('apMessage', '請輸入其他後續處理方式', 'error'); return; }
         exitMethod = other;
     }
-    if (!exitMethod || !exitTime) { showMessage('apMessage', '請填寫後續處理和離場時間', 'error'); return; }
+    if (!exitMethod) { showMessage('apMessage', '請選擇後續處理方式', 'error'); return; }
+
+    // ★ 若未填寫離場時間，提示確認
+    if (!exitTime) {
+        if (!confirm('您尚未填寫離場時間，確定要更新記錄嗎？')) {
+            return;
+        }
+    }
+
     if (ambulance === '需要' && (!ambulancePlate || !hospital)) {
         showMessage('apMessage', '請填寫救護車車牌和醫院名稱', 'error');
         return;
@@ -183,16 +188,30 @@ async function apUpdateRecord() {
     try {
         showLoader(true);
         const update = {
-            exitMethod, exitTime: new Date(exitTime),
-            ambulance, ambulancePlate, hospital,
-            status: 'landed',
+            exitMethod,
+            ambulance,
+            ambulancePlate,
+            hospital,
             updatedAt: new Date()
         };
-        const existingDoc = await db.collection('guests').doc(apCurrentDocId).get();
-const previousData = existingDoc.exists ? existingDoc.data() : null;
+        // 若有離場時間，則設定 exitTime 和 status
+        if (exitTime) {
+            update.exitTime = new Date(exitTime);
+            update.status = 'landed';
+        } else {
+            // ★ 沒有離場時間，不更新 exitTime 和 status（保留原值）
+            // 但將 exitTime 設為 null（如果原先有，使用者想清空？通常不會）
+            // 為了避免意外清空，我們選擇不傳這兩個欄位
+            // 注意：如果使用者想清空 exitTime，需要額外邏輯，暫時不處理
+        }
 
-await db.collection('guests').doc(apCurrentDocId).update(update);
-await logAction('guests', apCurrentDocId, 'update', update, previousData);
+        const existingDoc = await db.collection('guests').doc(apCurrentDocId).get();
+        const previousData = existingDoc.exists ? existingDoc.data() : null;
+
+        await db.collection('guests').doc(apCurrentDocId).update(update);
+        if (typeof logAction === 'function') {
+            await logAction('guests', apCurrentDocId, 'update', update, previousData);
+        }
         showMessage('apMessage', '記錄更新成功！', 'success');
         document.getElementById('apRecordDetails').style.display = 'none';
         apCurrentDocId = null;
@@ -210,7 +229,6 @@ function initAssemblyPoint() {
     console.log('✅ Assembly Point 初始化完成');
     document.getElementById('apRecordDetails').style.display = 'none';
     document.getElementById('apMessage').className = 'message';
-    // 重置手動搜尋欄位
     document.getElementById('apManualCabin').value = '';
     document.getElementById('apManualGroup').value = '';
 }
