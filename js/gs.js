@@ -177,6 +177,8 @@ async function gsSaveOrUpdateRecord(data, docId) {
 
             updateData.updatedAt = new Date();
             await db.collection('guests').doc(docId).update(updateData);
+            
+await logAction('guests', docId, 'update', updateData, previousData);  // 需先取得 previousData
             ref = { id: docId };
             gsCurrentDocId = docId;
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
@@ -189,6 +191,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
             data.status = data.timeLanded ? 'landed' : 'rescuing';
 
             const newRef = await db.collection('guests').add(data);
+            await logAction('guests', newRef.id, 'create', data, null);
             ref = newRef;
             gsCurrentDocId = newRef.id;
             showMessage('gsMessage', '✅ 記錄建立成功！', 'success');
