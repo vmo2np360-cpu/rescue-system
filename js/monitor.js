@@ -403,6 +403,7 @@ async function monUpdateFromFirestore() {
                         const da = new Date(a), db = new Date(b);
                         return da < db ? a : b;
                     });
+                    if (overallStart) overallStart = new Date(overallStart).toISOString();
                 }
 
                 const allCompleted = matched.every(g => {
@@ -417,6 +418,7 @@ async function monUpdateFromFirestore() {
                             const da = new Date(a), db = new Date(b);
                             return da > db ? a : b;
                         });
+                        if (overallEnd) overallEnd = new Date(overallEnd).toISOString();
                     }
                 }
             }
@@ -481,11 +483,13 @@ function monOpenCabinReadonly(cabin) {
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
         const overallStart = cabin.fields.overallTimeReachedTop;
         const overallEnd = cabin.fields.overallTimeLanded;
+        console.log('Monitor 綜合時間:', { overallStart, overallEnd }); // 除錯
 
         let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0; max-width:550px; margin:0 auto;">`;
         html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
         html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
 
+        // ★ 顯示綜合時間區塊（與地圖一致）
         html += `<div style="background:#1a3a5f; padding:10px 14px; border-radius:6px; margin-bottom:12px; border:1px solid #2a5a8f;">`;
         html += `<div style="display:flex; flex-wrap:wrap; gap:16px; color:#cde;">`;
         html += `<div><strong>📊 綜合開始救援：</strong> ${overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—'}</div>`;
