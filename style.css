@@ -267,3 +267,26 @@ tr:hover td { background: #f8fafc; }
         min-height: 200px;
     }
 }
+/* ===== 表單備註欄增大 ===== */
+textarea#cabinRemarks,
+textarea#groupRemarks,
+textarea#occNotes {
+    min-height: 120px;          /* 增加預設高度 */
+    width: 100%;
+    resize: vertical;           /* 允許使用者垂直拖曳調整 */
+    padding: 12px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: white;
+}
+
+textarea#cabinRemarks:focus,
+textarea#groupRemarks:focus,
+textarea#occNotes:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
