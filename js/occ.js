@@ -119,15 +119,28 @@ await logAction('rescue_records', id, 'update', update, null);
     } finally { showLoader(false); }
 }
 
-// ---- 刪除求助記錄 ----
 async function occDeleteRecord(id) {
     if (!confirm('確定刪除？')) return;
     try {
+        showLoader(true);
         await db.collection('rescue_records').doc(id).delete();
-        showMessage('occMessage', '已刪除', 'success');
-        occLoadRecords();
+        
+        // ★ 立即從本地陣列移除該記錄
+        const index = allRescueRecords.findIndex(r => r.id === id);
+        if (index !== -1) {
+            allRescueRecords.splice(index, 1);
+        }
+        // 重新渲染表格（使用已更新的本地陣列）
+        occRenderTable(allRescueRecords);
+        
+        showMessage('occMessage', '✅ 已刪除', 'success');
+        // 同步更新地圖（若有需要）
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    } catch(e) { alert('刪除失敗: ' + e.message); }
+    } catch(e) {
+        showMessage('occMessage', '刪除失敗: ' + e.message, 'error');
+    } finally {
+        showLoader(false);
+    }
 }
 
 // ================================================================
