@@ -272,7 +272,7 @@ textarea#cabinRemarks,
 textarea#groupRemarks,
 textarea#occNotes {
     min-height: 120px;          /* 增加預設高度 */
-    width: 100%;
+    width: 120%;
     resize: vertical;           /* 允許使用者垂直拖曳調整 */
     padding: 12px 14px;
     border: 2px solid #e2e8f0;
