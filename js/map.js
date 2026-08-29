@@ -1013,19 +1013,35 @@ async function deleteGroupRecord() {
     try {
         showLoader(true);
         await db.collection('guests').doc(docId).delete();
-        
-        // ★ 立即從當前車廂的組別列表中移除（若有）
-        if (mapCurrentCabin) {
-            // 重新載入該車廂的組別狀態（會重新查詢 Firestore，但因已刪除，結果會即時更新）
-            loadCabinGroupStatus(mapCurrentCabin);
-        }
-        // 關閉模態框
         closeGroupModal();
-        // 更新地圖與監控
+
+        // ★ 立即從 Dashboard 表格中移除該行（如果 Dashboard 正在顯示）
+        const dashSection = document.getElementById('section-dashboard');
+        if (dashSection && dashSection.classList.contains('active')) {
+            // 查找包含該 docId 的表格行
+            const rows = document.querySelectorAll('#dbTableBody tr');
+            rows.forEach(row => {
+                // 判斷按鈕的 onclick 是否包含該 docId
+                const btn = row.querySelector('button[onclick*="dbDeleteRecord(\'' + docId + '\')"]');
+                if (btn) {
+                    row.remove();
+                    // 更新總記錄數（先減 1）
+                    const totalEl = document.getElementById('dbTotal');
+                    if (totalEl) {
+                        let total = parseInt(totalEl.textContent) || 0;
+                        totalEl.textContent = Math.max(0, total - 1);
+                    }
+                    // 已完成/處理中統計無法準確更新，後台刷新會修正
+                }
+            });
+        }
+
+        // 背景更新地圖與監控（確保顏色、綜合時間同步）
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
         if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
-        // 若 Dashboard 有打開，也一併更新
+        // 後台刷新 Dashboard 表格（確保統計數字與 Firestore 完全一致）
         if (typeof dbLoadRecords === 'function') dbLoadRecords();
+
         showMessage('dbMessage', '組別已刪除', 'success');
     } catch (e) {
         alert('刪除失敗: ' + e.message);
@@ -1033,7 +1049,6 @@ async function deleteGroupRecord() {
         hideLoader();
     }
 }
-
 // ---- 初始化入口 (含重試) ----
 function initMap() {
     console.log('🚀 初始化救援地圖');
