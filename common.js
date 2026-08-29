@@ -29,7 +29,7 @@ const PERMISSIONS = {
         'index_rescue_map': ['admin', 'occ'],
         'recourse': ['admin', 'occ', 'gr'],
         'monitor': ['admin', 'occ', 're'],
-         'audit': ['admin', 'occ'],   // ★ 新增
+        'audit': ['admin', 'occ'],
     },
     collections: {
         'guests': {
@@ -91,7 +91,6 @@ async function isAdmin() {
 
 // ==================== 通用工具函數 ====================
 
-// ★ 將 ISO 時間字串轉換為 datetime-local 可接受的格式 (YYYY-MM-DDTHH:mm)
 function extractDateTime(datetimeInput) {
     if (!datetimeInput) return '';
     if (typeof datetimeInput === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(datetimeInput)) {
@@ -126,38 +125,27 @@ function extractDateTime(datetimeInput) {
     return '';
 }
 
-// ★ 個別組別狀態判斷（用於 Dashboard 表格、車廂詳情）
-// 優先級：已離開 > 已著陸 > 救援中 > 等待救援
 function getGroupStatus(guest) {
-    // 1. 已離開（最高優先）
     if (guest.exitTime || guest.exitMethod) {
         return 'departed';
     }
-    // 2. 已著陸
     if (guest.timeLanded) {
         return 'landed';
     }
-    // 3. 救援中
     if (guest.timeReachedTop || guest.rescuedBy) {
         return 'rescuing';
     }
-    // 4. 等待救援（預設）
     return 'waiting';
 }
 
-// ★ 車廂綜合狀態判斷（用於地圖車廂顏色）
-// 優先級：救援中 > 已著陸 > 已離開 > 等待救援
-// 已離開的條件：該車廂所有組別都有 exitTime 或 exitMethod
 function getCabinOverallStatus(guests) {
     if (!guests || guests.length === 0) {
-        return 'empty'; // 無組別記錄
+        return 'empty';
     }
-    
     let hasRescuing = false;
     let hasLanded = false;
     let hasDeparted = false;
     let allDeparted = true;
-    
     guests.forEach(g => {
         const status = getGroupStatus(g);
         if (status === 'rescuing') hasRescuing = true;
@@ -165,29 +153,22 @@ function getCabinOverallStatus(guests) {
         if (status === 'departed') hasDeparted = true;
         if (status !== 'departed') allDeparted = false;
     });
-    
-    // 1. 救援中（最高優先）
     if (hasRescuing) {
         return 'rescuing';
     }
-    // 2. 已著陸
     if (hasLanded) {
         return 'landed';
     }
-    // 3. 已離開（全部已離開）
     if (allDeparted && hasDeparted) {
         return 'departed';
     }
-    // 4. 等待救援
     return 'waiting';
 }
 
-// ★ Dashboard 專用狀態判斷（與 getGroupStatus 一致）
 function getGuestDisplayStatus(guest) {
     return getGroupStatus(guest);
 }
 
-// ★ 取得狀態顯示文字與 CSS 類別
 function getStatusDisplayInfo(status) {
     const map = {
         'waiting':   { text: '等待救援', badge: 'status-waiting' },
@@ -283,7 +264,6 @@ function showMessage(elementId, message, type = 'info', duration = 5000) {
     if (type === 'success') el.classList.add('message-success');
     else if (type === 'error') el.classList.add('message-error');
     else if (type === 'info') el.classList.add('message-info');
-
     if (duration > 0) {
         setTimeout(() => {
             el.textContent = '';
@@ -309,6 +289,7 @@ function hideLoader() {
     const loader = document.getElementById('global-loader');
     if (loader) loader.remove();
 }
+
 // ================================================================
 // ★ 日誌記錄模組（方案 A + 抽象層）
 // ================================================================
@@ -353,8 +334,54 @@ function createDefaultLogImplementation() {
     };
 }
 
-// 預設使用方案 A
 setLogImplementation(createDefaultLogImplementation());
+
+// ================================================================
+// ★ 全域偏移量同步（Firestore）
+// ================================================================
+
+const MAP_OFFSET_DOC = 'config/mapOffset';
+
+async function getGlobalOffsetFromFirestore() {
+    try {
+        const doc = await db.collection('config').doc('mapOffset').get();
+        if (doc.exists && doc.data().offset !== undefined) {
+            return doc.data().offset;
+        }
+        return 0;
+    } catch (e) {
+        console.warn('讀取偏移量失敗，使用 0:', e);
+        return 0;
+    }
+}
+
+async function setGlobalOffsetToFirestore(offset) {
+    try {
+        const role = await getUserRole();
+        if (!['admin', 'occ'].includes(role)) {
+            console.warn('無權限寫入偏移量');
+            return;
+        }
+        await db.collection('config').doc('mapOffset').set({ offset }, { merge: true });
+        console.log('偏移量已同步至雲端:', offset);
+    } catch (e) {
+        console.warn('寫入偏移量失敗:', e);
+    }
+}
+
+function listenGlobalOffset(callback) {
+    return db.collection('config').doc('mapOffset').onSnapshot((doc) => {
+        if (doc.exists) {
+            const offset = doc.data().offset || 0;
+            callback(offset);
+        } else {
+            callback(0);
+        }
+    }, (error) => {
+        console.warn('監聽偏移量失敗:', error);
+    });
+}
+
 // ==================== 認證函數 ====================
 async function login(email, password) {
     try {
@@ -404,5 +431,8 @@ window.getGuestDisplayStatus = getGuestDisplayStatus;
 window.getStatusDisplayInfo = getStatusDisplayInfo;
 window.setLogImplementation = setLogImplementation;
 window.logAction = logAction;
+window.getGlobalOffsetFromFirestore = getGlobalOffsetFromFirestore;
+window.setGlobalOffsetToFirestore = setGlobalOffsetToFirestore;
+window.listenGlobalOffset = listenGlobalOffset;
 
 console.log('✅ common.js 已載入');
