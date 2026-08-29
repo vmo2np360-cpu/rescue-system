@@ -44,7 +44,6 @@ async function mapInit() {
         return;
     }
 
-    // ★ 找到元素，重置計數
     _mapInitRetryCount = 0;
 
     // 清空 SVG（保留 defs）
@@ -260,7 +259,6 @@ async function mapInit() {
             if (mapRopeElement) {
                 mapRopeElement.style.cursor = mapMoveMode ? 'grab' : 'default';
             }
-            // ★ 若啟用移動，檢查權限
             if (mapMoveMode) {
                 const role = await window.getUserRole();
                 if (!['admin', 'occ'].includes(role)) {
@@ -375,7 +373,6 @@ function mapBuildCabins() {
 function mapLayoutCabins() {
     const ropeLen = mapLengthOf(mapRopePts);
     mapCabins.forEach((c, i) => {
-        // ★ 修正：確保 d 為正數
         const d = ((i * ropeLen / mapCabins.length + mapGlobalOffset) % ropeLen + ropeLen) % ropeLen;
         const pos = mapPointAt(mapRopePts, d);
         c.el.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -458,20 +455,607 @@ function setupMoveMode() {
         if (isDragging) {
             isDragging = false;
             newRope.style.cursor = mapMoveMode ? 'grab' : 'default';
-            // ★ 寫入 Firestore（僅當有權限）
             const role = await window.getUserRole();
             if (['admin', 'occ'].includes(role)) {
                 await window.setGlobalOffsetToFirestore(mapGlobalOffset);
             } else {
-                // 理論上不應發生，因為移動模式已檢查權限
                 console.warn('無權限寫入偏移量');
             }
         }
     });
 }
 
-// ---- 其餘函式（mapUpdateFromFirestore, mapUpdateSummary, mapApplySequences, mapSearchCabin, mapClearAll, mapExportCSV, mapOpenCabin, closeCabinModal, loadCabinGroupStatus, editGroup, loadGroupDetail, openGroupModal, saveGroupRecord, closeGroupModal, deleteGroupRecord, initMap, mapManualRefresh 等與原檔案相同，僅保留不變） ----
-// 因篇幅限制，此處省略，請保留原檔案的其餘函式（它們不需修改）。
+// ================================================================
+// ★ 更新地圖 + 計算車廂綜合時間
+// ================================================================
+async function mapUpdateFromFirestore() {
+    try {
+        const rescueSnap = await db.collection('rescue_records').get();
+        const rescueRecords = [];
+        rescueSnap.forEach(d => rescueRecords.push({ id: d.id, ...d.data() }));
+
+        const guestSnap = await db.collection('guests').get();
+        const guestRecords = [];
+        guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
+
+        const updates = {};
+
+        mapCabins.forEach(cabin => {
+            const seq = cabin.fields.sequence;
+            cabin.el.classList.remove("status-red", "status-yellow", "status-green", "status-departed", "status-empty");
+            cabin.shape.setAttribute('fill', '#ffffff');
+            cabin.shape.setAttribute('stroke', '#333');
+
+            if (!seq) {
+                cabin.shape.setAttribute('fill', '#ffffff');
+                cabin.shape.setAttribute('stroke', '#333');
+                return;
+            }
+
+            const matched = guestRecords.filter(g => g.cabinNumber === seq);
+            const hasUnprocessedRescue = rescueRecords.some(
+                r => r.cabinNumber === seq && r.processed === false
+            );
+
+            let overallStatus = 'empty';
+            if (matched.length === 0) {
+                overallStatus = 'empty';
+            } else {
+                overallStatus = window.getCabinOverallStatus ? window.getCabinOverallStatus(matched) : 'waiting';
+            }
+
+            let finalStatus = overallStatus;
+            if (hasUnprocessedRescue && (overallStatus === 'empty' || overallStatus === 'waiting')) {
+                finalStatus = 'waiting';
+            }
+
+            switch(finalStatus) {
+                case 'landed':
+                    cabin.el.classList.add("status-green");
+                    cabin.shape.setAttribute('fill', '#22c55e');
+                    cabin.shape.setAttribute('stroke', '#16a34a');
+                    break;
+                case 'departed':
+                    cabin.el.classList.add("status-departed");
+                    cabin.shape.setAttribute('fill', '#3b82f6');
+                    cabin.shape.setAttribute('stroke', '#2563eb');
+                    break;
+                case 'rescuing':
+                    cabin.el.classList.add("status-yellow");
+                    cabin.shape.setAttribute('fill', '#eab308');
+                    cabin.shape.setAttribute('stroke', '#ca8a04');
+                    break;
+                case 'waiting':
+                    cabin.el.classList.add("status-red");
+                    cabin.shape.setAttribute('fill', '#dc2626');
+                    cabin.shape.setAttribute('stroke', '#b91c1c');
+                    break;
+                case 'empty':
+                default:
+                    cabin.shape.setAttribute('fill', '#e2e8f0');
+                    cabin.shape.setAttribute('stroke', '#94a3b8');
+                    break;
+            }
+
+            // ★ 計算車廂綜合時間
+            let overallStart = null;
+            let overallEnd = null;
+
+            if (matched.length > 0) {
+                const startTimes = matched.map(g => g.timeReachedTop).filter(t => t);
+                if (startTimes.length > 0) {
+                    overallStart = startTimes.reduce((a, b) => {
+                        const da = new Date(a), db = new Date(b);
+                        return da < db ? a : b;
+                    });
+                    if (overallStart) overallStart = new Date(overallStart).toISOString();
+                }
+
+                const allCompleted = matched.every(g => {
+                    const status = window.getGroupStatus ? window.getGroupStatus(g) : 'waiting';
+                    return status === 'landed' || status === 'departed';
+                });
+
+                if (allCompleted) {
+                    const endTimes = matched.map(g => g.timeLanded).filter(t => t);
+                    if (endTimes.length > 0) {
+                        overallEnd = endTimes.reduce((a, b) => {
+                            const da = new Date(a), db = new Date(b);
+                            return da > db ? a : b;
+                        });
+                        if (overallEnd) overallEnd = new Date(overallEnd).toISOString();
+                    }
+                }
+            }
+
+            cabin.fields.overallTimeReachedTop = overallStart;
+            cabin.fields.overallTimeLanded = overallEnd;
+            updates[`cabins/${cabin.id}/overallTimeReachedTop`] = overallStart || null;
+            updates[`cabins/${cabin.id}/overallTimeLanded`] = overallEnd || null;
+        });
+
+        if (Object.keys(updates).length > 0) {
+            await realtimeDb.ref().update(updates);
+        }
+
+        mapUpdateSummary();
+    } catch(e) {
+        console.error('地圖更新失敗:', e);
+    }
+}
+
+// ---- 更新地圖摘要 (包含已離開) ----
+function mapUpdateSummary() {
+    const waitingEl = document.getElementById('waitingText');
+    const landedEl = document.getElementById('landedText');
+    if (!waitingEl || !landedEl) {
+        console.warn('摘要元素尚未建立，跳過更新');
+        return;
+    }
+
+    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
+    const wc = [], rc = [], lc = [], dc = [];
+
+    mapCabins.forEach(c => {
+        const seq = c.fields.sequence || '';
+        if (c.el.classList.contains("status-red")) {
+            waiting++;
+            if (seq) wc.push(seq);
+        } else if (c.el.classList.contains("status-yellow")) {
+            rescuing++;
+            if (seq) rc.push(seq);
+        } else if (c.el.classList.contains("status-green")) {
+            landed++;
+            if (seq) lc.push(seq);
+        } else if (c.el.classList.contains("status-departed")) {
+            departed++;
+            if (seq) dc.push(seq);
+        }
+    });
+
+    document.getElementById('mapWaiting').textContent = waiting;
+    document.getElementById('mapRescuing').textContent = rescuing;
+    document.getElementById('mapLanded').textContent = landed;
+    document.getElementById('mapWaitingCabins').textContent = wc.join(', ');
+    document.getElementById('mapRescuingCabins').textContent = rc.join(', ');
+    document.getElementById('mapLandedCabins').textContent = lc.join(', ');
+    waitingEl.textContent = '等待: ' + waiting;
+    landedEl.textContent = '已著陸: ' + landed;
+}
+
+// ---- 套用車廂序號 ----
+function mapApplySequences() {
+    const seqs = document.getElementById('seqInput').value.split(/[\s,]+/).filter(s => s);
+    if(!seqs.length) return;
+    mapCabins.forEach((c,i) => {
+        const seq = i < seqs.length ? seqs[i] : '';
+        c.fields.sequence = seq;
+        c.label.textContent = seq;
+        realtimeDb.ref('cabins/'+c.id).set(c.fields);
+    });
+    mapUpdateFromFirestore();
+}
+
+// ---- 搜尋車廂 ----
+function mapSearchCabin() {
+    const q = document.getElementById('mapSearchBox').value.trim();
+    if (!q) return alert('請輸入車廂號碼');
+    const cabin = mapCabins.find(c => c.fields.sequence === q);
+    if (!cabin) return alert('找不到車廂: ' + q);
+
+    mapCabins.forEach(c => {
+        c.shape.setAttribute('stroke', '');
+        c.shape.setAttribute('stroke-width', '');
+        c.shape.removeAttribute('filter');
+        const existingRing = c.el.querySelector('.search-ring');
+        if (existingRing) c.el.removeChild(existingRing);
+    });
+
+    cabin.shape.setAttribute('stroke', '#00BFFF');
+    cabin.shape.setAttribute('stroke-width', '6');
+    cabin.shape.setAttribute('filter', 'url(#highlightGlow)');
+
+    const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ring.setAttribute('class', 'search-ring');
+    ring.setAttribute('cx', '0');
+    ring.setAttribute('cy', '0');
+    ring.setAttribute('r', '30');
+    ring.setAttribute('fill', 'none');
+    ring.setAttribute('stroke', '#00BFFF');
+    ring.setAttribute('stroke-width', '4');
+    ring.setAttribute('stroke-dasharray', '8 8');
+    ring.setAttribute('opacity', '0.8');
+    const anim = document.createElementNS('http://www.w3.org/2000/svg','animate');
+    anim.setAttribute('attributeName', 'r');
+    anim.setAttribute('from', '28');
+    anim.setAttribute('to', '40');
+    anim.setAttribute('dur', '0.8s');
+    anim.setAttribute('repeatCount', 'indefinite');
+    anim.setAttribute('values', '28;40;28');
+    ring.appendChild(anim);
+    cabin.el.appendChild(ring);
+
+    if (window._searchTimeout) clearTimeout(window._searchTimeout);
+    window._searchTimeout = setTimeout(() => {
+        cabin.shape.setAttribute('stroke', '');
+        cabin.shape.setAttribute('stroke-width', '');
+        cabin.shape.removeAttribute('filter');
+        const r = cabin.el.querySelector('.search-ring');
+        if (r) cabin.el.removeChild(r);
+    }, 5000);
+}
+
+// ---- 清除所有資料 ----
+function mapClearAll() {
+    if(!confirm('確定清除所有車廂資料？')) return;
+    mapCabins.forEach(c => {
+        c.fields = {};
+        c.label.textContent = '';
+        realtimeDb.ref('cabins/'+c.id).remove();
+        c.shape.setAttribute('fill', '#ffffff');
+        c.shape.setAttribute('stroke', '#333');
+        c.el.classList.remove("status-red", "status-yellow", "status-green", "status-departed");
+    });
+    document.getElementById('seqInput').value = '';
+    mapUpdateSummary();
+}
+
+// ---- 匯出 CSV ----
+function mapExportCSV() {
+    db.collection('guests').get().then(snap => {
+        const records = [];
+        snap.forEach(d => records.push(d.data()));
+        if(!records.length) { alert('無資料'); return; }
+        const BOM = '\uFEFF';
+        let csv = BOM + '車廂,組別,姓名,健康狀況,狀態\n';
+        records.forEach(r => {
+            const s = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
+            const statusMap = { 'departed':'已離開', 'landed':'已著陸', 'rescuing':'救援中', 'waiting':'等待救援' };
+            const status = statusMap[s] || '未知';
+            csv += `${r.cabinNumber||''},${r.groupNumber||''},${r.guestName||''},${r.healthStatus||''},${status}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `地圖資料_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+}
+
+// ---- 開啟車廂資訊 (顯示綜合時間，修正插入位置) ----
+function mapOpenCabin(cabin) {
+    mapCurrentCabin = cabin;
+    document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
+    document.getElementById('cabinTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeReachedTop) : '';
+    document.getElementById('cabinTimeLanded').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeLanded) : '';
+    document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
+
+    const overallStart = cabin.fields.overallTimeReachedTop;
+    const overallEnd = cabin.fields.overallTimeLanded;
+    console.log('綜合時間資料:', { overallStart, overallEnd });
+
+    let overallContainer = document.getElementById('cabinOverallTimeContainer');
+    if (!overallContainer) {
+        const remarksGroup = document.getElementById('cabinRemarks')?.closest('.form-group');
+        if (remarksGroup) {
+            overallContainer = document.createElement('div');
+            overallContainer.id = 'cabinOverallTimeContainer';
+            overallContainer.className = 'form-group';
+            overallContainer.style.marginBottom = '12px';
+            overallContainer.style.padding = '10px 14px';
+            overallContainer.style.background = '#f0f7ff';
+            overallContainer.style.borderRadius = '6px';
+            overallContainer.style.border = '1px solid #dbeafe';
+            overallContainer.innerHTML = `
+                <div style="display:flex; flex-wrap:wrap; gap:16px;">
+                    <div><strong>📊 綜合開始救援：</strong> <span id="cabinOverallStartDisplay">—</span></div>
+                    <div><strong>📊 綜合完成救援：</strong> <span id="cabinOverallEndDisplay">—</span></div>
+                </div>
+                <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">💡 此為車廂所有組別的自動計算時間，僅供參考</div>
+            `;
+            remarksGroup.parentNode.insertBefore(overallContainer, remarksGroup);
+        } else {
+            const form = document.getElementById('cabinForm');
+            if (form) {
+                overallContainer = document.createElement('div');
+                overallContainer.id = 'cabinOverallTimeContainer';
+                overallContainer.className = 'form-group';
+                overallContainer.style.marginTop = '12px';
+                overallContainer.style.padding = '10px 14px';
+                overallContainer.style.background = '#f0f7ff';
+                overallContainer.style.borderRadius = '6px';
+                overallContainer.style.border = '1px solid #dbeafe';
+                overallContainer.innerHTML = `
+                    <div style="display:flex; flex-wrap:wrap; gap:16px;">
+                        <div><strong>📊 綜合開始救援：</strong> <span id="cabinOverallStartDisplay">—</span></div>
+                        <div><strong>📊 綜合完成救援：</strong> <span id="cabinOverallEndDisplay">—</span></div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">💡 此為車廂所有組別的自動計算時間，僅供參考</div>
+                `;
+                form.appendChild(overallContainer);
+            }
+        }
+    }
+
+    if (overallContainer) {
+        const startDisplay = document.getElementById('cabinOverallStartDisplay');
+        const endDisplay = document.getElementById('cabinOverallEndDisplay');
+        if (startDisplay) {
+            startDisplay.textContent = overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—';
+        }
+        if (endDisplay) {
+            if (overallEnd) {
+                endDisplay.textContent = window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd;
+            } else if (overallStart) {
+                endDisplay.textContent = '⏳ 進行中';
+            } else {
+                endDisplay.textContent = '—';
+            }
+        }
+    }
+
+    document.getElementById('cabinModal').style.display = 'flex';
+    loadCabinGroupStatus(cabin);
+}
+
+function closeCabinModal() {
+    document.getElementById('cabinModal').style.display = 'none';
+    mapCurrentCabin = null;
+}
+
+// ---- 載入車廂組別狀態 ----
+async function loadCabinGroupStatus(cabin) {
+    let container = document.getElementById('cabinGroupStatus');
+    if (!container) {
+        const form = document.getElementById('cabinForm');
+        const div = document.createElement('div');
+        div.id = 'cabinGroupStatus';
+        div.style.marginTop = '16px';
+        div.style.borderTop = '1px solid #e2e8f0';
+        div.style.paddingTop = '12px';
+        div.innerHTML = `
+            <h4 style="margin-bottom:8px; color:#1e3a5f;">組別狀態 (點擊可編輯)</h4>
+            <div id="cabinGroupList" style="max-height:200px; overflow-y:auto;"></div>
+        `;
+        form.appendChild(div);
+        container = div;
+    }
+    const statusList = document.getElementById('cabinGroupList');
+    statusList.innerHTML = '<p style="color:#64748b;">載入中...</p>';
+
+    const cabinNumber = cabin.fields.sequence;
+    if (!cabinNumber) {
+        statusList.innerHTML = '<p style="color:#64748b;">此車廂尚未設定號碼</p>';
+        return;
+    }
+
+    try {
+        const snapshot = await db.collection('guests')
+            .where('cabinNumber', '==', cabinNumber)
+            .get();
+
+        if (snapshot.empty) {
+            statusList.innerHTML = '<p style="color:#64748b;">此車廂暫無組別記錄</p>';
+            return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const group = data.groupNumber || '?';
+            const status = window.getGroupStatus ? window.getGroupStatus(data) : 'waiting';
+            let statusText = '', badgeClass = '';
+            switch(status) {
+                case 'departed': statusText = '已離開'; badgeClass = 'status-departed'; break;
+                case 'landed': statusText = '已著陸'; badgeClass = 'status-complete'; break;
+                case 'rescuing': statusText = '救援中'; badgeClass = 'status-pending'; break;
+                default: statusText = '等待救援'; badgeClass = 'status-waiting';
+            }
+            html += `
+                <div class="group-item-clickable" data-docid="${doc.id}" style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                    <span>第 ${group} 組 - ${data.guestName || '未提供姓名'}</span>
+                    <span class="status-badge ${badgeClass}">${statusText}</span>
+                </div>
+            `;
+        });
+        statusList.innerHTML = html;
+
+        statusList.querySelectorAll('.group-item-clickable').forEach(el => {
+            el.addEventListener('click', function() {
+                const docId = this.dataset.docid;
+                if (typeof window.editGroup === 'function') {
+                    window.editGroup(docId);
+                } else {
+                    alert('編輯功能尚未載入，請確認 js/map.js 已正確暴露 editGroup。');
+                }
+            });
+        });
+
+    } catch (e) {
+        statusList.innerHTML = `<p style="color:red;">載入失敗: ${e.message}</p>`;
+    }
+}
+
+// ---- 組別編輯函數 ----
+function editGroup(docId) { loadGroupDetail(docId); }
+
+async function loadGroupDetail(docId) {
+    try {
+        showLoader(true);
+        const doc = await db.collection('guests').doc(docId).get();
+        if (doc.exists) {
+            const guestData = doc.data();
+            guestData.docId = docId;
+            openGroupModal(guestData);
+        } else {
+            alert('找不到組別記錄');
+            if (mapCurrentCabin) loadCabinGroupStatus(mapCurrentCabin);
+        }
+    } catch (e) {
+        alert('載入失敗: ' + e.message);
+    } finally {
+        hideLoader();
+    }
+}
+
+function openGroupModal(guestData) {
+    const modal = document.getElementById('groupModal');
+    if (!modal) { alert('groupModal 不存在'); return; }
+    document.getElementById('groupDocId').value = guestData.docId || '';
+    document.getElementById('groupCabinNumber').value = guestData.cabinNumber || '';
+    document.getElementById('groupGroupNumber').value = guestData.groupNumber || '';
+    document.getElementById('groupGuestName').value = guestData.guestName || '';
+    document.getElementById('groupContactNumber').value = guestData.contactNumber || '';
+    document.getElementById('groupGender').value = guestData.gender || '';
+    document.getElementById('groupAgeRange').value = guestData.ageRange || '';
+    document.getElementById('groupHealthStatus').value = guestData.healthStatus || '';
+    document.getElementById('groupAmbulance').value = guestData.ambulance || '';
+    document.getElementById('groupAmbulancePlate').value = guestData.ambulancePlate || '';
+    document.getElementById('groupHospital').value = guestData.hospital || '';
+    document.getElementById('groupExitMethod').value = guestData.exitMethod || '';
+    document.getElementById('groupOtherExitInput').value = '';
+    if (guestData.exitTime) {
+        try {
+            const d = guestData.exitTime.toDate ? guestData.exitTime.toDate() : new Date(guestData.exitTime);
+            document.getElementById('groupExitTime').value = d.toISOString().slice(0, 16);
+        } catch(e) {}
+    }
+    document.getElementById('groupRescuedBy').value = guestData.rescuedBy || '';
+    document.getElementById('groupOtherRescuerInput').value = '';
+    document.getElementById('groupTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(guestData.timeReachedTop) : '';
+    document.getElementById('groupTimeLanded').value = window.extractDateTime ? window.extractDateTime(guestData.timeLanded) : '';
+    document.getElementById('groupRemarks').value = guestData.remarks || '';
+
+    const ambulanceVal = document.getElementById('groupAmbulance').value;
+    document.getElementById('groupAmbulanceFields').style.display = (ambulanceVal === '需要') ? 'block' : 'none';
+
+    const exitMethodVal = document.getElementById('groupExitMethod').value;
+    document.getElementById('groupOtherExitContainer').style.display = (exitMethodVal === '其他') ? 'block' : 'none';
+
+    const rescuedByVal = document.getElementById('groupRescuedBy').value;
+    document.getElementById('groupOtherRescuerContainer').style.display = (rescuedByVal === '其他') ? 'block' : 'none';
+
+    modal.style.display = 'flex';
+}
+
+async function saveGroupRecord() {
+    const docId = document.getElementById('groupDocId').value;
+    if (!docId) { alert('無效記錄'); return; }
+    const updateData = {
+        cabinNumber: document.getElementById('groupCabinNumber').value,
+        groupNumber: document.getElementById('groupGroupNumber').value,
+        guestName: document.getElementById('groupGuestName').value,
+        contactNumber: document.getElementById('groupContactNumber').value,
+        gender: document.getElementById('groupGender').value,
+        ageRange: document.getElementById('groupAgeRange').value,
+        healthStatus: document.getElementById('groupHealthStatus').value,
+        ambulance: document.getElementById('groupAmbulance').value,
+        exitMethod: document.getElementById('groupExitMethod').value,
+        rescuedBy: document.getElementById('groupRescuedBy').value,
+        timeReachedTop: document.getElementById('groupTimeReachedTop').value,
+        timeLanded: document.getElementById('groupTimeLanded').value,
+        remarks: document.getElementById('groupRemarks').value,
+        updatedAt: new Date()
+    };
+    if (updateData.exitMethod === '其他') {
+        const other = document.getElementById('groupOtherExitInput').value.trim();
+        if (other) updateData.exitMethod = other;
+    }
+    if (updateData.rescuedBy === '其他') {
+        const other = document.getElementById('groupOtherRescuerInput').value.trim();
+        if (other) updateData.rescuedBy = other;
+    }
+    if (updateData.ambulance === '需要') {
+        updateData.ambulancePlate = document.getElementById('groupAmbulancePlate').value;
+        updateData.hospital = document.getElementById('groupHospital').value;
+    } else {
+        updateData.ambulancePlate = '';
+        updateData.hospital = '';
+    }
+    const exitTime = document.getElementById('groupExitTime').value;
+    if (exitTime) {
+        updateData.exitTime = new Date(exitTime);
+        updateData.status = 'completed';
+    } else {
+        updateData.exitTime = null;
+        updateData.status = 'pending';
+    }
+    if (!updateData.groupNumber) {
+        alert('請選擇組別');
+        return;
+    }
+    try {
+        showLoader(true);
+        const existingDoc = await db.collection('guests').doc(docId).get();
+        const previousData = existingDoc.exists ? existingDoc.data() : null;
+        await db.collection('guests').doc(docId).update(updateData);
+        await logAction('guests', docId, 'update', updateData, previousData);
+        alert('組別記錄已更新');
+        closeGroupModal();
+        mapUpdateFromFirestore();
+        if (mapCurrentCabin) loadCabinGroupStatus(mapCurrentCabin);
+    } catch (e) {
+        alert('儲存失敗: ' + e.message);
+    } finally {
+        hideLoader();
+    }
+}
+
+function closeGroupModal() {
+    document.getElementById('groupModal').style.display = 'none';
+}
+
+async function deleteGroupRecord() {
+    const docId = document.getElementById('groupDocId').value;
+    if (!docId) return;
+    if (!confirm('確定刪除？')) return;
+    try {
+        showLoader(true);
+        await db.collection('guests').doc(docId).delete();
+        alert('已刪除');
+        closeGroupModal();
+        mapUpdateFromFirestore();
+        if (mapCurrentCabin) loadCabinGroupStatus(mapCurrentCabin);
+    } catch (e) {
+        alert('刪除失敗: ' + e.message);
+    } finally {
+        hideLoader();
+    }
+}
+
+// ---- 初始化入口 (含重試) ----
+function initMap() {
+    console.log('🚀 初始化救援地圖');
+    const mapEl = document.getElementById('map');
+    if (!mapEl) {
+        console.warn('等待 #map 元素...');
+        setTimeout(initMap, 300);
+        return;
+    }
+    mapInit();
+}
+
+// ---- 手動刷新地圖（僅限地圖頁面） ----
+function mapManualRefresh() {
+    console.log('🔄 手動刷新地圖');
+    const section = document.getElementById('section-map');
+    if (section && section.classList.contains('active')) {
+        mapUpdateFromFirestore();
+        const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 更新中';
+            btn.disabled = true;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 1500);
+        }
+    } else {
+        console.warn('地圖頁面未啟用，跳過刷新');
+    }
+}
 
 // ---- 暴露全域 ----
 window.mapInit = mapInit;
