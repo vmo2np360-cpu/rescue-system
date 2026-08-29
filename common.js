@@ -261,13 +261,18 @@ function showMessage(elementId, message, type = 'info', duration = 5000) {
     }
     el.textContent = message;
     el.className = 'message';
+    // ★ 新增：顯示訊息
+    el.classList.add('show');
     if (type === 'success') el.classList.add('message-success');
     else if (type === 'error') el.classList.add('message-error');
     else if (type === 'info') el.classList.add('message-info');
+
     if (duration > 0) {
         setTimeout(() => {
             el.textContent = '';
             el.className = 'message';
+            // 移除顯示狀態
+            el.classList.remove('show');
         }, duration);
     }
 }
