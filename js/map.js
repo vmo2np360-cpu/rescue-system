@@ -1009,14 +1009,24 @@ function closeGroupModal() {
 async function deleteGroupRecord() {
     const docId = document.getElementById('groupDocId').value;
     if (!docId) return;
-    if (!confirm('確定刪除？')) return;
+    if (!confirm('確定刪除此組別記錄？')) return;
     try {
         showLoader(true);
         await db.collection('guests').doc(docId).delete();
-        alert('已刪除');
+        
+        // ★ 立即從當前車廂的組別列表中移除（若有）
+        if (mapCurrentCabin) {
+            // 重新載入該車廂的組別狀態（會重新查詢 Firestore，但因已刪除，結果會即時更新）
+            loadCabinGroupStatus(mapCurrentCabin);
+        }
+        // 關閉模態框
         closeGroupModal();
-        mapUpdateFromFirestore();
-        if (mapCurrentCabin) loadCabinGroupStatus(mapCurrentCabin);
+        // 更新地圖與監控
+        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
+        // 若 Dashboard 有打開，也一併更新
+        if (typeof dbLoadRecords === 'function') dbLoadRecords();
+        showMessage('dbMessage', '組別已刪除', 'success');
     } catch (e) {
         alert('刪除失敗: ' + e.message);
     } finally {
