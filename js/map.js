@@ -590,7 +590,7 @@ function mapUpdateSummary() {
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
     const landedSvg = document.getElementById('mapLandedSvg');
-    
+
     // 統計數據
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
@@ -619,7 +619,7 @@ function mapUpdateSummary() {
     if (extWaiting) extWaiting.textContent = waiting;
     if (extRescuing) extRescuing.textContent = rescuing;
     if (extLanded) extLanded.textContent = landed;
-    
+
     const waitingCabins = document.getElementById('mapWaitingCabins');
     const rescuingCabins = document.getElementById('mapRescuingCabins');
     const landedCabins = document.getElementById('mapLandedCabins');
@@ -632,7 +632,7 @@ function mapUpdateSummary() {
     if (rescuingSvg) rescuingSvg.textContent = rescuing;
     if (landedSvg) landedSvg.textContent = landed;
 
-    // 以下為向後相容，若舊版 ID 仍存在則更新（可選）
+    // 向後相容：舊版 ID 若存在仍更新（可選）
     const waitingEl = document.getElementById('waitingText');
     const landedEl = document.getElementById('landedText');
     if (waitingEl) waitingEl.textContent = '等待: ' + waiting;
