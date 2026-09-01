@@ -208,14 +208,7 @@ const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
 summaryGroup.setAttribute('id', 'svgSummary');
 summaryGroup.setAttribute('transform', 'translate(20, -20)'); // 靠左上移
 
-// 整體背景（可選，留白）
-const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
-rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
-rectSum.setAttribute('width', '620'); // 寬度增加以容納兩個卡片
-rectSum.setAttribute('height', '180');
-rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
-rectSum.setAttribute('stroke', '#ccc');
-summaryGroup.appendChild(rectSum);
+// ★ 移除整體白色背景，只使用各卡片的背景
 
 // 輔助函數：建立一個狀態卡片（含背景、標題、計數、車廂列表）
 function createStatusCard(x, y, color, label, idNum, idCabins) {
@@ -225,9 +218,9 @@ function createStatusCard(x, y, color, label, idNum, idCabins) {
     // 卡片背景（白色帶邊框圓角，輕微陰影效果）
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
-    bgRect.setAttribute('width', '280'); // 卡片寬度
-    bgRect.setAttribute('height', '90');
-    bgRect.setAttribute('fill', '#f8fafc');
+    bgRect.setAttribute('width', '280'); // 卡片寬度加大
+    bgRect.setAttribute('height', '100'); // 高度略增
+    bgRect.setAttribute('fill', '#ffffff'); // 純白
     bgRect.setAttribute('stroke', color); // 邊框使用狀態色
     bgRect.setAttribute('stroke-width', '2');
     bgRect.setAttribute('rx', '8');
@@ -243,7 +236,8 @@ function createStatusCard(x, y, color, label, idNum, idCabins) {
     // 狀態名稱（加粗、加大）
     const labelText = document.createElementNS('http://www.w3.org/2000/svg','text');
     labelText.setAttribute('x', '44'); labelText.setAttribute('y', '30');
-    labelText.setAttribute('font-size', '18'); labelText.setAttribute('fill', '#1e293b');
+    labelText.setAttribute('font-size', '20'); // 加大
+    labelText.setAttribute('fill', '#1e293b');
     labelText.setAttribute('font-weight', 'bold');
     labelText.textContent = label;
     g.appendChild(labelText);
@@ -251,8 +245,9 @@ function createStatusCard(x, y, color, label, idNum, idCabins) {
     // 計數（大號，左側）
     const numText = document.createElementNS('http://www.w3.org/2000/svg','text');
     numText.setAttribute('id', idNum);
-    numText.setAttribute('x', '12'); numText.setAttribute('y', '62');
-    numText.setAttribute('font-size', '34'); numText.setAttribute('font-weight', 'bold');
+    numText.setAttribute('x', '12'); numText.setAttribute('y', '68');
+    numText.setAttribute('font-size', '40'); // 加大
+    numText.setAttribute('font-weight', 'bold');
     numText.setAttribute('fill', color);
     numText.textContent = '0';
     g.appendChild(numText);
@@ -260,12 +255,12 @@ function createStatusCard(x, y, color, label, idNum, idCabins) {
     // 車廂號碼列表（加大、深色、限制寬度）
     const cabinText = document.createElementNS('http://www.w3.org/2000/svg','text');
     cabinText.setAttribute('id', idCabins);
-    cabinText.setAttribute('x', '80'); // 靠右，與計數錯開
-    cabinText.setAttribute('y', '62');
-    cabinText.setAttribute('font-size', '15');
+    cabinText.setAttribute('x', '90'); // 靠右，與計數錯開
+    cabinText.setAttribute('y', '68');
+    cabinText.setAttribute('font-size', '16');
     cabinText.setAttribute('fill', '#1e293b');
     cabinText.setAttribute('font-weight', '500');
-    cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;');
+    cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;');
     cabinText.textContent = '';
     cabinText.setAttribute('title', '');
     g.appendChild(cabinText);
@@ -273,13 +268,13 @@ function createStatusCard(x, y, color, label, idNum, idCabins) {
     return g;
 }
 
-// 第一行：等待救援、救援中（x 間隔 300）
+// 第一行：等待救援、救援中（x 間隔 310）
 summaryGroup.appendChild(createStatusCard(10, 12, '#dc2626', '等待救援', 'mapWaitingSvg', 'mapWaitingSvgCabins'));
-summaryGroup.appendChild(createStatusCard(310, 12, '#eab308', '救援中', 'mapRescuingSvg', 'mapRescuingSvgCabins'));
+summaryGroup.appendChild(createStatusCard(320, 12, '#eab308', '救援中', 'mapRescuingSvg', 'mapRescuingSvgCabins'));
 
 // 第二行：已著陸、已離開
-summaryGroup.appendChild(createStatusCard(10, 102, '#22c55e', '已著陸', 'mapLandedSvg', 'mapLandedSvgCabins'));
-summaryGroup.appendChild(createStatusCard(310, 102, '#3b82f6', '已離開', 'mapDepartedSvg', 'mapDepartedSvgCabins'));
+summaryGroup.appendChild(createStatusCard(10, 112, '#22c55e', '已著陸', 'mapLandedSvg', 'mapLandedSvgCabins'));
+summaryGroup.appendChild(createStatusCard(320, 112, '#3b82f6', '已離開', 'mapDepartedSvg', 'mapDepartedSvgCabins'));
 
 mapSvg.appendChild(summaryGroup);
     
@@ -679,7 +674,7 @@ function mapUpdateSummary() {
         }
     });
 
-    // 更新外部元素（保留，因為您要暫時保留外部 summary-enhanced）
+    // 更新外部元素（保留）
     const extWaiting = document.getElementById('mapWaiting');
     const extRescuing = document.getElementById('mapRescuing');
     const extLanded = document.getElementById('mapLanded');
@@ -700,7 +695,7 @@ function mapUpdateSummary() {
     if (landedSvg) landedSvg.textContent = landed;
     if (departedSvg) departedSvg.textContent = departed;
 
-    // 更新內部 SVG 車廂號碼列表
+    // 更新內部 SVG 車廂號碼列表（若資料太長，使用 title 顯示完整）
     const wcStr = wc.join(', ');
     const rcStr = rc.join(', ');
     const lcStr = lc.join(', ');
