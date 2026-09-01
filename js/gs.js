@@ -42,8 +42,8 @@ async function gsCreateRecord() {
     const health = document.getElementById('gsHealthStatus').value;
     const timeLanded = document.getElementById('gsTimeLanded').value;
 
-    if (!cabin || !group || !name || !health) {
-        showMessage('gsMessage', '請填寫車廂、組別、姓名和健康狀況', 'error');
+    if (!cabin || !group) {
+        showMessage('gsMessage', '請填寫車廂和組別（必填）', 'error');
         return;
     }
 
