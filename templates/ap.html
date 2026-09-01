@@ -60,12 +60,21 @@
 <!-- ===== 記錄詳情區塊 ===== -->
 <div id="apRecordDetails" class="card" style="display:none;">
     <h3 class="card-title"><i class="fas fa-user-circle"></i> 賓客資訊</h3>
-    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; padding:12px; background:#f0f4f8; border-radius:6px;">
+    
+    <!-- ★ 修改：賓客資訊區塊加入「編輯表單」按鈕（左側） -->
+    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:12px; padding:12px; background:#f0f4f8; border-radius:6px;">
+        <div>
+            <button class="btn btn-primary" onclick="openApEditModal()" style="padding:6px 16px; font-size:0.9rem;">
+                <i class="fas fa-edit"></i> 編輯表單
+            </button>
+        </div>
         <div><strong>車廂：</strong><span id="apCabinNumber" style="font-weight:600; color:#1e3a5f;"></span></div>
         <div><strong>組別：</strong><span id="apGroupNumber" style="font-weight:600; color:#1e3a5f;"></span></div>
         <div><strong>姓名：</strong><span id="apGuestName"></span></div>
         <div><strong>健康狀況：</strong><span id="apHealthStatus"></span></div>
     </div>
+
+    <!-- 表單欄位（原有位置） -->
     <div class="form-group">
         <label for="apAmbulance"><i class="fas fa-ambulance"></i> 救護車需求</label>
         <select id="apAmbulance" onchange="toggleApAmbulance()">
@@ -98,4 +107,88 @@
         <input type="datetime-local" id="apExitTime">
     </div>
     <button class="btn btn-success btn-block" onclick="apUpdateRecord()"><i class="fas fa-save"></i> 更新記錄</button>
+</div>
+
+<!-- ===== 編輯表單模態框 (AP 專用) ===== -->
+<div id="apEditModal" class="modal">
+    <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-edit"></i> 編輯賓客記錄</span>
+            <button class="modal-close" onclick="closeApEditModal()">&times;</button>
+        </div>
+        <form id="apEditForm">
+            <!-- 車廂號碼 (唯讀) -->
+            <div class="form-group">
+                <label for="apEditCabinNumber"><i class="fas fa-train"></i> 車廂號碼</label>
+                <input type="text" id="apEditCabinNumber" readonly style="background:#f1f5f9; cursor:default;">
+            </div>
+            <!-- 組別 (唯讀) -->
+            <div class="form-group">
+                <label for="apEditGroupNumber"><i class="fas fa-users"></i> 組別</label>
+                <input type="text" id="apEditGroupNumber" readonly style="background:#f1f5f9; cursor:default;">
+            </div>
+            <!-- 被救者姓名 -->
+            <div class="form-group">
+                <label for="apEditGuestName"><i class="fas fa-user"></i> 被救者姓名</label>
+                <input type="text" id="apEditGuestName" placeholder="請輸入全名">
+            </div>
+            <!-- 聯絡方式 -->
+            <div class="form-group">
+                <label for="apEditContactNumber"><i class="fas fa-phone"></i> 聯絡方式</label>
+                <input type="text" id="apEditContactNumber" placeholder="請輸入聯絡電話">
+            </div>
+            <!-- 性別 -->
+            <div class="form-group">
+                <label for="apEditGender"><i class="fas fa-venus-mars"></i> 性別</label>
+                <select id="apEditGender">
+                    <option value="">請選擇</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <!-- 年齡 -->
+            <div class="form-group">
+                <label for="apEditAgeRange"><i class="fas fa-birthday-cake"></i> 年齡</label>
+                <select id="apEditAgeRange">
+                    <option value="">請選擇</option>
+                    <option value="未能提供">未能提供</option>
+                    <option value="0-12">0-12歲</option>
+                    <option value="13-17">13-17歲</option>
+                    <option value="18-25">18-25歲</option>
+                    <option value="26-35">26-35歲</option>
+                    <option value="36-45">36-45歲</option>
+                    <option value="46-55">46-55歲</option>
+                    <option value="56-65">56-65歲</option>
+                    <option value="66+">66歲以上</option>
+                </select>
+            </div>
+            <!-- 健康狀況 -->
+            <div class="form-group">
+                <label for="apEditHealthStatus"><i class="fas fa-heartbeat"></i> 健康狀況</label>
+                <select id="apEditHealthStatus">
+                    <option value="未能分類">未能分類</option>
+                    <option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動_(第三優先)</option>
+                    <option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理_(第二優先)</option>
+                    <option value="紅色(第一優先)">紅色_有生命危險需立即搶救_(第一優先)</option>
+                    <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
+                </select>
+            </div>
+            <!-- 完成救援時間 -->
+            <div class="form-group">
+                <label for="apEditTimeLanded"><i class="fas fa-flag-checkered"></i> 完成救援時間</label>
+                <input type="datetime-local" id="apEditTimeLanded">
+                <span style="font-size:0.75rem; color:#94a3b8;">💡 若尚未完成可留空</span>
+            </div>
+            <!-- 備註 -->
+            <div class="form-group">
+                <label for="apEditRemarks"><i class="fas fa-comment"></i> 備註</label>
+                <textarea id="apEditRemarks" rows="3" placeholder="請輸入備註"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-success" onclick="saveApEditModal()"><i class="fas fa-save"></i> 儲存</button>
+                <button type="button" class="btn btn-secondary" onclick="closeApEditModal()">取消</button>
+            </div>
+        </form>
+    </div>
 </div>
