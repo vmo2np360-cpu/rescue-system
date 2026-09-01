@@ -201,15 +201,68 @@ async function mapInit() {
     mapSvg.appendChild(legend);
 
   // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
+// ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
 const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
 summaryGroup.setAttribute('id', 'svgSummary');
 summaryGroup.setAttribute('transform', 'translate(700,0)');
 const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
 rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
-rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '90');
+rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '120');
 rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
 rectSum.setAttribute('stroke', '#ccc');
 summaryGroup.appendChild(rectSum);
+
+// 輔助函數：建立一列狀態
+function createStatusColumn(x, color, label, idNum, idCabins) {
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `translate(${x}, 15)`);
+
+    // 彩色方塊
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+    rect.setAttribute('width', '20'); rect.setAttribute('height', '20');
+    rect.setAttribute('fill', color); rect.setAttribute('rx', '3');
+    g.appendChild(rect);
+
+    // 狀態名稱
+    const labelText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    labelText.setAttribute('x', '26'); labelText.setAttribute('y', '15');
+    labelText.setAttribute('font-size', '16'); labelText.setAttribute('fill', '#333');
+    labelText.textContent = label;
+    g.appendChild(labelText);
+
+    // 計數（大號）
+    const numText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    numText.setAttribute('id', idNum);
+    numText.setAttribute('x', '0'); numText.setAttribute('y', '48');
+    numText.setAttribute('font-size', '28'); numText.setAttribute('font-weight', 'bold');
+    numText.setAttribute('fill', color);
+    numText.textContent = '0';
+    g.appendChild(numText);
+
+    // 車廂號碼列表（小號，懸停顯示完整）
+    const cabinText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    cabinText.setAttribute('id', idCabins);
+    cabinText.setAttribute('x', '0'); cabinText.setAttribute('y', '70');
+    cabinText.setAttribute('font-size', '12'); cabinText.setAttribute('fill', '#555');
+    cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;');
+    cabinText.textContent = '';
+    cabinText.setAttribute('title', '');
+    g.appendChild(cabinText);
+
+    return g;
+}
+
+// 等待救援（紅色）
+summaryGroup.appendChild(createStatusColumn(10, '#dc2626', '等待救援', 'mapWaitingSvg', 'mapWaitingSvgCabins'));
+// 救援中（黃色）
+summaryGroup.appendChild(createStatusColumn(160, '#eab308', '救援中', 'mapRescuingSvg', 'mapRescuingSvgCabins'));
+// 已著陸（綠色）
+summaryGroup.appendChild(createStatusColumn(310, '#22c55e', '已著陸', 'mapLandedSvg', 'mapLandedSvgCabins'));
+// ★ 新增：已離開（藍色）
+summaryGroup.appendChild(createStatusColumn(460, '#3b82f6', '已離開', 'mapDepartedSvg', 'mapDepartedSvgCabins'));
+
+mapSvg.appendChild(summaryGroup);
 
 // 等待救援
 const gWait = document.createElementNS('http://www.w3.org/2000/svg','g');
@@ -639,10 +692,15 @@ async function mapUpdateFromFirestore() {
 
 // ---- 更新地圖摘要 (包含已離開) ----
 function mapUpdateSummary() {
-    // 內部SVG元素（新）
+    // 內部 SVG 元素
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
     const landedSvg = document.getElementById('mapLandedSvg');
+    const departedSvg = document.getElementById('mapDepartedSvg');
+    const waitingCabinsSvg = document.getElementById('mapWaitingSvgCabins');
+    const rescuingCabinsSvg = document.getElementById('mapRescuingSvgCabins');
+    const landedCabinsSvg = document.getElementById('mapLandedSvgCabins');
+    const departedCabinsSvg = document.getElementById('mapDepartedSvgCabins');
 
     // 統計數據
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
@@ -665,7 +723,7 @@ function mapUpdateSummary() {
         }
     });
 
-    // 更新外部 summary-enhanced 的數量與車廂號碼列表
+    // 更新外部元素（保留，因為您要暫時保留外部 summary-enhanced）
     const extWaiting = document.getElementById('mapWaiting');
     const extRescuing = document.getElementById('mapRescuing');
     const extLanded = document.getElementById('mapLanded');
@@ -680,12 +738,35 @@ function mapUpdateSummary() {
     if (rescuingCabins) rescuingCabins.textContent = rc.join(', ');
     if (landedCabins) landedCabins.textContent = lc.join(', ');
 
-    // 更新內部 SVG 三個數字
+    // 更新內部 SVG 計數
     if (waitingSvg) waitingSvg.textContent = waiting;
     if (rescuingSvg) rescuingSvg.textContent = rescuing;
     if (landedSvg) landedSvg.textContent = landed;
+    if (departedSvg) departedSvg.textContent = departed;
 
-    // 向後相容：舊版 ID 若存在仍更新（可選）
+    // 更新內部 SVG 車廂號碼列表
+    const wcStr = wc.join(', ');
+    const rcStr = rc.join(', ');
+    const lcStr = lc.join(', ');
+    const dcStr = dc.join(', ');
+    if (waitingCabinsSvg) {
+        waitingCabinsSvg.textContent = wcStr;
+        waitingCabinsSvg.setAttribute('title', wcStr);
+    }
+    if (rescuingCabinsSvg) {
+        rescuingCabinsSvg.textContent = rcStr;
+        rescuingCabinsSvg.setAttribute('title', rcStr);
+    }
+    if (landedCabinsSvg) {
+        landedCabinsSvg.textContent = lcStr;
+        landedCabinsSvg.setAttribute('title', lcStr);
+    }
+    if (departedCabinsSvg) {
+        departedCabinsSvg.textContent = dcStr;
+        departedCabinsSvg.setAttribute('title', dcStr);
+    }
+
+    // 向後相容（舊 ID）
     const waitingEl = document.getElementById('waitingText');
     const landedEl = document.getElementById('landedText');
     if (waitingEl) waitingEl.textContent = '等待: ' + waiting;
