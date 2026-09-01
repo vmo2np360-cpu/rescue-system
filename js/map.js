@@ -200,134 +200,69 @@ async function mapInit() {
     });
     mapSvg.appendChild(legend);
 
-  // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
-// ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
-const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
-summaryGroup.setAttribute('id', 'svgSummary');
-summaryGroup.setAttribute('transform', 'translate(700,0)');
-const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
-rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
-rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '120');
-rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
-rectSum.setAttribute('stroke', '#ccc');
-summaryGroup.appendChild(rectSum);
+    // ★★★★★ 唯一正確的摘要區塊 (四個狀態) ★★★★★
+    const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+    summaryGroup.setAttribute('id', 'svgSummary');
+    summaryGroup.setAttribute('transform', 'translate(700,0)');
+    const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
+    rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '120');
+    rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
+    rectSum.setAttribute('stroke', '#ccc');
+    summaryGroup.appendChild(rectSum);
 
-// 輔助函數：建立一列狀態
-function createStatusColumn(x, color, label, idNum, idCabins) {
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('transform', `translate(${x}, 15)`);
+    // 輔助函數：建立一列狀態
+    function createStatusColumn(x, color, label, idNum, idCabins) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+        g.setAttribute('transform', `translate(${x}, 15)`);
 
-    // 彩色方塊
-    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
-    rect.setAttribute('width', '20'); rect.setAttribute('height', '20');
-    rect.setAttribute('fill', color); rect.setAttribute('rx', '3');
-    g.appendChild(rect);
+        // 彩色方塊
+        const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+        rect.setAttribute('width', '20'); rect.setAttribute('height', '20');
+        rect.setAttribute('fill', color); rect.setAttribute('rx', '3');
+        g.appendChild(rect);
 
-    // 狀態名稱
-    const labelText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    labelText.setAttribute('x', '26'); labelText.setAttribute('y', '15');
-    labelText.setAttribute('font-size', '16'); labelText.setAttribute('fill', '#333');
-    labelText.textContent = label;
-    g.appendChild(labelText);
+        // 狀態名稱
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg','text');
+        labelText.setAttribute('x', '26'); labelText.setAttribute('y', '15');
+        labelText.setAttribute('font-size', '16'); labelText.setAttribute('fill', '#333');
+        labelText.textContent = label;
+        g.appendChild(labelText);
 
-    // 計數（大號）
-    const numText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    numText.setAttribute('id', idNum);
-    numText.setAttribute('x', '0'); numText.setAttribute('y', '48');
-    numText.setAttribute('font-size', '28'); numText.setAttribute('font-weight', 'bold');
-    numText.setAttribute('fill', color);
-    numText.textContent = '0';
-    g.appendChild(numText);
+        // 計數（大號）
+        const numText = document.createElementNS('http://www.w3.org/2000/svg','text');
+        numText.setAttribute('id', idNum);
+        numText.setAttribute('x', '0'); numText.setAttribute('y', '48');
+        numText.setAttribute('font-size', '28'); numText.setAttribute('font-weight', 'bold');
+        numText.setAttribute('fill', color);
+        numText.textContent = '0';
+        g.appendChild(numText);
 
-    // 車廂號碼列表（小號，懸停顯示完整）
-    const cabinText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    cabinText.setAttribute('id', idCabins);
-    cabinText.setAttribute('x', '0'); cabinText.setAttribute('y', '70');
-    cabinText.setAttribute('font-size', '12'); cabinText.setAttribute('fill', '#555');
-    cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;');
-    cabinText.textContent = '';
-    cabinText.setAttribute('title', '');
-    g.appendChild(cabinText);
+        // 車廂號碼列表（小號，懸停顯示完整）
+        const cabinText = document.createElementNS('http://www.w3.org/2000/svg','text');
+        cabinText.setAttribute('id', idCabins);
+        cabinText.setAttribute('x', '0'); cabinText.setAttribute('y', '70');
+        cabinText.setAttribute('font-size', '12'); cabinText.setAttribute('fill', '#555');
+        cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;');
+        cabinText.textContent = '';
+        cabinText.setAttribute('title', '');
+        g.appendChild(cabinText);
 
-    return g;
-}
+        return g;
+    }
 
-// 等待救援（紅色）
-summaryGroup.appendChild(createStatusColumn(10, '#dc2626', '等待救援', 'mapWaitingSvg', 'mapWaitingSvgCabins'));
-// 救援中（黃色）
-summaryGroup.appendChild(createStatusColumn(160, '#eab308', '救援中', 'mapRescuingSvg', 'mapRescuingSvgCabins'));
-// 已著陸（綠色）
-summaryGroup.appendChild(createStatusColumn(310, '#22c55e', '已著陸', 'mapLandedSvg', 'mapLandedSvgCabins'));
-// ★ 新增：已離開（藍色）
-summaryGroup.appendChild(createStatusColumn(460, '#3b82f6', '已離開', 'mapDepartedSvg', 'mapDepartedSvgCabins'));
+    // 等待救援（紅色）
+    summaryGroup.appendChild(createStatusColumn(10, '#dc2626', '等待救援', 'mapWaitingSvg', 'mapWaitingSvgCabins'));
+    // 救援中（黃色）
+    summaryGroup.appendChild(createStatusColumn(160, '#eab308', '救援中', 'mapRescuingSvg', 'mapRescuingSvgCabins'));
+    // 已著陸（綠色）
+    summaryGroup.appendChild(createStatusColumn(310, '#22c55e', '已著陸', 'mapLandedSvg', 'mapLandedSvgCabins'));
+    // 已離開（藍色）
+    summaryGroup.appendChild(createStatusColumn(460, '#3b82f6', '已離開', 'mapDepartedSvg', 'mapDepartedSvgCabins'));
 
-mapSvg.appendChild(summaryGroup);
-
-// 等待救援
-const gWait = document.createElementNS('http://www.w3.org/2000/svg','g');
-gWait.setAttribute('transform', 'translate(30, 20)');
-const rectWait = document.createElementNS('http://www.w3.org/2000/svg','rect');
-rectWait.setAttribute('x', '0'); rectWait.setAttribute('y', '0');
-rectWait.setAttribute('width', '24'); rectWait.setAttribute('height', '24');
-rectWait.setAttribute('fill', '#dc2626'); rectWait.setAttribute('rx', '4');
-gWait.appendChild(rectWait);
-const txtWait = document.createElementNS('http://www.w3.org/2000/svg','text');
-txtWait.setAttribute('x', '32'); txtWait.setAttribute('y', '18');
-txtWait.setAttribute('font-size', '20'); txtWait.setAttribute('fill', '#333');
-txtWait.textContent = '等待救援';
-gWait.appendChild(txtWait);
-const numWait = document.createElementNS('http://www.w3.org/2000/svg','text');
-numWait.setAttribute('id', 'mapWaitingSvg');
-numWait.setAttribute('x', '140'); numWait.setAttribute('y', '18');
-numWait.setAttribute('font-size', '20'); numWait.setAttribute('font-weight', 'bold');
-numWait.setAttribute('fill', '#dc2626'); numWait.textContent = '0';
-gWait.appendChild(numWait);
-summaryGroup.appendChild(gWait);
-
-// 救援中
-const gResc = document.createElementNS('http://www.w3.org/2000/svg','g');
-gResc.setAttribute('transform', 'translate(230, 20)');
-const rectResc = document.createElementNS('http://www.w3.org/2000/svg','rect');
-rectResc.setAttribute('x', '0'); rectResc.setAttribute('y', '0');
-rectResc.setAttribute('width', '24'); rectResc.setAttribute('height', '24');
-rectResc.setAttribute('fill', '#eab308'); rectResc.setAttribute('rx', '4');
-gResc.appendChild(rectResc);
-const txtResc = document.createElementNS('http://www.w3.org/2000/svg','text');
-txtResc.setAttribute('x', '32'); txtResc.setAttribute('y', '18');
-txtResc.setAttribute('font-size', '20'); txtResc.setAttribute('fill', '#333');
-txtResc.textContent = '救援中';
-gResc.appendChild(txtResc);
-const numResc = document.createElementNS('http://www.w3.org/2000/svg','text');
-numResc.setAttribute('id', 'mapRescuingSvg');
-numResc.setAttribute('x', '120'); numResc.setAttribute('y', '18');
-numResc.setAttribute('font-size', '20'); numResc.setAttribute('font-weight', 'bold');
-numResc.setAttribute('fill', '#eab308'); numResc.textContent = '0';
-gResc.appendChild(numResc);
-summaryGroup.appendChild(gResc);
-
-// 已著陸
-const gLand = document.createElementNS('http://www.w3.org/2000/svg','g');
-gLand.setAttribute('transform', 'translate(430, 20)');
-const rectLand = document.createElementNS('http://www.w3.org/2000/svg','rect');
-rectLand.setAttribute('x', '0'); rectLand.setAttribute('y', '0');
-rectLand.setAttribute('width', '24'); rectLand.setAttribute('height', '24');
-rectLand.setAttribute('fill', '#22c55e'); rectLand.setAttribute('rx', '4');
-gLand.appendChild(rectLand);
-const txtLand = document.createElementNS('http://www.w3.org/2000/svg','text');
-txtLand.setAttribute('x', '32'); txtLand.setAttribute('y', '18');
-txtLand.setAttribute('font-size', '20'); txtLand.setAttribute('fill', '#333');
-txtLand.textContent = '已著陸';
-gLand.appendChild(txtLand);
-const numLand = document.createElementNS('http://www.w3.org/2000/svg','text');
-numLand.setAttribute('id', 'mapLandedSvg');
-numLand.setAttribute('x', '120'); numLand.setAttribute('y', '18');
-numLand.setAttribute('font-size', '20'); numLand.setAttribute('font-weight', 'bold');
-numLand.setAttribute('fill', '#22c55e'); numLand.textContent = '0';
-gLand.appendChild(numLand);
-summaryGroup.appendChild(gLand);
-
-mapSvg.appendChild(summaryGroup);
+    mapSvg.appendChild(summaryGroup);
+    // ★★★★★ 摘要區塊結束 ★★★★★
 
     // ----- 建立車廂 -----
     mapBuildCabins();
@@ -1168,28 +1103,22 @@ async function deleteGroupRecord() {
         // ★ 立即從 Dashboard 表格中移除該行（如果 Dashboard 正在顯示）
         const dashSection = document.getElementById('section-dashboard');
         if (dashSection && dashSection.classList.contains('active')) {
-            // 查找包含該 docId 的表格行
             const rows = document.querySelectorAll('#dbTableBody tr');
             rows.forEach(row => {
-                // 判斷按鈕的 onclick 是否包含該 docId
                 const btn = row.querySelector('button[onclick*="dbDeleteRecord(\'' + docId + '\')"]');
                 if (btn) {
                     row.remove();
-                    // 更新總記錄數（先減 1）
                     const totalEl = document.getElementById('dbTotal');
                     if (totalEl) {
                         let total = parseInt(totalEl.textContent) || 0;
                         totalEl.textContent = Math.max(0, total - 1);
                     }
-                    // 已完成/處理中統計無法準確更新，後台刷新會修正
                 }
             });
         }
 
-        // 背景更新地圖與監控（確保顏色、綜合時間同步）
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
         if (typeof monUpdateFromFirestore === 'function') monUpdateFromFirestore();
-        // 後台刷新 Dashboard 表格（確保統計數字與 Firestore 完全一致）
         if (typeof dbLoadRecords === 'function') dbLoadRecords();
 
         showMessage('dbMessage', '組別已刪除', 'success');
@@ -1199,6 +1128,7 @@ async function deleteGroupRecord() {
         hideLoader();
     }
 }
+
 // ---- 初始化入口 (含重試) ----
 function initMap() {
     console.log('🚀 初始化救援地圖');
