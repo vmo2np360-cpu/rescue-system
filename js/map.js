@@ -206,7 +206,7 @@ mapSvg.appendChild(legend);
 // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
 const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
 summaryGroup.setAttribute('id', 'svgSummary');
-summaryGroup.setAttribute('transform', 'translate(20, 100)'); // 下移 40px（原為 -20，現改為 40）
+summaryGroup.setAttribute('transform', 'translate(20, 200)'); // 下移 40px（原為 -20，現改為 40）
 
 // 輔助函數：建立一個狀態卡片（加大版）
 function createStatusCard(x, y, color, label, idNum, idCabins) {
