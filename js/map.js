@@ -139,7 +139,7 @@ async function mapInit() {
         txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('class', 'label');
-        txt.setAttribute('fill', '#fff');
+        txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         mapSvg.appendChild(txt);
     });
