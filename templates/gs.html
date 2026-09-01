@@ -25,16 +25,17 @@
         <input type="text" id="gsGuestName" placeholder="請輸入全名">
         <button class="btn btn-secondary" style="margin-top:6px; padding:4px 12px; font-size:0.8rem;" onclick="document.getElementById('gsGuestName').value='未能提供'">設為「未能提供」</button>
     </div>
-    <div class="form-group">
-        <label for="gsContactNumber"><i class="fas fa-phone"></i> 聯絡方式</label>
-        <input type="text" id="gsContactNumber" placeholder="請輸入聯絡電話">
-         <!-- ★ 修改：將「只能接收短信」與按鈕放在同一行，靠左對齊 -->
-       <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+   <div class="form-group">
+    <label for="gsContactNumber"><i class="fas fa-phone"></i> 聯絡方式</label>
+    <input type="text" id="gsContactNumber" placeholder="請輸入聯絡電話">
+    
+    <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <button class="btn btn-secondary" style="padding:4px 12px; font-size:0.8rem;" onclick="setGsContact('未能提供')">未能提供</button>
         <button class="btn btn-secondary" style="padding:4px 12px; font-size:0.8rem;" onclick="toggleGsOtherContact()">其他</button>
+        <!-- ★ 文字在前，checkbox 在後，且放大 checkbox -->
         <label style="font-weight:400; font-size:0.9rem; display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap;">
-            <input type="checkbox" id="gsSmsOnly" onchange="toggleGsSmsSuffix()" style="width:18px; height:18px; cursor:pointer;">
             只能接收短信
+            <input type="checkbox" id="gsSmsOnly" onchange="toggleGsSmsSuffix()" style="width:20px; height:20px; cursor:pointer;">
         </label>
     </div>
     
