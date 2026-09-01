@@ -164,41 +164,42 @@ async function mapInit() {
     mapRopeElement = ropeHit;
 
     // ----- 建立圖例 (完整狀態) -----
-    const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
-    legend.setAttribute('id', 'legend');
-    legend.setAttribute('transform', 'translate(1900, 480)');
-    const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rectBg.setAttribute('x', '0'); rectBg.setAttribute('y', '0');
-    rectBg.setAttribute('width', '340'); rectBg.setAttribute('height', '280');
-    rectBg.setAttribute('fill', 'white'); rectBg.setAttribute('stroke', '#333'); rectBg.setAttribute('rx', '8');
-    legend.appendChild(rectBg);
-    const title = document.createElementNS('http://www.w3.org/2000/svg','text');
-    title.setAttribute('x', '170'); title.setAttribute('y', '35');
-    title.setAttribute('font-size', '28'); title.setAttribute('font-weight', 'bold');
-    title.setAttribute('text-anchor', 'middle'); title.textContent = '車廂狀態';
-    legend.appendChild(title);
+// ----- 建立圖例 (完整狀態) -----
+const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
+legend.setAttribute('id', 'legend');
+legend.setAttribute('transform', 'translate(1900, 380)'); // Y 值從 480 改為 380
+const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+rectBg.setAttribute('x', '0'); rectBg.setAttribute('y', '0');
+rectBg.setAttribute('width', '340'); rectBg.setAttribute('height', '260'); // 高度可微調
+rectBg.setAttribute('fill', 'white'); rectBg.setAttribute('stroke', '#333'); rectBg.setAttribute('rx', '8');
+legend.appendChild(rectBg);
+const title = document.createElementNS('http://www.w3.org/2000/svg','text');
+title.setAttribute('x', '170'); title.setAttribute('y', '35');
+title.setAttribute('font-size', '28'); title.setAttribute('font-weight', 'bold');
+title.setAttribute('text-anchor', 'middle'); title.textContent = '車廂狀態';
+legend.appendChild(title);
 
-    const statuses = [
-        { color: '#22c55e', label: '已著陸 (所有組別)', y: 65 },
-        { color: '#3b82f6', label: '已離開 (全部離開)', y: 105 },
-        { color: '#eab308', label: '救援中 (已有人員)', y: 145 },
-        { color: '#dc2626', label: '等待救援 (求助記錄)', y: 185 },
-        { color: '#e2e8f0', label: '無組別記錄', y: 225 }
-    ];
-    statuses.forEach((s) => {
-        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-        g.setAttribute('transform', `translate(20, ${s.y})`);
-        const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
-        r.setAttribute('width', '24'); r.setAttribute('height', '24');
-        r.setAttribute('fill', s.color); r.setAttribute('stroke', '#333');
-        g.appendChild(r);
-        const t = document.createElementNS('http://www.w3.org/2000/svg','text');
-        t.setAttribute('x', '36'); t.setAttribute('y', '18');
-        t.setAttribute('font-size', '22'); t.textContent = s.label;
-        g.appendChild(t);
-        legend.appendChild(g);
-    });
-    mapSvg.appendChild(legend);
+const statuses = [
+    { color: '#22c55e', label: '已著陸 (所有組別)', y: 65 },
+    { color: '#3b82f6', label: '已離開 (全部離開)', y: 105 },
+    { color: '#eab308', label: '救援中 (已有人員)', y: 145 },
+    { color: '#dc2626', label: '等待救援 (求助記錄)', y: 185 },
+    { color: '#e2e8f0', label: '無組別記錄', y: 225 }
+];
+statuses.forEach((s) => {
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `translate(20, ${s.y})`);
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('width', '24'); r.setAttribute('height', '24');
+    r.setAttribute('fill', s.color); r.setAttribute('stroke', '#333');
+    g.appendChild(r);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', '36'); t.setAttribute('y', '18');
+    t.setAttribute('font-size', '22'); t.textContent = s.label;
+    g.appendChild(t);
+    legend.appendChild(g);
+});
+mapSvg.appendChild(legend);
 
     // ★★★★★ 唯一正確的摘要區塊 (四個狀態) ★★★★★
 // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
