@@ -586,13 +586,12 @@ async function mapUpdateFromFirestore() {
 
 // ---- 更新地圖摘要 (包含已離開) ----
 function mapUpdateSummary() {
-    const waitingEl = document.getElementById('waitingText');
-    const landedEl = document.getElementById('landedText');
-    if (!waitingEl || !landedEl) {
-        console.warn('摘要元素尚未建立，跳過更新');
-        return;
-    }
-
+    // 內部SVG元素（新）
+    const waitingSvg = document.getElementById('mapWaitingSvg');
+    const rescuingSvg = document.getElementById('mapRescuingSvg');
+    const landedSvg = document.getElementById('mapLandedSvg');
+    
+    // 統計數據
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
 
@@ -613,14 +612,31 @@ function mapUpdateSummary() {
         }
     });
 
-    document.getElementById('mapWaiting').textContent = waiting;
-    document.getElementById('mapRescuing').textContent = rescuing;
-    document.getElementById('mapLanded').textContent = landed;
-    document.getElementById('mapWaitingCabins').textContent = wc.join(', ');
-    document.getElementById('mapRescuingCabins').textContent = rc.join(', ');
-    document.getElementById('mapLandedCabins').textContent = lc.join(', ');
-    waitingEl.textContent = '等待: ' + waiting;
-    landedEl.textContent = '已著陸: ' + landed;
+    // 更新外部 summary-enhanced 的數量與車廂號碼列表
+    const extWaiting = document.getElementById('mapWaiting');
+    const extRescuing = document.getElementById('mapRescuing');
+    const extLanded = document.getElementById('mapLanded');
+    if (extWaiting) extWaiting.textContent = waiting;
+    if (extRescuing) extRescuing.textContent = rescuing;
+    if (extLanded) extLanded.textContent = landed;
+    
+    const waitingCabins = document.getElementById('mapWaitingCabins');
+    const rescuingCabins = document.getElementById('mapRescuingCabins');
+    const landedCabins = document.getElementById('mapLandedCabins');
+    if (waitingCabins) waitingCabins.textContent = wc.join(', ');
+    if (rescuingCabins) rescuingCabins.textContent = rc.join(', ');
+    if (landedCabins) landedCabins.textContent = lc.join(', ');
+
+    // 更新內部 SVG 三個數字
+    if (waitingSvg) waitingSvg.textContent = waiting;
+    if (rescuingSvg) rescuingSvg.textContent = rescuing;
+    if (landedSvg) landedSvg.textContent = landed;
+
+    // 以下為向後相容，若舊版 ID 仍存在則更新（可選）
+    const waitingEl = document.getElementById('waitingText');
+    const landedEl = document.getElementById('landedText');
+    if (waitingEl) waitingEl.textContent = '等待: ' + waiting;
+    if (landedEl) landedEl.textContent = '已著陸: ' + landed;
 }
 
 // ---- 套用車廂序號 ----
