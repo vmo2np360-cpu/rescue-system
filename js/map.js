@@ -200,28 +200,81 @@ async function mapInit() {
     });
     mapSvg.appendChild(legend);
 
-    // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
-    const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
-    summaryGroup.setAttribute('transform', 'translate(700,0)');
-    const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
-    rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '90');
-    rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
-    rectSum.setAttribute('stroke', '#ccc');
-    summaryGroup.appendChild(rectSum);
-    const waitingText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    waitingText.setAttribute('id', 'waitingText');
-    waitingText.setAttribute('x', '200'); waitingText.setAttribute('y', '45');
-    waitingText.setAttribute('font-size', '34'); waitingText.setAttribute('font-weight', 'bold');
-    waitingText.setAttribute('text-anchor', 'middle'); waitingText.textContent = '等待: 0';
-    summaryGroup.appendChild(waitingText);
-    const landedText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    landedText.setAttribute('id', 'landedText');
-    landedText.setAttribute('x', '420'); landedText.setAttribute('y', '45');
-    landedText.setAttribute('font-size', '34'); landedText.setAttribute('font-weight', 'bold');
-    landedText.setAttribute('text-anchor', 'middle'); landedText.textContent = '已著陸: 0';
-    summaryGroup.appendChild(landedText);
-    mapSvg.appendChild(summaryGroup);
+  // ----- 建立摘要區塊 (svgSummary) 供 mapUpdateSummary 使用 -----
+const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
+summaryGroup.setAttribute('id', 'svgSummary');
+summaryGroup.setAttribute('transform', 'translate(700,0)');
+const rectSum = document.createElementNS('http://www.w3.org/2000/svg','rect');
+rectSum.setAttribute('x', '0'); rectSum.setAttribute('y', '0');
+rectSum.setAttribute('width', '600'); rectSum.setAttribute('height', '90');
+rectSum.setAttribute('rx', '12'); rectSum.setAttribute('fill', 'white');
+rectSum.setAttribute('stroke', '#ccc');
+summaryGroup.appendChild(rectSum);
+
+// 等待救援
+const gWait = document.createElementNS('http://www.w3.org/2000/svg','g');
+gWait.setAttribute('transform', 'translate(30, 20)');
+const rectWait = document.createElementNS('http://www.w3.org/2000/svg','rect');
+rectWait.setAttribute('x', '0'); rectWait.setAttribute('y', '0');
+rectWait.setAttribute('width', '24'); rectWait.setAttribute('height', '24');
+rectWait.setAttribute('fill', '#dc2626'); rectWait.setAttribute('rx', '4');
+gWait.appendChild(rectWait);
+const txtWait = document.createElementNS('http://www.w3.org/2000/svg','text');
+txtWait.setAttribute('x', '32'); txtWait.setAttribute('y', '18');
+txtWait.setAttribute('font-size', '20'); txtWait.setAttribute('fill', '#333');
+txtWait.textContent = '等待救援';
+gWait.appendChild(txtWait);
+const numWait = document.createElementNS('http://www.w3.org/2000/svg','text');
+numWait.setAttribute('id', 'mapWaitingSvg');
+numWait.setAttribute('x', '140'); numWait.setAttribute('y', '18');
+numWait.setAttribute('font-size', '20'); numWait.setAttribute('font-weight', 'bold');
+numWait.setAttribute('fill', '#dc2626'); numWait.textContent = '0';
+gWait.appendChild(numWait);
+summaryGroup.appendChild(gWait);
+
+// 救援中
+const gResc = document.createElementNS('http://www.w3.org/2000/svg','g');
+gResc.setAttribute('transform', 'translate(230, 20)');
+const rectResc = document.createElementNS('http://www.w3.org/2000/svg','rect');
+rectResc.setAttribute('x', '0'); rectResc.setAttribute('y', '0');
+rectResc.setAttribute('width', '24'); rectResc.setAttribute('height', '24');
+rectResc.setAttribute('fill', '#eab308'); rectResc.setAttribute('rx', '4');
+gResc.appendChild(rectResc);
+const txtResc = document.createElementNS('http://www.w3.org/2000/svg','text');
+txtResc.setAttribute('x', '32'); txtResc.setAttribute('y', '18');
+txtResc.setAttribute('font-size', '20'); txtResc.setAttribute('fill', '#333');
+txtResc.textContent = '救援中';
+gResc.appendChild(txtResc);
+const numResc = document.createElementNS('http://www.w3.org/2000/svg','text');
+numResc.setAttribute('id', 'mapRescuingSvg');
+numResc.setAttribute('x', '120'); numResc.setAttribute('y', '18');
+numResc.setAttribute('font-size', '20'); numResc.setAttribute('font-weight', 'bold');
+numResc.setAttribute('fill', '#eab308'); numResc.textContent = '0';
+gResc.appendChild(numResc);
+summaryGroup.appendChild(gResc);
+
+// 已著陸
+const gLand = document.createElementNS('http://www.w3.org/2000/svg','g');
+gLand.setAttribute('transform', 'translate(430, 20)');
+const rectLand = document.createElementNS('http://www.w3.org/2000/svg','rect');
+rectLand.setAttribute('x', '0'); rectLand.setAttribute('y', '0');
+rectLand.setAttribute('width', '24'); rectLand.setAttribute('height', '24');
+rectLand.setAttribute('fill', '#22c55e'); rectLand.setAttribute('rx', '4');
+gLand.appendChild(rectLand);
+const txtLand = document.createElementNS('http://www.w3.org/2000/svg','text');
+txtLand.setAttribute('x', '32'); txtLand.setAttribute('y', '18');
+txtLand.setAttribute('font-size', '20'); txtLand.setAttribute('fill', '#333');
+txtLand.textContent = '已著陸';
+gLand.appendChild(txtLand);
+const numLand = document.createElementNS('http://www.w3.org/2000/svg','text');
+numLand.setAttribute('id', 'mapLandedSvg');
+numLand.setAttribute('x', '120'); numLand.setAttribute('y', '18');
+numLand.setAttribute('font-size', '20'); numLand.setAttribute('font-weight', 'bold');
+numLand.setAttribute('fill', '#22c55e'); numLand.textContent = '0';
+gLand.appendChild(numLand);
+summaryGroup.appendChild(gLand);
+
+mapSvg.appendChild(summaryGroup);
 
     // ----- 建立車廂 -----
     mapBuildCabins();
