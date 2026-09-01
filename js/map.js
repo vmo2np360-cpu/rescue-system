@@ -167,7 +167,7 @@ async function mapInit() {
 // ----- 建立圖例 (完整狀態) -----
 const legend = document.createElementNS('http://www.w3.org/2000/svg','g');
 legend.setAttribute('id', 'legend');
-legend.setAttribute('transform', 'translate(1900, 380)'); // Y 值從 480 改為 380
+legend.setAttribute('transform', 'translate(1900, 420)'); // Y 值從 480 改為 380
 const rectBg = document.createElementNS('http://www.w3.org/2000/svg','rect');
 rectBg.setAttribute('x', '0'); rectBg.setAttribute('y', '0');
 rectBg.setAttribute('width', '340'); rectBg.setAttribute('height', '260'); // 高度可微調
