@@ -1,5 +1,5 @@
 // ================================================================
-// 總監控平台模組（完整版）- 三欄深色 + 橢圓地圖（109 架）
+// 總監控平台模組 - 直立橢圓索道（含站點與地形）
 // ================================================================
 
 let monMapCabins = [];
@@ -11,13 +11,13 @@ let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
 
-// ---- 輔助：從 Firestore 載入偏移量（保留但不使用） ----
+// ---- 輔助 ----
 async function monLoadOffsetFromFirestore() {
     monCurrentOffset = await window.getGlobalOffsetFromFirestore();
     return monCurrentOffset;
 }
 
-// ---- 初始化地圖（只執行一次） ----
+// ---- 初始化地圖 ----
 function monInitMap() {
     if (monMapCabins.length > 0) {
         console.log('Monitor 地圖已初始化，跳過');
@@ -33,8 +33,10 @@ function monInitMap() {
     // 清空 SVG
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
-    // ---- 繪製背景（簡化版，保留山、海、纜車線等） ----
+    // ---- 定義漸層與濾鏡 ----
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+    // 山脈漸層
     const gradMountain = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     gradMountain.setAttribute('id', 'monGradMountain');
     gradMountain.setAttribute('x1', '0'); gradMountain.setAttribute('y1', '1'); gradMountain.setAttribute('x2', '0'); gradMountain.setAttribute('y2', '0');
@@ -45,6 +47,7 @@ function monInitMap() {
     gradMountain.appendChild(s1); gradMountain.appendChild(s2);
     defs.appendChild(gradMountain);
 
+    // 海灣漸層
     const gradBay = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     gradBay.setAttribute('id', 'monGradBay');
     gradBay.setAttribute('x1', '0'); gradBay.setAttribute('y1', '0'); gradBay.setAttribute('x2', '0'); gradBay.setAttribute('y2', '1');
@@ -55,6 +58,7 @@ function monInitMap() {
     gradBay.appendChild(s3); gradBay.appendChild(s4);
     defs.appendChild(gradBay);
 
+    // 高亮濾鏡
     const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
     filter.setAttribute('id', 'monHighlightGlow');
     const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
@@ -64,46 +68,82 @@ function monInitMap() {
     defs.appendChild(filter);
     monSvg.appendChild(defs);
 
-    // 背景矩形
+    // ---- 背景底色 ----
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0'); bg.setAttribute('y', '0'); bg.setAttribute('width', '2800'); bg.setAttribute('height', '700');
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
-    // 簡化纜車路線（背景）
-    const pts = [
-        [150, 600], [400, 600], [800, 400], [1200, 300], [1600, 300],
-        [2000, 400], [2400, 500], [2650, 550]
-    ];
-    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    poly.setAttribute('points', pts.map(p => p.join(',')).join(' '));
-    poly.setAttribute('fill', 'none');
-    poly.setAttribute('stroke', '#3a5a7a');
-    poly.setAttribute('stroke-width', '3');
-    poly.setAttribute('stroke-dasharray', '8,6');
-    monSvg.appendChild(poly);
+    // ---- 山脈與海灣（模擬地形） ----
+    // 左側山脈（橢圓形）
+    const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    mountain.setAttribute('cx', '700');
+    mountain.setAttribute('cy', '350');
+    mountain.setAttribute('rx', '450');
+    mountain.setAttribute('ry', '280');
+    mountain.setAttribute('fill', 'url(#monGradMountain)');
+    mountain.setAttribute('opacity', '0.35');
+    monSvg.appendChild(mountain);
 
-    // 站點標記
-    pts.forEach((p, i) => {
-        const cir = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        cir.setAttribute('cx', p[0]); cir.setAttribute('cy', p[1]);
-        cir.setAttribute('r', '6'); cir.setAttribute('fill', '#5f7a9a');
-        monSvg.appendChild(cir);
-        if (i % 2 === 0) {
-            const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            txt.textContent = 'T' + i;
-            txt.setAttribute('x', p[0]); txt.setAttribute('y', p[1] + 20);
-            txt.setAttribute('fill', '#8899bb'); txt.setAttribute('font-size', '12');
-            txt.setAttribute('text-anchor', 'middle');
-            monSvg.appendChild(txt);
-        }
-    });
+    // 右側海灣（橢圓形）
+    const bay = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    bay.setAttribute('cx', '2100');
+    bay.setAttribute('cy', '350');
+    bay.setAttribute('rx', '450');
+    bay.setAttribute('ry', '280');
+    bay.setAttribute('fill', 'url(#monGradBay)');
+    bay.setAttribute('opacity', '0.35');
+    monSvg.appendChild(bay);
+
+    // ---- 直立橢圓纜車軌跡（主線） ----
+    const cx = 1400, cy = 350;
+    const rx = 380, ry = 560;   // 直立橢圓
+    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+    ellipse.setAttribute('cx', cx);
+    ellipse.setAttribute('cy', cy);
+    ellipse.setAttribute('rx', rx);
+    ellipse.setAttribute('ry', ry);
+    ellipse.setAttribute('fill', 'none');
+    ellipse.setAttribute('stroke', '#6a8aae');
+    ellipse.setAttribute('stroke-width', '4');
+    ellipse.setAttribute('stroke-dasharray', '12,6');
+    monSvg.appendChild(ellipse);
+
+    // ---- 站點標記（12個站點均勻分佈） ----
+    const stationNames = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
+    const numStations = stationNames.length;
+    for (let i = 0; i < numStations; i++) {
+        const angle = (i / numStations) * 2 * Math.PI - Math.PI / 2; // 從頂部開始
+        const x = cx + rx * Math.cos(angle);
+        const y = cy + ry * Math.sin(angle);
+
+        // 站點圓圈
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', '10');
+        circle.setAttribute('fill', '#fff');
+        circle.setAttribute('stroke', '#444');
+        circle.setAttribute('stroke-width', '2');
+        monSvg.appendChild(circle);
+
+        // 站點名稱（交錯上下顯示）
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        txt.textContent = stationNames[i];
+        txt.setAttribute('x', x);
+        txt.setAttribute('y', y + (i % 2 === 0 ? -22 : 32));
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('fill', '#e0e0e0');
+        txt.setAttribute('font-weight', 'bold');
+        txt.setAttribute('font-size', '16');
+        txt.setAttribute('style', 'text-shadow: 0 0 8px rgba(0,0,0,0.8);');
+        monSvg.appendChild(txt);
+    }
 
     // ---- 建立車廂（109 個） ----
     monBuildCabins();
 
-    // ---- 監聽 Firestore 變化（原有） ----
-    // 監聽車廂序號（從 Realtime Database 的 cabins 節點）
+    // ---- 監聽 Firebase 變化 ----
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -116,7 +156,6 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // 監聽 guests / rescue_records
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
@@ -124,24 +163,22 @@ function monInitMap() {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
 
-    console.log('✅ Monitor 地圖初始化完成（橢圓排列，109 架）');
+    console.log('✅ Monitor 地圖初始化完成（直立橢圓，含站點與地形）');
 }
 
-// ----- 構建車廂（只建立 SVG 元素，總數 109） -----
+// ----- 構建車廂（109 個） -----
 function monBuildCabins() {
     if (!monSvg) return;
-    // 清除舊車廂
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
 
-    const total = 109;  // ★ 改為 109
-    const size = 18;    // 稍微縮小一點，避免擁擠
-    const fontSize = 16;
+    const total = 109;
+    const size = 16;
+    const fontSize = 14;
 
     for (let i = 0; i < total; i++) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('class', 'cabin');
-        // 六邊形
         const pts = [];
         for (let j = 0; j < 6; j++) {
             const a = Math.PI / 3 * j;
@@ -151,12 +188,12 @@ function monBuildCabins() {
         hex.setAttribute('points', pts.join(' '));
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
-        hex.setAttribute('stroke-width', '1.5');
+        hex.setAttribute('stroke-width', '1.2');
         g.appendChild(hex);
 
         const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         lbl.setAttribute('class', 'seq-label');
-        lbl.setAttribute('y', '5');
+        lbl.setAttribute('y', '4');
         lbl.setAttribute('font-size', fontSize);
         lbl.setAttribute('text-anchor', 'middle');
         lbl.setAttribute('dominant-baseline', 'middle');
@@ -170,28 +207,26 @@ function monBuildCabins() {
         monSvg.appendChild(g);
     }
 
-    // 初始佈局（橢圓）
     monLayoutCabins();
 }
 
-// ----- 橢圓佈局（109 個車廂均勻分佈） -----
+// ----- 直立橢圓佈局 -----
 function monLayoutCabins() {
     const total = monMapCabins.length;
     if (total === 0) return;
 
-    // 橢圓參數（根據 viewBox 2800x700，為 109 架調大半徑）
     const cx = 1400, cy = 350;
-    const rx = 1150, ry = 260;   // ★ 加大半徑
+    const rx = 380, ry = 560;   // 與軌跡一致
 
     for (let i = 0; i < total; i++) {
-        const angle = (i / total) * 2 * Math.PI - Math.PI / 2; // 從頂部開始
+        const angle = (i / total) * 2 * Math.PI - Math.PI / 2;
         const x = cx + rx * Math.cos(angle);
         const y = cy + ry * Math.sin(angle);
         monMapCabins[i].el.setAttribute('transform', `translate(${x},${y})`);
     }
 }
 
-// ---- 更新車廂狀態（與原邏輯一致） ----
+// ---- 以下函數與原邏輯相同，僅保留關鍵部分（避免冗長，但完整保留） ----
 async function monUpdateFromFirestore() {
     try {
         const rescueSnap = await db.collection('rescue_records').get();
@@ -261,7 +296,6 @@ async function monUpdateFromFirestore() {
                     break;
             }
 
-            // 計算綜合時間（與主地圖一致）
             let overallStart = null;
             let overallEnd = null;
             if (matched.length > 0) {
@@ -304,22 +338,10 @@ async function monUpdateFromFirestore() {
     }
 }
 
-// ---- 更新摘要統計（地圖下方的計數） ----
 function monUpdateSummary() {
-    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
-    const wc = [], rc = [], lc = [], dc = [];
-    monMapCabins.forEach(c => {
-        const seq = c.fields.sequence || '';
-        if (c.el.classList.contains('status-red')) { waiting++; if (seq) wc.push(seq); }
-        else if (c.el.classList.contains('status-yellow')) { rescuing++; if (seq) rc.push(seq); }
-        else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); }
-        else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
-    });
-    // 以下元素在舊版 summary-enhanced 中存在，但新版三欄中已移除，保留函數以免錯誤
-    // 可自行決定是否顯示
+    // 保留，但無對應 UI 可忽略
 }
 
-// ---- 點擊車廂 → 開啟唯讀詳情（與原邏輯相同） ----
 function monOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '未設定';
     db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
@@ -391,7 +413,6 @@ function monOpenCabinReadonly(cabin) {
     });
 }
 
-// ---- 搜尋車廂（高亮） ----
 function monSearchCabin() {
     const q = document.getElementById('monSearchBox')?.value.trim();
     if (!q) return alert('請輸入車廂號碼');
@@ -413,7 +434,6 @@ function monSearchCabin() {
     }, 5000);
 }
 
-// ---- 載入所有數據（統計、圖表、表格、最新訊息、組別進度） ----
 async function monLoadAllData() {
     try {
         if (typeof showLoader === 'function') showLoader(true);
@@ -428,7 +448,6 @@ async function monLoadAllData() {
         console.log(`監控載入：${monGuestRecords.length} 筆賓客，${monRescueRecords.length} 筆求助`);
         monUpdateAllDisplays();
         monUpdateTimestamp();
-        // 更新地圖車廂（若已初始化）
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     } catch (e) {
         console.error('載入監控數據失敗:', e);
@@ -438,9 +457,7 @@ async function monLoadAllData() {
     }
 }
 
-// ---- 更新所有顯示（統計卡片、圖表、表格、組別進度、最新訊息） ----
 function monUpdateAllDisplays() {
-    // 1. OCC 求助統計
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
     const processed = monRescueRecords.filter(r => r.processed).length;
@@ -461,7 +478,6 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-red-count').textContent = r;
     document.getElementById('occ-black-count').textContent = b;
 
-    // 2. 救援記錄統計 + 賓客健康
     const totalG = monGuestRecords.length;
     const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
     const pendingG = totalG - completed;
@@ -484,20 +500,12 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
-    // 3. 圖表（救援時間分佈）
     monUpdateTimeChart();
-
-    // 4. 表格（右欄）
     monRenderTable();
-
-    // 5. 組別進度（左欄）
     monRenderGroupProgress();
-
-    // 6. 最新救援訊息
     monUpdateLatestMessage();
 }
 
-// ---- 更新救援時間分佈圖表 ----
 function monUpdateTimeChart() {
     const ctx = document.getElementById('timeChart');
     if (!ctx) return;
@@ -543,7 +551,6 @@ function monUpdateTimeChart() {
     });
 }
 
-// ---- 渲染記錄表格（右欄，只顯示車廂、姓名、狀態，最多20筆） ----
 function monRenderTable() {
     const tbody = document.getElementById('monitor-records-list');
     if (!tbody) return;
@@ -580,7 +587,6 @@ function monRenderTable() {
     });
 }
 
-// ---- 組別救援狀態進度條（左欄） ----
 function monRenderGroupProgress() {
     const container = document.getElementById('groupProgressContainer');
     if (!container) return;
@@ -614,7 +620,6 @@ function monRenderGroupProgress() {
     container.innerHTML = html || '<div style="color:#8899bb; text-align:center; padding:20px;">暫無組別數據</div>';
 }
 
-// ---- 最新救援訊息 ----
 function monUpdateLatestMessage() {
     const msgSpan = document.getElementById('latestMsgContent');
     if (!msgSpan) return;
@@ -631,19 +636,16 @@ function monUpdateLatestMessage() {
     }
 }
 
-// ---- 過濾表格（外部呼叫） ----
 function monFilterRecords() {
     monRenderTable();
 }
 
-// ---- 手動刷新 ----
 function monManualRefresh() {
     console.log('🔄 手動刷新監控頁面');
     monLoadAllData();
     setTimeout(() => { monLayoutCabins(); }, 100);
 }
 
-// ---- 匯出 CSV（簡易） ----
 function monExportCSV() {
     if (!monGuestRecords.length) {
         alert('無資料可匯出');
@@ -664,7 +666,6 @@ function monExportCSV() {
     URL.revokeObjectURL(a.href);
 }
 
-// ---- 更新時間戳 ----
 function monUpdateTimestamp() {
     const now = new Date().toLocaleTimeString('zh-TW');
     ['last-map-update', 'last-data-update', 'last-chart-update', 'last-monitor-update'].forEach(id => {
@@ -673,7 +674,6 @@ function monUpdateTimestamp() {
     });
 }
 
-// ---- 初始化 ----
 function monInit() {
     console.log('🚀 monInit 被呼叫');
     if (typeof db === 'undefined' || typeof realtimeDb === 'undefined') {
@@ -715,7 +715,7 @@ function monInit() {
         }
     }, 20000);
 
-    console.log('✅ 監控平台初始化完成（三欄橢圓版，109 架）');
+    console.log('✅ 監控平台初始化完成（直立橢圓，含站點與地形）');
 }
 
 // ---- 暴露全域 ----
@@ -726,4 +726,4 @@ window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
 window.monExportCSV = monExportCSV;
 
-console.log('✅ monitor.js 已載入（橢圓地圖，109 架）');
+console.log('✅ monitor.js 已載入（直立橢圓含站點版）');
