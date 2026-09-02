@@ -1,14 +1,18 @@
-<!-- ===== 深色主題樣式（只作用於 #section-monitor 內部） ===== -->
+<!-- ============================================================ -->
+<!-- monitor.html - 監控平台（深色三欄無滾動條，109 架纜車）      -->
+<!-- 此內容會由 JavaScript 動態載入至 #section-monitor 容器內    -->
+<!-- ============================================================ -->
+
 <style>
-    /* 重置容器為全屏 Flex 三欄 */
+    /* ----- 強制外部容器 #section-monitor 為全屏 Flex 三欄 ----- */
     #section-monitor {
-        background: #030a1e;
-        color: #c8d6e5;
-        display: flex;
+        display: flex !important;
         flex-direction: column;
         height: 100vh;
         padding: 0 !important;
         margin: 0 !important;
+        background: #030a1e;
+        color: #c8d6e5;
         border-radius: 0 !important;
         font-family: 'Segoe UI', system-ui, sans-serif;
         overflow: hidden;
@@ -342,12 +346,12 @@
     #mon-left .panel-box .content-scroll,
     #mon-right .table-scroll { scrollbar-width: thin; }
 
-    /* 統一小工具 */
+    /* 小工具 */
     .text-glow { text-shadow: 0 0 20px rgba(0,243,255,0.2); }
     .mt-1 { margin-top: 4px; }
     .mb-1 { margin-bottom: 4px; }
 
-    /* 原有卡片樣式移除，全部重構 */
+    /* 隱藏舊版殘留卡片（防干擾） */
     #section-monitor .card,
     #section-monitor .stats-grid,
     #section-monitor .health-grid,
@@ -355,109 +359,109 @@
     #section-monitor .chart-container,
     #section-monitor .map-toolbar,
     #section-monitor .summary-enhanced {
-        display: none;
+        display: none !important;
     }
-    /* 但保留message */
     #section-monitor .message { margin: 0; }
 </style>
 
-<!-- ===== 頁面結構 ===== -->
-<div id="section-monitor" style="display:flex; flex-direction:column; height:100vh;">
+<!-- ===== 頁面結構（動態載入內容） ===== -->
 
-    <!-- 頂部 Header -->
-    <header id="mon-header">
-        <h1><i class="fas fa-tv"></i> 救援分析實時監控平台</h1>
-        <div id="latestRescueMsg">
-            <span class="msg-label">🚨 最新救援</span>
-            <span id="latestMsgContent">等待救援...</span>
+<!-- 頂部 Header -->
+<header id="mon-header">
+    <h1><i class="fas fa-tv"></i> 救援分析實時監控平台</h1>
+    <div id="latestRescueMsg">
+        <span class="msg-label">🚨 最新救援</span>
+        <span id="latestMsgContent">等待救援...</span>
+    </div>
+</header>
+
+<!-- 主體三欄 -->
+<main id="mon-main">
+
+    <!-- 左欄 -->
+    <aside id="mon-left">
+        <!-- 組別救援狀態分佈 -->
+        <div class="panel-box">
+            <h3><i class="fas fa-layer-group"></i> 組別救援狀態</h3>
+            <div class="content-scroll" id="groupProgressContainer">
+                <!-- 動態由 JS 生成 -->
+            </div>
         </div>
-    </header>
-
-    <!-- 主體三欄 -->
-    <main id="mon-main">
-
-        <!-- 左欄 -->
-        <aside id="mon-left">
-            <!-- 組別救援狀態分佈 -->
-            <div class="panel-box">
-                <h3><i class="fas fa-layer-group"></i> 組別救援狀態</h3>
-                <div class="content-scroll" id="groupProgressContainer">
-                    <!-- 動態由 JS 生成 -->
-                </div>
+        <!-- OCC 求助記錄統計 + 健康狀況 -->
+        <div class="panel-box">
+            <h3><i class="fas fa-headset"></i> OCC 求助統計</h3>
+            <div style="display:flex; gap:10px; flex-shrink:0; justify-content:space-around; margin-bottom:6px;">
+                <div><span style="color:#8899bb;">總數</span><br><strong id="occ-total" style="font-size:20px; color:#fff;">0</strong></div>
+                <div><span style="color:#8899bb;">待處理</span><br><strong id="occ-pending" style="font-size:20px; color:#ffd93d;">0</strong></div>
+                <div><span style="color:#8899bb;">已完成</span><br><strong id="occ-processed" style="font-size:20px; color:#34a853;">0</strong></div>
             </div>
-            <!-- OCC 求助記錄統計 + 健康狀況 -->
-            <div class="panel-box">
-                <h3><i class="fas fa-headset"></i> OCC 求助統計</h3>
-                <div style="display:flex; gap:10px; flex-shrink:0; justify-content:space-around; margin-bottom:6px;">
-                    <div><span style="color:#8899bb;">總數</span><br><strong id="occ-total" style="font-size:20px; color:#fff;">0</strong></div>
-                    <div><span style="color:#8899bb;">待處理</span><br><strong id="occ-pending" style="font-size:20px; color:#ffd93d;">0</strong></div>
-                    <div><span style="color:#8899bb;">已完成</span><br><strong id="occ-processed" style="font-size:20px; color:#34a853;">0</strong></div>
-                </div>
-                <div class="health-mini-grid">
-                    <div class="health-mini-card"><div class="hm-number" style="color:#34a853;" id="occ-green-count">0</div><div class="hm-label">綠色</div></div>
-                    <div class="health-mini-card"><div class="hm-number" style="color:#f1c40f;" id="occ-yellow-count">0</div><div class="hm-label">黃色</div></div>
-                    <div class="health-mini-card"><div class="hm-number" style="color:#e74c3c;" id="occ-red-count">0</div><div class="hm-label">紅色</div></div>
-                    <div class="health-mini-card"><div class="hm-number" style="color:#5f6368;" id="occ-black-count">0</div><div class="hm-label">黑色</div></div>
-                </div>
+            <div class="health-mini-grid">
+                <div class="health-mini-card"><div class="hm-number" style="color:#34a853;" id="occ-green-count">0</div><div class="hm-label">綠色</div></div>
+                <div class="health-mini-card"><div class="hm-number" style="color:#f1c40f;" id="occ-yellow-count">0</div><div class="hm-label">黃色</div></div>
+                <div class="health-mini-card"><div class="hm-number" style="color:#e74c3c;" id="occ-red-count">0</div><div class="hm-label">紅色</div></div>
+                <div class="health-mini-card"><div class="hm-number" style="color:#5f6368;" id="occ-black-count">0</div><div class="hm-label">黑色</div></div>
             </div>
-        </aside>
+        </div>
+    </aside>
 
-        <!-- 中央 -->
-        <section id="mon-center">
-            <!-- 工具列 -->
-            <div id="mon-toolbar">
-                <span class="tool-label">📋 救援標籤</span>
-                <span id="rescueTag">全區</span>
-                <button class="btn-mon primary" onclick="monManualRefresh()"><i class="fas fa-sync-alt"></i> 刷新</button>
-                <button class="btn-mon" onclick="monExportCSV()"><i class="fas fa-file-csv"></i> 匯出</button>
-                <span class="auto-tip">⏱ 自動更新 20s</span>
-            </div>
-            <!-- 地圖 -->
-            <div id="mon-map-wrapper">
-                <svg id="monitorMap" viewBox="0 0 2800 700" preserveAspectRatio="xMidYMid meet">
-                    <!-- 背景會由 JS 繪製，此處預留 -->
-                </svg>
-            </div>
-        </section>
+    <!-- 中央 -->
+    <section id="mon-center">
+        <!-- 工具列 -->
+        <div id="mon-toolbar">
+            <span class="tool-label">📋 救援標籤</span>
+            <span id="rescueTag">全區</span>
+            <button class="btn-mon primary" onclick="monManualRefresh()"><i class="fas fa-sync-alt"></i> 刷新</button>
+            <button class="btn-mon" onclick="monExportCSV()"><i class="fas fa-file-csv"></i> 匯出</button>
+            <span class="auto-tip">⏱ 自動更新 20s</span>
+            <!-- 搜尋框（高亮車廂） -->
+            <input type="text" id="monSearchBox" placeholder="🔍 車廂號碼" style="background:rgba(255,255,255,0.06); border:1px solid rgba(0,243,255,0.2); border-radius:4px; padding:2px 8px; color:#fff; width:100px; font-size:12px;">
+            <button class="btn-mon" onclick="monSearchCabin()" style="border-color:rgba(0,243,255,0.2); padding:2px 8px;">搜尋</button>
+        </div>
+        <!-- 地圖 -->
+        <div id="mon-map-wrapper">
+            <svg id="monitorMap" viewBox="0 0 2800 700" preserveAspectRatio="xMidYMid meet">
+                <!-- 地圖內容會由 JavaScript 動態繪製 -->
+            </svg>
+        </div>
+    </section>
 
-        <!-- 右欄 -->
-        <aside id="mon-right">
-            <!-- 救援記錄統計 + 賓客健康 -->
-            <div class="panel-box" style="flex:0 0 auto;">
-                <h3><i class="fas fa-flag-checkered"></i> 救援統計</h3>
-                <div class="stats-inline">
-                    <span>總記錄 <strong id="totalRecords">0</strong></span>
-                    <span>已完成 <strong id="completedRecords" style="color:#34a853;">0</strong></span>
-                    <span>處理中 <strong id="pendingRecords" style="color:#ffd93d;">0</strong></span>
-                    <span>需救護車 <strong id="ambulanceNeeded" style="color:#e74c3c;">0</strong></span>
-                </div>
-                <h3 style="margin-top:8px;"><i class="fas fa-heartbeat"></i> 賓客健康</h3>
-                <div class="health-mini-row">
-                    <div class="hmr-item"><div class="num" style="color:#34a853;" id="green-count">0</div><div class="lbl">綠色</div></div>
-                    <div class="hmr-item"><div class="num" style="color:#f1c40f;" id="yellow-count">0</div><div class="lbl">黃色</div></div>
-                    <div class="hmr-item"><div class="num" style="color:#e74c3c;" id="red-count">0</div><div class="lbl">紅色</div></div>
-                    <div class="hmr-item"><div class="num" style="color:#5f6368;" id="black-count">0</div><div class="lbl">黑色</div></div>
-                </div>
+    <!-- 右欄 -->
+    <aside id="mon-right">
+        <!-- 救援記錄統計 + 賓客健康 -->
+        <div class="panel-box" style="flex:0 0 auto;">
+            <h3><i class="fas fa-flag-checkered"></i> 救援統計</h3>
+            <div class="stats-inline">
+                <span>總記錄 <strong id="totalRecords">0</strong></span>
+                <span>已完成 <strong id="completedRecords" style="color:#34a853;">0</strong></span>
+                <span>處理中 <strong id="pendingRecords" style="color:#ffd93d;">0</strong></span>
+                <span>需救護車 <strong id="ambulanceNeeded" style="color:#e74c3c;">0</strong></span>
             </div>
-            <!-- 救援記錄列表 -->
-            <div class="panel-box" style="flex:1;">
-                <h3 style="display:flex; justify-content:space-between;">
-                    <span><i class="fas fa-list-ul"></i> 救援記錄</span>
-                    <input type="text" id="searchInput" placeholder="搜尋..." style="background:rgba(255,255,255,0.06); border:1px solid rgba(0,243,255,0.2); border-radius:4px; padding:2px 8px; color:#fff; width:100px; font-size:12px;" oninput="monFilterRecords()">
-                </h3>
-                <div class="table-scroll">
-                    <table>
-                        <thead><tr><th>車廂</th><th>姓名</th><th>狀態</th></tr></thead>
-                        <tbody id="monitor-records-list"></tbody>
-                    </table>
-                </div>
+            <h3 style="margin-top:8px;"><i class="fas fa-heartbeat"></i> 賓客健康</h3>
+            <div class="health-mini-row">
+                <div class="hmr-item"><div class="num" style="color:#34a853;" id="green-count">0</div><div class="lbl">綠色</div></div>
+                <div class="hmr-item"><div class="num" style="color:#f1c40f;" id="yellow-count">0</div><div class="lbl">黃色</div></div>
+                <div class="hmr-item"><div class="num" style="color:#e74c3c;" id="red-count">0</div><div class="lbl">紅色</div></div>
+                <div class="hmr-item"><div class="num" style="color:#5f6368;" id="black-count">0</div><div class="lbl">黑色</div></div>
             </div>
-        </aside>
+        </div>
+        <!-- 救援記錄列表 -->
+        <div class="panel-box" style="flex:1;">
+            <h3 style="display:flex; justify-content:space-between;">
+                <span><i class="fas fa-list-ul"></i> 救援記錄</span>
+                <input type="text" id="searchInput" placeholder="搜尋..." style="background:rgba(255,255,255,0.06); border:1px solid rgba(0,243,255,0.2); border-radius:4px; padding:2px 8px; color:#fff; width:100px; font-size:12px;" oninput="monFilterRecords()">
+            </h3>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>車廂</th><th>姓名</th><th>狀態</th></tr></thead>
+                    <tbody id="monitor-records-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </aside>
 
-    </main>
-</div>
+</main>
 
-<!-- 隱藏輔助元素（保留原id供js更新時間） -->
+<!-- 隱藏輔助元素（保留原 id 供 JS 更新時間戳） -->
 <div style="display:none;">
     <span id="last-map-update"></span>
     <span id="last-data-update"></span>
@@ -465,5 +469,9 @@
     <span id="last-monitor-update"></span>
 </div>
 
-<!-- ===== 載入 monitor.js ===== -->
-<script src="js/monitor.js"></script>
+<!-- 圖表容器（若需要保留救援時間分佈圖，請取消註解下方區塊，並在 monitor.js 中補上 canvas 繪圖邏輯） -->
+<!--
+<div style="display:none;">
+    <canvas id="timeChart"></canvas>
+</div>
+-->
