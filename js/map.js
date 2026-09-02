@@ -54,7 +54,7 @@ async function mapInit() {
     if (defs) mapSvg.appendChild(defs);
 
     // 設定 viewBox（固定）
-    mapSvg.setAttribute('viewBox', '0 300 2800 700');
+    mapSvg.setAttribute('viewBox', '0 100 2800 700');
 
     // ★ 從 Firestore 讀取偏移量
     mapGlobalOffset = await window.getGlobalOffsetFromFirestore();
