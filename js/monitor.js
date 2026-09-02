@@ -1,5 +1,5 @@
 // ================================================================
-// 總監控平台模組（完整版）- 三欄深色 + 橢圓地圖
+// 總監控平台模組（完整版）- 三欄深色 + 橢圓地圖（109 架）
 // ================================================================
 
 let monMapCabins = [];
@@ -11,7 +11,7 @@ let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
 
-// ---- 輔助：從 Firestore 載入偏移量（保留，但橢圓布局不使用偏移） ----
+// ---- 輔助：從 Firestore 載入偏移量（保留但不使用） ----
 async function monLoadOffsetFromFirestore() {
     monCurrentOffset = await window.getGlobalOffsetFromFirestore();
     return monCurrentOffset;
@@ -30,12 +30,11 @@ function monInitMap() {
         return;
     }
 
-    // 清空 SVG，只保留 defs 等（由 JS 重建）
+    // 清空 SVG
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
-    // ---- 繪製背景（簡化版，保留山、海、纜車線等，但車廂將以橢圓排列） ----
+    // ---- 繪製背景（簡化版，保留山、海、纜車線等） ----
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    // 漸層
     const gradMountain = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
     gradMountain.setAttribute('id', 'monGradMountain');
     gradMountain.setAttribute('x1', '0'); gradMountain.setAttribute('y1', '1'); gradMountain.setAttribute('x2', '0'); gradMountain.setAttribute('y2', '0');
@@ -71,7 +70,7 @@ function monInitMap() {
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
-    // 簡化：畫一條纜車路線（折線）作為背景
+    // 簡化纜車路線（背景）
     const pts = [
         [150, 600], [400, 600], [800, 400], [1200, 300], [1600, 300],
         [2000, 400], [2400, 500], [2650, 550]
@@ -84,7 +83,7 @@ function monInitMap() {
     poly.setAttribute('stroke-dasharray', '8,6');
     monSvg.appendChild(poly);
 
-    // 畫一些站點標記（可選）
+    // 站點標記
     pts.forEach((p, i) => {
         const cir = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         cir.setAttribute('cx', p[0]); cir.setAttribute('cy', p[1]);
@@ -100,11 +99,11 @@ function monInitMap() {
         }
     });
 
-    // ---- 建立車廂（84 個） ----
+    // ---- 建立車廂（109 個） ----
     monBuildCabins();
 
     // ---- 監聽 Firestore 變化（原有） ----
-    // 監聽車廂序號（若需要）
+    // 監聽車廂序號（從 Realtime Database 的 cabins 節點）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -125,19 +124,19 @@ function monInitMap() {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
 
-    console.log('✅ Monitor 地圖初始化完成（橢圓排列）');
+    console.log('✅ Monitor 地圖初始化完成（橢圓排列，109 架）');
 }
 
-// ----- 構建車廂（只建立 SVG 元素） -----
+// ----- 構建車廂（只建立 SVG 元素，總數 109） -----
 function monBuildCabins() {
     if (!monSvg) return;
-    // 清除舊車廂（保留背景）
+    // 清除舊車廂
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
 
-    const total = 84;
-    const size = 20;
-    const fontSize = 20;
+    const total = 109;  // ★ 改為 109
+    const size = 18;    // 稍微縮小一點，避免擁擠
+    const fontSize = 16;
 
     for (let i = 0; i < total; i++) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -175,16 +174,15 @@ function monBuildCabins() {
     monLayoutCabins();
 }
 
-// ----- 橢圓佈局（取代原有索道佈局） -----
+// ----- 橢圓佈局（109 個車廂均勻分佈） -----
 function monLayoutCabins() {
     const total = monMapCabins.length;
     if (total === 0) return;
 
-    // 橢圓參數（根據 viewBox 2800x700）
+    // 橢圓參數（根據 viewBox 2800x700，為 109 架調大半徑）
     const cx = 1400, cy = 350;
-    const rx = 1000, ry = 200;
+    const rx = 1150, ry = 260;   // ★ 加大半徑
 
-    // 若需要加上偏移量（可選），但我們不使用偏移，固定均勻分佈
     for (let i = 0; i < total; i++) {
         const angle = (i / total) * 2 * Math.PI - Math.PI / 2; // 從頂部開始
         const x = cx + rx * Math.cos(angle);
@@ -317,8 +315,8 @@ function monUpdateSummary() {
         else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); }
         else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
     });
-    // 這些 id 在舊版 summary-enhanced 中有，但新版已移除，但我們保留函數供其他呼叫
-    // 若需要更新舊元素，可忽略或保留
+    // 以下元素在舊版 summary-enhanced 中存在，但新版三欄中已移除，保留函數以免錯誤
+    // 可自行決定是否顯示
 }
 
 // ---- 點擊車廂 → 開啟唯讀詳情（與原邏輯相同） ----
@@ -486,7 +484,7 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
-    // 3. 圖表（救援時間分佈） - 保留原有
+    // 3. 圖表（救援時間分佈）
     monUpdateTimeChart();
 
     // 4. 表格（右欄）
@@ -497,8 +495,6 @@ function monUpdateAllDisplays() {
 
     // 6. 最新救援訊息
     monUpdateLatestMessage();
-
-    // 7. 地圖更新由 monUpdateFromFirestore 負責（在外部呼叫）
 }
 
 // ---- 更新救援時間分佈圖表 ----
@@ -563,7 +559,6 @@ function monRenderTable() {
             return cabin.includes(searchValue) || group.includes(searchValue) || name.includes(searchValue);
         });
     }
-    // 按車廂排序，取前20
     filtered.sort((a, b) => (a.cabinNumber || '').localeCompare((b.cabinNumber || ''), undefined, { numeric: true }));
     const display = filtered.slice(0, 20);
     display.forEach(rec => {
@@ -597,7 +592,6 @@ function monRenderGroupProgress() {
         if (r.exitTime || r.status === 'completed' || r.status === 'landed') groups[g].completed++;
     });
     let html = '';
-    // 按組號排序
     const sortedKeys = Object.keys(groups).sort((a,b) => {
         if (a === '未分配') return 1;
         if (b === '未分配') return -1;
@@ -624,7 +618,6 @@ function monRenderGroupProgress() {
 function monUpdateLatestMessage() {
     const msgSpan = document.getElementById('latestMsgContent');
     if (!msgSpan) return;
-    // 找最近 status 為 rescuing 或 timeReachedTop 最近的記錄
     const rescuing = monGuestRecords.filter(r => r.status === 'rescuing' || r.timeReachedTop);
     if (rescuing.length) {
         const latest = rescuing.sort((a,b) => {
@@ -699,13 +692,9 @@ function monInit() {
     }
     window._monInitialized = true;
 
-    // 1. 初始化地圖（包含車廂建立）
     monInitMap();
-
-    // 2. 載入數據
     monLoadAllData();
 
-    // 3. 監聽即時更新（僅在頁面 active 時更新）
     db.collection('guests').onSnapshot(() => {
         if (document.getElementById('section-monitor')?.classList.contains('active')) {
             monLoadAllData();
@@ -717,7 +706,6 @@ function monInit() {
         }
     });
 
-    // 4. 自動刷新（20秒）
     if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
     monAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-monitor');
@@ -727,8 +715,7 @@ function monInit() {
         }
     }, 20000);
 
-    // 5. 若搜尋框存在，綁定事件（已用 oninput）
-    console.log('✅ 監控平台初始化完成（三欄橢圓版）');
+    console.log('✅ 監控平台初始化完成（三欄橢圓版，109 架）');
 }
 
 // ---- 暴露全域 ----
@@ -739,4 +726,4 @@ window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
 window.monExportCSV = monExportCSV;
 
-console.log('✅ monitor.js 已載入（橢圓地圖版）');
+console.log('✅ monitor.js 已載入（橢圓地圖，109 架）');
