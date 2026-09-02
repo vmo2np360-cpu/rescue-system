@@ -1,5 +1,5 @@
 // ================================================================
-// 總監控平台模組（完整版）
+// 總監控平台模組（完整版，支援 84/109 車廂同步）
 // ================================================================
 
 let monMapCabins = [];
@@ -11,6 +11,7 @@ let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
+let monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;   // ★ 與主地圖共用模式
 
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
@@ -22,11 +23,26 @@ function monSyncOffsetAndLayout() {
     monLayoutCabins();
 }
 
+// ---- 檢查車廂模式是否變更（與主地圖同步） ----
+function monCheckModeChange() {
+    const newMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
+    if (newMode !== monCabinMode) {
+        monCabinMode = newMode;
+        console.log(`🔄 Monitor 車廂模式變更為 ${monCabinMode}`);
+        monBuildCabins();
+        monLayoutCabins();
+        monUpdateFromFirestore();   // 重新更新狀態與摘要
+    }
+}
+
 function monInitMap() {
     if (monMapCabins.length > 0) {
         console.log('Monitor 地圖已初始化，跳過');
         return;
     }
+    // ★ 讀取模式
+    monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
+
     monSvg = document.getElementById('monitorMap');
     if (!monSvg) {
         console.warn('找不到 #monitorMap，300ms 後重試');
@@ -251,12 +267,12 @@ function monInitMap() {
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
 }
 
-// ----- 構建車廂 -----
+// ----- 構建車廂（使用動態模式） -----
 function monBuildCabins() {
     if (!monSvg) return;
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
-    const total = 84;
+    const total = monCabinMode;   // ★ 改為動態
     const size = 20;
     const fontSize = 20;
     const ropeLen = monLengthOf(monMapRopePts);
@@ -582,6 +598,7 @@ async function monLoadAllData() {
         monUpdateAllDisplays();
         monUpdateTimestamp();
         monSyncOffsetAndLayout();
+        monCheckModeChange();   // ★ 檢查模式是否變更
     } catch (e) {
         console.error('載入監控數據失敗:', e);
         if (typeof showMessage === 'function') showMessage('monMessage', '載入失敗: ' + e.message, 'error');
@@ -788,6 +805,7 @@ function monInit() {
         if (section && section.classList.contains('active')) {
             console.log('🔄 監控平台自動更新 (20秒)');
             monLoadAllData();
+            monCheckModeChange();   // ★ 定時檢查模式
         }
     }, 20000);
 }
