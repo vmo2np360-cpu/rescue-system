@@ -1,414 +1,469 @@
 <!-- ===== 深色主題樣式（只作用於 #section-monitor 內部） ===== -->
 <style>
+    /* 重置容器為全屏 Flex 三欄 */
     #section-monitor {
-        background: #1a1a1a;
-        color: #e0e0e0;
-        padding: 16px;
-        border-radius: 12px;
+        background: #030a1e;
+        color: #c8d6e5;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        padding: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        overflow: hidden;
     }
-    #section-monitor h2 {
-        color: #ffffff !important;
-        margin-bottom: 16px;
+    #section-monitor * { box-sizing: border-box; }
+
+    /* ----- 頂部 Header ----- */
+    #mon-header {
+        flex: 0 0 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        background: rgba(0, 243, 255, 0.04);
+        border-bottom: 1px solid rgba(0, 243, 255, 0.2);
     }
-    #section-monitor .card {
-        background: #2d2d2d;
-        border: 1px solid #444;
-        border-radius: 8px;
-        padding: 18px 20px;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    #mon-header h1 {
+        font-size: 24px;
+        color: #00f3ff;
+        text-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    #section-monitor .card-title {
-        color: #ffffff;
-        font-size: 1rem;
-        font-weight: 600;
-        margin-bottom: 12px;
+    #mon-header h1 i { color: #00f3ff; }
+    #latestRescueMsg {
+        font-size: 16px;
+        color: #ffd93d;
+        background: rgba(255, 217, 61, 0.1);
+        padding: 6px 18px;
+        border-radius: 30px;
+        border: 1px solid rgba(255, 217, 61, 0.3);
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    #section-monitor .card-title i {
-        color: #4285F4;
-    }
-    #section-monitor .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
-    }
-    #section-monitor .stat-card {
-        background: #3d3d3d;
-        border-radius: 6px;
-        padding: 14px 10px;
-        text-align: center;
-        border-top: 4px solid #4285F4;
-    }
-    #section-monitor .stat-card .number {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #4285F4;
-    }
-    #section-monitor .stat-card .label {
-        font-size: 0.75rem;
-        color: #aaa;
-    }
-    #section-monitor .health-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 10px;
-    }
-    #section-monitor .health-card {
-        background: #3d3d3d;
-        border-radius: 6px;
-        padding: 12px 10px;
-        text-align: center;
-        border-left: 4px solid #6c757d;
-    }
-    #section-monitor .health-card .number {
-        font-size: 1.4rem;
-        font-weight: 700;
-        margin-bottom: 2px;
-    }
-    #section-monitor .health-card .label {
-        font-size: 0.7rem;
-        color: #aaa;
-    }
-    #section-monitor .health-card.green { border-left-color: #34A853; }
-    #section-monitor .health-card.green .number { color: #34A853; }
-    #section-monitor .health-card.yellow { border-left-color: #FBBC05; }
-    #section-monitor .health-card.yellow .number { color: #FBBC05; }
-    #section-monitor .health-card.red { border-left-color: #EA4335; }
-    #section-monitor .health-card.red .number { color: #EA4335; }
-    #section-monitor .health-card.black { border-left-color: #5f6368; }
-    #section-monitor .health-card.black .number { color: #9aa0a6; }
+    #latestRescueMsg .msg-label { color: #8899bb; font-weight: 300; }
+    #latestMsgContent { font-weight: 600; }
 
-    #section-monitor .filter-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: flex-end;
-        margin-bottom: 12px;
-    }
-    #section-monitor .filter-row .form-group {
+    /* ----- 主體三欄 ----- */
+    #mon-main {
         flex: 1;
-        min-width: 160px;
-        margin-bottom: 0;
+        display: flex;
+        overflow: hidden;
+        gap: 0;
     }
-    #section-monitor .filter-row .form-group label {
-        font-size: 0.75rem;
-        color: #aaa;
-        display: block;
+
+    /* 左欄 (25%) */
+    #mon-left {
+        flex: 0 0 25%;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        gap: 12px;
+        border-right: 1px solid rgba(0, 243, 255, 0.12);
+        overflow: hidden;
+    }
+    #mon-left .panel-box {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 10px;
+        padding: 12px 14px;
+        border: 1px solid rgba(0, 243, 255, 0.08);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    #mon-left .panel-box h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        color: #00f3ff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    #mon-left .panel-box .content-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+    #mon-left .panel-box .content-scroll::-webkit-scrollbar { width: 3px; }
+    #mon-left .panel-box .content-scroll::-webkit-scrollbar-track { background: transparent; }
+    #mon-left .panel-box .content-scroll::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 4px; }
+
+    /* 組別進度條 */
+    .group-progress-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         margin-bottom: 4px;
+        font-size: 13px;
     }
-    #section-monitor .filter-row input {
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #444;
+    .group-progress-item .gp-label {
+        width: 48px;
+        color: #c8d6e5;
+        flex-shrink: 0;
+    }
+    .group-progress-item .gp-bar {
+        flex: 1;
+        height: 18px;
+        background: #1a2a40;
         border-radius: 4px;
-        background: #3d3d3d;
-        color: #e0e0e0;
-        font-size: 0.9rem;
+        overflow: hidden;
+        display: flex;
     }
-    #section-monitor .filter-row input:focus {
-        outline: none;
-        border-color: #4285F4;
+    .group-progress-item .gp-bar .gp-fill {
+        height: 100%;
+        background: #00f3ff;
+        transition: width 0.4s;
+        border-radius: 4px 0 0 4px;
     }
-    #section-monitor .btn-secondary {
-        background: #444;
-        color: #fff;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-        margin-bottom: 0;
+    .group-progress-item .gp-bar .gp-empty {
+        height: 100%;
+        background: #3a4a6a;
+        flex: 1;
+        border-radius: 0 4px 4px 0;
     }
-    #section-monitor .btn-secondary:hover {
-        background: #555;
-    }
-    #section-monitor .table-wrap {
-        overflow-x: auto;
-        margin-top: 8px;
-    }
-    #section-monitor table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-    }
-    #section-monitor th {
-        background: #3d3d3d;
-        color: #fff;
-        text-align: left;
-        padding: 10px 12px;
-        border-bottom: 2px solid #555;
-        font-weight: 600;
-    }
-    #section-monitor td {
-        padding: 8px 12px;
-        border-bottom: 1px solid #444;
-        color: #ddd;
-    }
-    #section-monitor tr:hover td {
-        background: #353535;
-    }
-    #section-monitor .status-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        font-weight: 600;
-    }
-    #section-monitor .status-complete { background: #2e7d32; color: #fff; }
-    #section-monitor .status-departed { background: #3b82f6; color: #fff; }
-    #section-monitor .status-pending { background: #f57c00; color: #fff; }
-    #section-monitor .status-waiting { background: #c62828; color: #fff; }
-
-    #section-monitor .chart-container {
-        height: 260px;
-        position: relative;
-    }
-    #section-monitor .message {
-        color: #fff;
-        padding: 10px;
-        border-radius: 6px;
-        margin-bottom: 12px;
-    }
-    #section-monitor .message-error { background: #c62828; }
-    #section-monitor .message-success { background: #2e7d32; }
-    #section-monitor .message-info { background: #1565C0; }
-    #section-monitor .text-muted {
-        font-size: 0.75rem;
-        color: #94a3b8;
+    .group-progress-item .gp-count {
+        width: 50px;
+        text-align: right;
+        color: #8899bb;
+        font-size: 12px;
+        flex-shrink: 0;
     }
 
-    /* 地圖專屬樣式 */
-    #section-monitor .map-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 10px 14px;
-        background: #2d2d2d;
-        border-radius: 6px;
-        margin-bottom: 10px;
-        border: 1px solid #444;
-        align-items: center;
-    }
-    #section-monitor .map-toolbar input[type="text"] {
+    /* 健康小卡片 (左下半) */
+    .health-mini-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
         flex: 1;
-        min-width: 180px;
-        padding: 8px 12px;
-        border: 1px solid #555;
-        border-radius: 4px;
-        background: #3d3d3d;
-        color: #e0e0e0;
-        font-size: 0.95rem;
     }
-    #section-monitor .map-toolbar button {
-        padding: 8px 20px;
-        border: none;
-        border-radius: 4px;
-        background: #4285F4;
-        color: white;
-        font-weight: 500;
-        cursor: pointer;
-    }
-    #section-monitor .map-toolbar button:hover {
-        background: #1a73e8;
-    }
-    #section-monitor .summary-enhanced {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-bottom: 10px;
-        background: #2d2d2d;
-        padding: 8px 12px;
+    .health-mini-card {
+        background: rgba(255,255,255,0.05);
         border-radius: 6px;
-        border: 1px solid #444;
-    }
-    #section-monitor .status-counter {
-        flex: 1;
-        min-width: 80px;
+        padding: 6px;
         text-align: center;
-        padding: 4px 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
-    #section-monitor .status-counter .counter-number {
-        font-size: 1.4rem;
+    .health-mini-card .hm-number {
+        font-size: 24px;
         font-weight: 700;
+        line-height: 1.2;
     }
-    #section-monitor .status-counter .counter-label {
-        font-size: 0.7rem;
-        color: #aaa;
+    .health-mini-card .hm-label {
+        font-size: 11px;
+        color: #8899bb;
+        margin-top: 2px;
+    }
+
+    /* 中央 (50%) */
+    #mon-center {
+        flex: 0 0 50%;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        gap: 10px;
+        overflow: hidden;
+    }
+    #mon-toolbar {
+        flex: 0 0 44px;
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 12px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
+        padding: 0 14px;
+        border: 1px solid rgba(0, 243, 255, 0.08);
+        flex-shrink: 0;
+    }
+    #mon-toolbar .tool-label {
+        color: #00f3ff;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    #mon-toolbar #rescueTag {
+        background: #ffd93d;
+        color: #030a1e;
+        padding: 2px 16px;
+        border-radius: 30px;
+        font-weight: 700;
+        font-size: 13px;
+    }
+    #mon-toolbar .btn-mon {
+        background: transparent;
+        border: 1px solid rgba(0, 243, 255, 0.3);
+        color: #c8d6e5;
+        padding: 4px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
         gap: 4px;
     }
-    #section-monitor .status-counter .cabin-numbers {
-        font-size: 0.6rem;
-        color: #ccc;
-        max-height: 30px;
-        overflow-y: auto;
+    #mon-toolbar .btn-mon:hover {
+        background: rgba(0, 243, 255, 0.1);
+        border-color: #00f3ff;
     }
-    #section-monitor .status-counter.waiting .counter-number { color: #EA4335; }
-    #section-monitor .status-counter.rescuing .counter-number { color: #FBBC05; }
-    #section-monitor .status-counter.landed .counter-number { color: #34A853; }
+    #mon-toolbar .btn-mon.primary { border-color: #00f3ff; color: #00f3ff; }
+    #mon-toolbar .auto-tip {
+        margin-left: auto;
+        color: #8899bb;
+        font-size: 12px;
+    }
 
-    #section-monitor #monitorMap {
-        width: 100%;
-        height: 380px;
-        background: #1a2a3a;
-        border-radius: 6px;
-        border: 1px solid #444;
+    /* 地圖容器 */
+    #mon-map-wrapper {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 243, 255, 0.1);
+        overflow: hidden;
+        position: relative;
+        min-height: 0;
     }
-    #section-monitor #monitorMap svg {
+    #monitorMap {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    #monitorMap svg {
         display: block;
         width: 100%;
         height: 100%;
     }
+
+    /* 右欄 (25%) */
+    #mon-right {
+        flex: 0 0 25%;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        gap: 12px;
+        border-left: 1px solid rgba(0, 243, 255, 0.12);
+        overflow: hidden;
+    }
+    #mon-right .panel-box {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 10px;
+        padding: 12px 14px;
+        border: 1px solid rgba(0, 243, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    #mon-right .panel-box h3 {
+        margin: 0 0 6px 0;
+        font-size: 14px;
+        color: #00f3ff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+    #mon-right .stats-inline {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 12px;
+        font-size: 13px;
+        flex-shrink: 0;
+    }
+    #mon-right .stats-inline span {
+        display: flex;
+        justify-content: space-between;
+        padding: 2px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    #mon-right .stats-inline strong { color: #fff; }
+
+    .health-mini-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 4px;
+        margin-top: 6px;
+        flex-shrink: 0;
+    }
+    .health-mini-row .hmr-item {
+        text-align: center;
+        background: rgba(255,255,255,0.04);
+        border-radius: 4px;
+        padding: 4px 0;
+    }
+    .health-mini-row .hmr-item .num { font-size: 18px; font-weight: 700; }
+    .health-mini-row .hmr-item .lbl { font-size: 10px; color: #8899bb; }
+
+    /* 記錄表格 (右下半) */
+    #mon-right .table-scroll {
+        flex: 1;
+        overflow-y: auto;
+        margin-top: 6px;
+    }
+    #mon-right .table-scroll::-webkit-scrollbar { width: 3px; }
+    #mon-right .table-scroll::-webkit-scrollbar-track { background: transparent; }
+    #mon-right .table-scroll::-webkit-scrollbar-thumb { background: #00f3ff; border-radius: 4px; }
+    #mon-right table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    #mon-right th {
+        text-align: left;
+        color: #8899bb;
+        font-weight: 500;
+        padding: 4px 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        position: sticky;
+        top: 0;
+        background: #030a1e;
+        z-index: 2;
+    }
+    #mon-right td {
+        padding: 4px 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        color: #c8d6e5;
+    }
+    #mon-right .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+
+    /* 自適應調整 (無滾動條，但內部可滾) */
+    #mon-left .panel-box .content-scroll,
+    #mon-right .table-scroll { scrollbar-width: thin; }
+
+    /* 統一小工具 */
+    .text-glow { text-shadow: 0 0 20px rgba(0,243,255,0.2); }
+    .mt-1 { margin-top: 4px; }
+    .mb-1 { margin-bottom: 4px; }
+
+    /* 原有卡片樣式移除，全部重構 */
+    #section-monitor .card,
+    #section-monitor .stats-grid,
+    #section-monitor .health-grid,
+    #section-monitor .filter-row,
+    #section-monitor .chart-container,
+    #section-monitor .map-toolbar,
+    #section-monitor .summary-enhanced {
+        display: none;
+    }
+    /* 但保留message */
+    #section-monitor .message { margin: 0; }
 </style>
 
-<!-- ===== 頁面標題 ===== -->
-<h2><i class="fas fa-tv" style="color:#4285F4;"></i> 總監控平台</h2>
-<div id="monMessage" class="message"></div>
+<!-- ===== 頁面結構 ===== -->
+<div id="section-monitor" style="display:flex; flex-direction:column; height:100vh;">
 
-<!-- ============================================================ -->
-<!--  地圖區塊（唯讀模式，與主地圖同步）                          -->
-<!-- ============================================================ -->
-<div class="card">
-    <div class="map-toolbar">
-        <input type="text" id="monSearchBox" placeholder="🔍 搜尋車廂號碼">
-        <button onclick="monSearchCabin()">搜尋</button>
-        <button onclick="monManualRefresh()" style="background:#34A853; color:white;">
-            <i class="fas fa-sync-alt"></i> 更新地圖
-        </button>
-        <span style="font-size:0.75rem; color:#94a3b8; margin-left:auto;">
-            <i class="fas fa-circle" style="color:#34A853; font-size:0.5rem;"></i> 即時同步
-        </span>
-    </div>
-    <div class="summary-enhanced">
-        <div class="status-counter waiting">
-            <div class="counter-number" id="monWaiting">0</div>
-            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#EA4335;"></span>等待救援</div>
-            <div class="cabin-numbers" id="monWaitingCabins"></div>
+    <!-- 頂部 Header -->
+    <header id="mon-header">
+        <h1><i class="fas fa-tv"></i> 救援分析實時監控平台</h1>
+        <div id="latestRescueMsg">
+            <span class="msg-label">🚨 最新救援</span>
+            <span id="latestMsgContent">等待救援...</span>
         </div>
-        <div class="status-counter rescuing">
-            <div class="counter-number" id="monRescuing">0</div>
-            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#FBBC05;"></span>救援中</div>
-            <div class="cabin-numbers" id="monRescuingCabins"></div>
-        </div>
-        <div class="status-counter landed">
-            <div class="counter-number" id="monLanded">0</div>
-            <div class="counter-label"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34A853;"></span>已著陸</div>
-            <div class="cabin-numbers" id="monLandedCabins"></div>
-        </div>
-    </div>
-    <svg id="monitorMap" viewBox="0 0 2800 700">
-        <defs>
-            <linearGradient id="monGradMountain" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stop-color="#388E3C"/>
-                <stop offset="100%" stop-color="#A5D6A7"/>
-            </linearGradient>
-            <linearGradient id="monGradBay" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#81D4FA"/>
-                <stop offset="100%" stop-color="#0288D1"/>
-            </linearGradient>
-            <filter id="monHighlightGlow">
-                <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="gold"/>
-            </filter>
-        </defs>
-        <!-- 地圖內容將由 JavaScript 動態生成 -->
-    </svg>
+    </header>
+
+    <!-- 主體三欄 -->
+    <main id="mon-main">
+
+        <!-- 左欄 -->
+        <aside id="mon-left">
+            <!-- 組別救援狀態分佈 -->
+            <div class="panel-box">
+                <h3><i class="fas fa-layer-group"></i> 組別救援狀態</h3>
+                <div class="content-scroll" id="groupProgressContainer">
+                    <!-- 動態由 JS 生成 -->
+                </div>
+            </div>
+            <!-- OCC 求助記錄統計 + 健康狀況 -->
+            <div class="panel-box">
+                <h3><i class="fas fa-headset"></i> OCC 求助統計</h3>
+                <div style="display:flex; gap:10px; flex-shrink:0; justify-content:space-around; margin-bottom:6px;">
+                    <div><span style="color:#8899bb;">總數</span><br><strong id="occ-total" style="font-size:20px; color:#fff;">0</strong></div>
+                    <div><span style="color:#8899bb;">待處理</span><br><strong id="occ-pending" style="font-size:20px; color:#ffd93d;">0</strong></div>
+                    <div><span style="color:#8899bb;">已完成</span><br><strong id="occ-processed" style="font-size:20px; color:#34a853;">0</strong></div>
+                </div>
+                <div class="health-mini-grid">
+                    <div class="health-mini-card"><div class="hm-number" style="color:#34a853;" id="occ-green-count">0</div><div class="hm-label">綠色</div></div>
+                    <div class="health-mini-card"><div class="hm-number" style="color:#f1c40f;" id="occ-yellow-count">0</div><div class="hm-label">黃色</div></div>
+                    <div class="health-mini-card"><div class="hm-number" style="color:#e74c3c;" id="occ-red-count">0</div><div class="hm-label">紅色</div></div>
+                    <div class="health-mini-card"><div class="hm-number" style="color:#5f6368;" id="occ-black-count">0</div><div class="hm-label">黑色</div></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中央 -->
+        <section id="mon-center">
+            <!-- 工具列 -->
+            <div id="mon-toolbar">
+                <span class="tool-label">📋 救援標籤</span>
+                <span id="rescueTag">全區</span>
+                <button class="btn-mon primary" onclick="monManualRefresh()"><i class="fas fa-sync-alt"></i> 刷新</button>
+                <button class="btn-mon" onclick="monExportCSV()"><i class="fas fa-file-csv"></i> 匯出</button>
+                <span class="auto-tip">⏱ 自動更新 20s</span>
+            </div>
+            <!-- 地圖 -->
+            <div id="mon-map-wrapper">
+                <svg id="monitorMap" viewBox="0 0 2800 700" preserveAspectRatio="xMidYMid meet">
+                    <!-- 背景會由 JS 繪製，此處預留 -->
+                </svg>
+            </div>
+        </section>
+
+        <!-- 右欄 -->
+        <aside id="mon-right">
+            <!-- 救援記錄統計 + 賓客健康 -->
+            <div class="panel-box" style="flex:0 0 auto;">
+                <h3><i class="fas fa-flag-checkered"></i> 救援統計</h3>
+                <div class="stats-inline">
+                    <span>總記錄 <strong id="totalRecords">0</strong></span>
+                    <span>已完成 <strong id="completedRecords" style="color:#34a853;">0</strong></span>
+                    <span>處理中 <strong id="pendingRecords" style="color:#ffd93d;">0</strong></span>
+                    <span>需救護車 <strong id="ambulanceNeeded" style="color:#e74c3c;">0</strong></span>
+                </div>
+                <h3 style="margin-top:8px;"><i class="fas fa-heartbeat"></i> 賓客健康</h3>
+                <div class="health-mini-row">
+                    <div class="hmr-item"><div class="num" style="color:#34a853;" id="green-count">0</div><div class="lbl">綠色</div></div>
+                    <div class="hmr-item"><div class="num" style="color:#f1c40f;" id="yellow-count">0</div><div class="lbl">黃色</div></div>
+                    <div class="hmr-item"><div class="num" style="color:#e74c3c;" id="red-count">0</div><div class="lbl">紅色</div></div>
+                    <div class="hmr-item"><div class="num" style="color:#5f6368;" id="black-count">0</div><div class="lbl">黑色</div></div>
+                </div>
+            </div>
+            <!-- 救援記錄列表 -->
+            <div class="panel-box" style="flex:1;">
+                <h3 style="display:flex; justify-content:space-between;">
+                    <span><i class="fas fa-list-ul"></i> 救援記錄</span>
+                    <input type="text" id="searchInput" placeholder="搜尋..." style="background:rgba(255,255,255,0.06); border:1px solid rgba(0,243,255,0.2); border-radius:4px; padding:2px 8px; color:#fff; width:100px; font-size:12px;" oninput="monFilterRecords()">
+                </h3>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>車廂</th><th>姓名</th><th>狀態</th></tr></thead>
+                        <tbody id="monitor-records-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
+
+    </main>
 </div>
 
-<!-- ============================================================ -->
-<!--  統計數據區塊                                               -->
-<!-- ============================================================ -->
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-headset"></i> OCC 求助記錄統計</div>
-    <div class="stats-grid">
-        <div class="stat-card"><div class="number" id="occ-total">0</div><div class="label">求助記錄總數</div></div>
-        <div class="stat-card"><div class="number" id="occ-pending">0</div><div class="label">待處理</div></div>
-        <div class="stat-card"><div class="number" id="occ-processed">0</div><div class="label">已完成</div></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-heartbeat"></i> OCC 求助記錄健康狀況</div>
-    <div class="health-grid">
-        <div class="health-card green"><div class="number" id="occ-green-count">0</div><div class="label">綠色 (第三優先)</div></div>
-        <div class="health-card yellow"><div class="number" id="occ-yellow-count">0</div><div class="label">黃色 (第二優先)</div></div>
-        <div class="health-card red"><div class="number" id="occ-red-count">0</div><div class="label">紅色 (第一優先)</div></div>
-        <div class="health-card black"><div class="number" id="occ-black-count">0</div><div class="label">黑色 (無生命體徵)</div></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-clipboard-list"></i> 救援記錄統計</div>
-    <div class="stats-grid">
-        <div class="stat-card" style="border-top-color:#4285F4;"><div class="number" id="totalRecords">0</div><div class="label">總記錄數</div></div>
-        <div class="stat-card" style="border-top-color:#34A853;"><div class="number" id="completedRecords">0</div><div class="label">已完成</div></div>
-        <div class="stat-card" style="border-top-color:#FBBC05;"><div class="number" id="pendingRecords">0</div><div class="label">處理中</div></div>
-        <div class="stat-card" style="border-top-color:#EA4335;"><div class="number" id="ambulanceNeeded">0</div><div class="label">需要救護車</div></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-notes-medical"></i> 賓客健康狀況統計</div>
-    <div class="health-grid">
-        <div class="health-card green"><div class="number" id="green-count">0</div><div class="label">綠色 (第三優先)</div></div>
-        <div class="health-card yellow"><div class="number" id="yellow-count">0</div><div class="label">黃色 (第二優先)</div></div>
-        <div class="health-card red"><div class="number" id="red-count">0</div><div class="label">紅色 (第一優先)</div></div>
-        <div class="health-card black"><div class="number" id="black-count">0</div><div class="label">黑色 (無生命體徵)</div></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-flag"></i> 組別救援狀態分佈</div>
-    <div class="stats-grid">
-        <div class="stat-card" style="border-top-color:#EA4335;"><div class="number" id="waiting-groups">0</div><div class="label">等待救援</div></div>
-        <div class="stat-card" style="border-top-color:#FBBC05;"><div class="number" id="rescuing-groups">0</div><div class="label">救援中</div></div>
-        <div class="stat-card" style="border-top-color:#34A853;"><div class="number" id="landed-groups">0</div><div class="label">已著陸</div></div>
-        <div class="stat-card" style="border-top-color:#4285F4;"><div class="number" id="total-groups">0</div><div class="label">總組別數</div></div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-chart-bar"></i> 救援時間分佈</div>
-    <div class="chart-container"><canvas id="timeChart"></canvas></div>
-    <div style="display:flex; justify-content:flex-end; margin-top:8px;">
-        <span class="text-muted">最後更新: <span id="last-chart-update">--:--:--</span></span>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-title"><i class="fas fa-table"></i> 所有救援記錄</div>
-    <div class="filter-row">
-        <div class="form-group">
-            <label><i class="fas fa-search"></i> 搜尋</label>
-            <input type="text" id="searchInput" placeholder="車廂號碼、組別或姓名" oninput="monFilterRecords()">
-        </div>
-        <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
-        <span class="text-muted" style="margin-left:auto; align-self:flex-end;">最後更新: <span id="last-monitor-update">--:--:--</span></span>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>車廂</th><th>組別</th><th>開始救援</th><th>結束救援</th><th>狀態</th>
-                </tr>
-            </thead>
-            <tbody id="monitor-records-list"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- 隱藏輔助 -->
+<!-- 隱藏輔助元素（保留原id供js更新時間） -->
 <div style="display:none;">
     <span id="last-map-update"></span>
     <span id="last-data-update"></span>
+    <span id="last-chart-update"></span>
+    <span id="last-monitor-update"></span>
 </div>
 
-<!-- ============================================================ -->
-<!--  JavaScript 引用（外部檔案，由 index.html 動態載入）        -->
-<!-- ============================================================ -->
+<!-- ===== 載入 monitor.js ===== -->
 <script src="js/monitor.js"></script>
