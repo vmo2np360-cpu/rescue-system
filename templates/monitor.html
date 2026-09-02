@@ -1,11 +1,14 @@
 <!-- ============================================================ -->
-<!-- monitor.html - 監控平台（深色三欄無滾動條，109 架纜車）      -->
+<!-- monitor.html - 監控平台（深色三欄無滾動條，直立橢圓索道）    -->
 <!-- 此內容會由 JavaScript 動態載入至 #section-monitor 容器內    -->
 <!-- ============================================================ -->
 
 <style>
-    /* ----- 強制外部容器 #section-monitor 為全屏 Flex 三欄 ----- */
+    /* ----- 核心：僅在 active 時顯示 ----- */
     #section-monitor {
+        display: none; /* 預設隱藏，由外層 .section-container 控制，但我們也確保 */
+    }
+    #section-monitor.active {
         display: flex !important;
         flex-direction: column;
         height: 100vh;
@@ -362,6 +365,11 @@
         display: none !important;
     }
     #section-monitor .message { margin: 0; }
+
+    /* 修正：當 #section-monitor 隱藏時，內部所有元素也隱藏 */
+    #section-monitor:not(.active) * {
+        display: none !important;
+    }
 </style>
 
 <!-- ===== 頁面結構（動態載入內容） ===== -->
