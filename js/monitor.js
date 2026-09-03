@@ -669,6 +669,8 @@ function monUpdateAllDisplays() {
 }
 
 function monUpdateTimeChart() {
+    const ctx = document.getElementById('timeChart');
+    if (!ctx) return;   
     const ctx = document.getElementById('timeChart').getContext('2d');
     if (monChartInstance) monChartInstance.destroy();
     const ranges = [0, 0, 0, 0, 0];
