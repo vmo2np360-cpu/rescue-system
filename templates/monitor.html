@@ -70,22 +70,22 @@
         min-height: 0;
     }
 
-    /* ---- 左欄 (70%) ---- */
+    /* ---- 左欄 (75%) ---- */
     .mon-left {
-        flex: 7;
+        flex: 7.5;   /* 75% 寬度 */
         display: flex;
         flex-direction: column;
         gap: 12px;
         min-width: 0;
     }
     .mon-left-top {
-        flex: 6;
+        flex: 7;     /* 左欄高度的 70% (7/10) */
         min-height: 0;
         display: flex;
         flex-direction: column;
     }
     .mon-left-bottom {
-        flex: 4;
+        flex: 3;     /* 左欄高度的 30% (3/10) */
         min-height: 0;
         display: flex;
         gap: 12px;
@@ -97,9 +97,9 @@
         flex-direction: column;
     }
 
-    /* ---- 右欄 (30%) ---- */
+    /* ---- 右欄 (25%) ---- */
     .mon-right {
-        flex: 3;
+        flex: 2.5;   /* 25% 寬度 */
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -405,9 +405,9 @@
     <!-- 主體 -->
     <div id="monitor-body">
 
-        <!-- 左欄 -->
+        <!-- 左欄 (75%) -->
         <div class="mon-left">
-            <!-- 左中：地圖 -->
+            <!-- 左中：地圖 (高度 70%) -->
             <div class="mon-left-top">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-map-marked-alt"></i> 纜車地圖</div>
@@ -456,7 +456,7 @@
                 </div>
             </div>
 
-            <!-- 左下方：左下 + 左中下 -->
+            <!-- 左下方：左下 + 左中下 (高度 30%) -->
             <div class="mon-left-bottom">
                 <!-- 左下：OCC 求助統計 + 健康 -->
                 <div>
@@ -503,9 +503,9 @@
             </div>
         </div>
 
-        <!-- 右欄 -->
+        <!-- 右欄 (25%) -->
         <div class="mon-right">
-            <!-- 右上：組別狀態分佈（圖表已移除） -->
+            <!-- 右上：組別狀態分佈 -->
             <div class="mon-right-top">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-flag"></i> 組別救援狀態</div>
@@ -515,7 +515,6 @@
                         <div class="stat-card" style="border-top-color:#34A853;"><div class="number" id="landed-groups">0</div><div class="label">已著陸</div></div>
                         <div class="stat-card" style="border-top-color:#00f3ff;"><div class="number" id="total-groups">0</div><div class="label">總組別</div></div>
                     </div>
-                    <!-- 時間戳記（保留但不顯示圖表） -->
                     <div style="display:flex; justify-content:flex-end; margin-top:4px;">
                         <span class="text-muted">更新: <span id="last-chart-update">--:--:--</span></span>
                     </div>
