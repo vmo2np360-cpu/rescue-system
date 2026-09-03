@@ -553,5 +553,9 @@
         <span id="last-data-update"></span>
     </div>
 </div>
-
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof monInit === 'function') monInit();
+    });
+</script>
 <script src="js/monitor.js"></script>
