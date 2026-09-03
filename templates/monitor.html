@@ -255,78 +255,81 @@
     }
 
     /* ---- 右上方「車廂狀態統計」專屬樣式 ---- */
-    .cabin-stats-vertical {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        gap: 8px;
-        min-height: 0;
-    }
-    .stat-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(0, 0, 0, 0.25);
-        padding: 12px 24px;
-        border-radius: 4px;
-        flex-shrink: 0;
-        min-height: 52px;
-    }
-    .stat-row .label {
-        font-size: 0.8rem;
-        color: #b0d0ff;
-        min-width: 60px;
-    }
-    .stat-row .number {
-        font-size: 1.4rem;
-        font-weight: 700;
-        margin-right: 6px;
-        min-width: 30px;
-        text-align: right;
-    }
-    .stat-row .cabin-list {
-        font-size: 0.7rem;
-        color: #ccc;
-        max-height: 36px;
-        overflow-y: auto;
-        flex: 1;
-        text-align: right;
-        padding-left: 6px;
-        white-space: nowrap;
-        scrollbar-width: thin;
-    }
-    .stat-row .cabin-list::-webkit-scrollbar {
-        width: 3px;
-        background: transparent;
-    }
-    .stat-row .cabin-list::-webkit-scrollbar-thumb {
-        background: #2a4a6a;
-        border-radius: 2px;
-    }
-    .stat-row.waiting .number { color: #EA4335; }
-    .stat-row.rescuing .number { color: #FBBC05; }
-    .stat-row.landed .number { color: #34A853; }
-    .stat-row.departed .number { color: #3b82f6; }
+/* ---- 右上方「車廂狀態統計」專屬樣式 ---- */
+.cabin-stats-vertical {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 4px;
+    min-height: 0;
+    justify-content: space-evenly;   /* 均勻分佈 */
+}
 
-    .cabin-stats-total {
-        margin-top: 4px;
-        background: rgba(0, 243, 255, 0.08);
-        border: 1px solid rgba(0, 243, 255, 0.2);
-        border-radius: 4px;
-        padding: 4px 12px;
-        text-align: center;
-        flex-shrink: 0;
-    }
-    .cabin-stats-total .number {
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: #00f3ff;
-    }
-    .cabin-stats-total .label {
-        font-size: 0.7rem;
-        color: #8ab4f8;
-        margin-left: 8px;
-    }
+.stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px 12px;
+    border-radius: 4px;
+    flex: 0 1 auto;          /* 不強制拉伸，但會隨容器均分空間 */
+    min-height: 40px;        /* 最小高度，保持可讀性 */
+}
+.stat-row .label {
+    font-size: 0.8rem;
+    color: #b0d0ff;
+    min-width: 60px;
+}
+.stat-row .number {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-right: 6px;
+    min-width: 30px;
+    text-align: right;
+}
+.stat-row .cabin-list {
+    font-size: 0.7rem;
+    color: #ccc;
+    max-height: 36px;
+    overflow-y: auto;
+    flex: 1;
+    text-align: right;
+    padding-left: 8px;
+    white-space: nowrap;
+    scrollbar-width: thin;
+}
+.stat-row .cabin-list::-webkit-scrollbar {
+    width: 3px;
+    background: transparent;
+}
+.stat-row .cabin-list::-webkit-scrollbar-thumb {
+    background: #2a4a6a;
+    border-radius: 2px;
+}
+.stat-row.waiting .number { color: #EA4335; }
+.stat-row.rescuing .number { color: #FBBC05; }
+.stat-row.landed .number { color: #34A853; }
+.stat-row.departed .number { color: #3b82f6; }
+
+.cabin-stats-total {
+    margin-top: 4px;
+    background: rgba(0, 243, 255, 0.08);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    border-radius: 4px;
+    padding: 4px 12px;
+    text-align: center;
+    flex-shrink: 0;          /* 固定不伸縮 */
+}
+.cabin-stats-total .number {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #00f3ff;
+}
+.cabin-stats-total .label {
+    font-size: 0.7rem;
+    color: #8ab4f8;
+    margin-left: 8px;
+}
 
     /* ---- 表格區 ---- */
     #section-monitor .filter-row {
