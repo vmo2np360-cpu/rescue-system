@@ -5,13 +5,12 @@
 let monMapCabins = [];
 let monMapRopePts = [];
 let monSvg = null;
-let monChartInstance = null;
 let monGuestRecords = [];
 let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
-let monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;   // ★ 與主地圖共用模式
+let monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
 
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
@@ -31,7 +30,7 @@ function monCheckModeChange() {
         console.log(`🔄 Monitor 車廂模式變更為 ${monCabinMode}`);
         monBuildCabins();
         monLayoutCabins();
-        monUpdateFromFirestore();   // 重新更新狀態與摘要
+        monUpdateFromFirestore();
     }
 }
 
@@ -40,7 +39,6 @@ function monInitMap() {
         console.log('Monitor 地圖已初始化，跳過');
         return;
     }
-    // ★ 讀取模式
     monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
 
     monSvg = document.getElementById('monitorMap');
@@ -217,10 +215,8 @@ function monInitMap() {
     });
     monSvg.appendChild(legend);
 
-    // ★ 讀取 Firestore 偏移量並建立車廂
     monLoadOffsetFromFirestore().then(() => {
         monBuildCabins();
-        // 監聽雲端偏移量變化
         if (_monOffsetUnsubscribe) _monOffsetUnsubscribe();
         _monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
             if (Math.abs(newOffset - monCurrentOffset) > 0.001) {
@@ -231,7 +227,6 @@ function monInitMap() {
         });
     });
 
-    // 監聽車廂序號變化（原有）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) return;
@@ -256,7 +251,6 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
-    // 監聽 guests / rescue_records 變更
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
@@ -272,7 +266,7 @@ function monBuildCabins() {
     if (!monSvg) return;
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
-    const total = monCabinMode;   // ★ 改為動態
+    const total = monCabinMode;
     const size = 20;
     const fontSize = 20;
     const ropeLen = monLengthOf(monMapRopePts);
@@ -417,7 +411,6 @@ async function monUpdateFromFirestore() {
                     break;
             }
 
-            // ★ 計算綜合時間（與主地圖一致）
             let overallStart = null;
             let overallEnd = null;
 
@@ -580,7 +573,7 @@ function monOpenCabinReadonly(cabin) {
 }
 
 // ================================================================
-// 3. 統計數據、圖表、表格
+// 3. 統計數據、表格（已移除圖表功能）
 // ================================================================
 
 async function monLoadAllData() {
@@ -598,7 +591,7 @@ async function monLoadAllData() {
         monUpdateAllDisplays();
         monUpdateTimestamp();
         monSyncOffsetAndLayout();
-        monCheckModeChange();   // ★ 檢查模式是否變更
+        monCheckModeChange();
     } catch (e) {
         console.error('載入監控數據失敗:', e);
         if (typeof showMessage === 'function') showMessage('monMessage', '載入失敗: ' + e.message, 'error');
@@ -663,54 +656,9 @@ function monUpdateAllDisplays() {
     document.getElementById('landed-groups').textContent = landed;
     document.getElementById('total-groups').textContent = monGuestRecords.length;
 
-    monUpdateTimeChart();
+    // 圖表已移除，不再呼叫 monUpdateTimeChart()
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
-}
-
-function monUpdateTimeChart() {
-    const ctx = document.getElementById('timeChart');
-    if (!ctx) return;   
-    const ctx = document.getElementById('timeChart').getContext('2d');
-    if (monChartInstance) monChartInstance.destroy();
-    const ranges = [0, 0, 0, 0, 0];
-    monGuestRecords.forEach(rec => {
-        if (rec.timeReachedTop && rec.timeLanded) {
-            const start = rec.timeReachedTop.split(':');
-            const end = rec.timeLanded.split(':');
-            if (start.length === 2 && end.length === 2) {
-                let diff = (parseInt(end[0]) * 60 + parseInt(end[1])) - (parseInt(start[0]) * 60 + parseInt(start[1]));
-                if (diff < 0) diff += 1440;
-                if (diff <= 15) ranges[0]++;
-                else if (diff <= 30) ranges[1]++;
-                else if (diff <= 45) ranges[2]++;
-                else if (diff <= 60) ranges[3]++;
-                else ranges[4]++;
-            }
-        }
-    });
-    monChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['0-15分', '15-30分', '30-45分', '45-60分', '60分以上'],
-            datasets: [{
-                label: '救援時間分佈',
-                data: ranges,
-                backgroundColor: ['rgba(52,168,83,0.7)', 'rgba(66,133,244,0.7)', 'rgba(251,188,5,0.7)', 'rgba(255,152,0,0.7)', 'rgba(234,67,53,0.7)'],
-                borderColor: ['#34A853', '#4285F4', '#FBBC05', '#FF9800', '#EA4335'],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { beginAtZero: true, ticks: { color: '#e0e0e0', precision: 0 }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.1)' } }
-            },
-            plugins: { legend: { labels: { color: '#e0e0e0' } } }
-        }
-    });
 }
 
 function monRenderTable() {
@@ -807,7 +755,7 @@ function monInit() {
         if (section && section.classList.contains('active')) {
             console.log('🔄 監控平台自動更新 (20秒)');
             monLoadAllData();
-            monCheckModeChange();   // ★ 定時檢查模式
+            monCheckModeChange();
         }
     }, 20000);
 }
