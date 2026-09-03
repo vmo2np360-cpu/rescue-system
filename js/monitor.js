@@ -48,7 +48,6 @@ function monInitMap() {
         return;
     }
 
-    // 設定放大視口
     monSvg.setAttribute('viewBox', '0 0 2800 1000');
 
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
@@ -105,7 +104,6 @@ function monInitMap() {
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
-    // ★ 纜繩起點與終點向外延伸，增加總長度
     const segments = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
     const slots = [2, 2, 2, 2, 10, 6, 5, 1, 2, 7, 3];
     const startX = 50, endX = 2750;
@@ -119,7 +117,6 @@ function monInitMap() {
     }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    // 地面矩形高度 180
     const addRect = (x, y, w, h, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         r.setAttribute('x', x);
@@ -132,7 +129,6 @@ function monInitMap() {
     addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#4a4a4a');
     addRect(t2bX, baseY, t3X - t2bX, 180, '#81D4FA');
 
-    // 山體
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
     mountain.setAttribute('fill', 'url(#monGradMountain)');
@@ -159,16 +155,17 @@ function monInitMap() {
         txt.setAttribute('x', gx);
         txt.setAttribute('y', gy + 40);
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#000000');   // 黑色
-        txt.setAttribute('stroke', '#FFFFFF'); // 白色描邊
+        txt.setAttribute('fill', '#FF0000');   // 紅色
+        txt.setAttribute('stroke', '#000000'); // 黑色描邊
         txt.setAttribute('stroke-width', '2');
         txt.setAttribute('font-weight', 'bold');
-        txt.setAttribute('font-size', '25');   // 25px
+        txt.setAttribute('font-size', '25');
         monSvg.appendChild(txt);
     });
 
-    const up = groundPts.map(p => [p[0], p[1] - 60]);
-    const down = groundPts.map(p => [p[0], p[1] + 60]).reverse();
+    // ★ 增加垂直延伸：上下偏移從 ±60 改為 ±90
+    const up = groundPts.map(p => [p[0], p[1] - 90]);
+    const down = groundPts.map(p => [p[0], p[1] + 90]).reverse();
     monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     rope.setAttribute('points', monMapRopePts.map(p => p.join(',')).join(' '));
@@ -177,7 +174,7 @@ function monInitMap() {
     rope.setAttribute('stroke-width', '7');
     monSvg.appendChild(rope);
 
-    // ★ 圖例大幅加大並下移
+    // 圖例
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1720, 700)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -278,7 +275,7 @@ function monBuildCabins() {
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
     const total = monCabinMode;
-    const size = 26;      // ★ 半徑 26
+    const size = 26;
     const fontSize = 26;
     const ropeLen = monLengthOf(monMapRopePts);
     const offset = monCurrentOffset;
