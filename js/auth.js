@@ -18,14 +18,11 @@ const SECTIONS = [
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
     { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' },
-    // ★ 新增：操作日誌（僅 admin / occ 可見）
     { id: 'section-audit', key: 'audit', label: '操作日誌', icon: 'fa-history', pageKey: 'audit', template: 'templates/audit.html', init: 'initAudit' }
 ];
 
-// 快取已載入的 HTML
 const loadedCache = {};
 
-// 密碼可見性
 function togglePasswordVisibility() {
     const pwdInput = document.getElementById('loginPassword');
     const icon = document.getElementById('pwdToggleIcon');
@@ -107,11 +104,9 @@ function renderNavigation(role) {
     if (first && !document.querySelector('.section-container.active')) first.click();
 }
 
-// 動態載入區塊 HTML
 async function loadSection(sectionId) {
     const container = document.getElementById(sectionId);
     if (!container) return;
-    // 若已載入則直接顯示
     if (container.dataset.loaded === 'true') {
         return;
     }
@@ -120,7 +115,6 @@ async function loadSection(sectionId) {
 
     try {
         showLoader(true);
-        // 從快取或 fetch
         let html = loadedCache[sectionId];
         if (!html) {
             const response = await fetch(section.template);
@@ -131,7 +125,6 @@ async function loadSection(sectionId) {
         container.innerHTML = html;
         container.dataset.loaded = 'true';
 
-        // ★ 執行該區塊的初始化函數（若存在）
         if (section.init && typeof window[section.init] === 'function') {
             setTimeout(() => {
                 window[section.init]();
@@ -146,25 +139,22 @@ async function loadSection(sectionId) {
 }
 
 function switchSection(sectionId) {
-    // 1. 移除所有區塊的 active 類別
+    // 隱藏所有區塊
     document.querySelectorAll('.section-container').forEach(el => {
         el.classList.remove('active');
+        el.style.display = 'none';
     });
 
-    // 2. 直接控制地圖顯示（作為 CSS 的備份）
-    const mapEl = document.getElementById('map');
-    if (mapEl) {
-        mapEl.style.display = (sectionId === 'section-map') ? 'block' : 'none';
-    }
-
-    // 3. 顯示目標區塊並加上 active
+    // 顯示目標區塊
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
+        // ★ 為總監控平台使用 flex，其餘使用 block
+        target.style.display = (sectionId === 'section-monitor') ? 'flex' : 'block';
         loadSection(sectionId);
     }
 
-    // 4. 更新導航按鈕樣式
+    // 更新導航按鈕樣式
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.target === sectionId);
     });
@@ -181,27 +171,26 @@ auth.onAuthStateChanged(async (user) => {
         info.innerHTML = `<i class="fas fa-user-circle"></i> ${user.displayName||user.email} ${role ? `<span style="background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:0.75rem;">${role.toUpperCase()}</span>` : ''}`;
         renderNavigation(role);
         if (!role) showMessage('loginMessage', '⚠️ 您的帳號尚未設定角色，請聯繫管理員', 'error');
-        // 自動載入第一個有權限的區塊
         const firstBtn = document.querySelector('.nav-btn');
         if (firstBtn) firstBtn.click();
     } else {
         document.getElementById('navbar').style.display = 'none';
         document.getElementById('loginContainer').style.display = 'block';
-        document.querySelectorAll('.section-container').forEach(el => el.classList.remove('active'));
-        // 清空已載入標記，以免下次登入時使用舊內容
+        document.querySelectorAll('.section-container').forEach(el => {
+            el.classList.remove('active');
+            el.style.display = 'none';
+        });
         document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
         showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
     }
 });
 
-// 暴露給 HTML
 window.onRoleChange = onRoleChange;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.switchSection = switchSection;
 
-// 初始檢查
 document.addEventListener('DOMContentLoaded', () => {
     const user = auth.currentUser;
     if (user) auth.onAuthStateChanged(user);
