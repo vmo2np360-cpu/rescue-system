@@ -48,8 +48,8 @@ function monInitMap() {
         return;
     }
 
-    // ★ 保持原始 viewBox 不變
-    monSvg.setAttribute('viewBox', '0 0 2800 700');
+    // ★ 設定放大視口
+    monSvg.setAttribute('viewBox', '0 0 2800 1000');
 
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
@@ -101,7 +101,7 @@ function monInitMap() {
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
     bg.setAttribute('width', '2800');
-    bg.setAttribute('height', '700');
+    bg.setAttribute('height', '1000');
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
@@ -117,7 +117,7 @@ function monInitMap() {
     }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    // ★ 加大地面矩形高度
+    // ★ 地面矩形高度增加至 180
     const addRect = (x, y, w, h, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         r.setAttribute('x', x);
@@ -127,11 +127,12 @@ function monInitMap() {
         r.setAttribute('fill', fillColor);
         monSvg.appendChild(r);
     };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 120, '#4a4a4a');  // 高度 100→120
-    addRect(t2bX, baseY, t3X - t2bX, 120, '#81D4FA');
+    addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#4a4a4a');
+    addRect(t2bX, baseY, t3X - t2bX, 180, '#81D4FA');
 
+    // ★ 山體路徑延伸至底部 1000
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
+    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
     mountain.setAttribute('fill', 'url(#monGradMountain)');
     monSvg.appendChild(mountain);
 
@@ -146,20 +147,21 @@ function monInitMap() {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', gx);
         circle.setAttribute('cy', gy);
-        circle.setAttribute('r', '10');   // 8→10
+        circle.setAttribute('r', '14');      // 加大
         circle.setAttribute('fill', '#fff');
         circle.setAttribute('stroke', '#444');
-        circle.setAttribute('stroke-width', '2.5');
+        circle.setAttribute('stroke-width', '3');
         monSvg.appendChild(circle);
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
         txt.setAttribute('x', gx);
-        txt.setAttribute('y', gy + 32);   // 25→32
+        txt.setAttribute('y', gy + 40);      // 下移
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#FFD700');
+        txt.setAttribute('fill', '#FFFFFF'); // 白色
+        txt.setAttribute('stroke', '#000000'); // 黑色描邊
+        txt.setAttribute('stroke-width', '2');
         txt.setAttribute('font-weight', 'bold');
-        txt.setAttribute('font-size', '22');  // 14→22
-        txt.setAttribute('filter', 'drop-shadow(0 0 8px rgba(255,215,0,0.7))');
+        txt.setAttribute('font-size', '28');  // 加大
         monSvg.appendChild(txt);
     });
 
@@ -169,52 +171,52 @@ function monInitMap() {
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     rope.setAttribute('points', monMapRopePts.map(p => p.join(',')).join(' '));
     rope.setAttribute('fill', 'none');
-    rope.setAttribute('stroke', '#888');   // 更亮
-    rope.setAttribute('stroke-width', '5'); // 3→5
+    rope.setAttribute('stroke', '#aaaaaa');
+    rope.setAttribute('stroke-width', '7');   // 加粗
     monSvg.appendChild(rope);
 
-    // ★ 圖例整體放大並下移
+    // ★ 圖例更放大並下移
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    legend.setAttribute('transform', 'translate(1780, 480)'); // 調整位置
+    legend.setAttribute('transform', 'translate(1760, 720)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rectBg.setAttribute('x', '0');
     rectBg.setAttribute('y', '0');
-    rectBg.setAttribute('width', '300');
-    rectBg.setAttribute('height', '220');
+    rectBg.setAttribute('width', '340');
+    rectBg.setAttribute('height', '240');
     rectBg.setAttribute('fill', '#2d2d2d');
     rectBg.setAttribute('stroke', '#555');
-    rectBg.setAttribute('rx', '8');
+    rectBg.setAttribute('rx', '10');
     legend.appendChild(rectBg);
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     title.textContent = '車廂狀態';
-    title.setAttribute('x', '150');
-    title.setAttribute('y', '34');
-    title.setAttribute('font-size', '26');
+    title.setAttribute('x', '170');
+    title.setAttribute('y', '38');
+    title.setAttribute('font-size', '30');
     title.setAttribute('font-weight', 'bold');
     title.setAttribute('text-anchor', 'middle');
     title.setAttribute('fill', '#fff');
     legend.appendChild(title);
 
     const legendItems = [
-        { color: '#34A853', label: '已著陸', y: 68 },
-        { color: '#3b82f6', label: '已離開', y: 108 },
-        { color: '#FBBC05', label: '救援中', y: 148 },
-        { color: '#EA4335', label: '等待救援', y: 188 }
+        { color: '#34A853', label: '已著陸', y: 76 },
+        { color: '#3b82f6', label: '已離開', y: 122 },
+        { color: '#FBBC05', label: '救援中', y: 168 },
+        { color: '#EA4335', label: '等待救援', y: 214 }
     ];
     legendItems.forEach((item) => {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.setAttribute('transform', `translate(24, ${item.y})`);
+        g.setAttribute('transform', `translate(28, ${item.y})`);
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        r.setAttribute('width', '24');
-        r.setAttribute('height', '24');
+        r.setAttribute('width', '28');
+        r.setAttribute('height', '28');
         r.setAttribute('fill', item.color);
         r.setAttribute('stroke', '#333');
-        r.setAttribute('rx', '3');
+        r.setAttribute('rx', '4');
         g.appendChild(r);
         const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        t.setAttribute('x', '36');
-        t.setAttribute('y', '18');
-        t.setAttribute('font-size', '20');
+        t.setAttribute('x', '42');
+        t.setAttribute('y', '21');
+        t.setAttribute('font-size', '22');
         t.setAttribute('fill', '#fff');
         t.textContent = item.label;
         g.appendChild(t);
@@ -274,8 +276,8 @@ function monBuildCabins() {
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
     const total = monCabinMode;
-    const size = 22;      // 車廂六邊形大小 20→22
-    const fontSize = 22;  // 車廂編號字體 20→22
+    const size = 28;      // 車廂六邊形加大
+    const fontSize = 28;
     const ropeLen = monLengthOf(monMapRopePts);
     const offset = monCurrentOffset;
     for (let i = 0; i < total; i++) {
@@ -290,11 +292,11 @@ function monBuildCabins() {
         hex.setAttribute('points', pts.join(' '));
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
-        hex.setAttribute('stroke-width', '2');
+        hex.setAttribute('stroke-width', '2.5');
         g.appendChild(hex);
         const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         lbl.setAttribute('class', 'seq-label');
-        lbl.setAttribute('y', '5');
+        lbl.setAttribute('y', '6');
         lbl.setAttribute('font-size', fontSize);
         lbl.setAttribute('text-anchor', 'middle');
         lbl.setAttribute('dominant-baseline', 'middle');
