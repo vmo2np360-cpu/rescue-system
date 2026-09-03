@@ -48,6 +48,9 @@ function monInitMap() {
         return;
     }
 
+    // ★ 保持原始 viewBox 不變
+    monSvg.setAttribute('viewBox', '0 0 2800 700');
+
     while (monSvg.firstChild) monSvg.removeChild(monSvg.firstChild);
 
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -114,6 +117,7 @@ function monInitMap() {
     }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
+    // ★ 加大地面矩形高度
     const addRect = (x, y, w, h, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         r.setAttribute('x', x);
@@ -123,8 +127,8 @@ function monInitMap() {
         r.setAttribute('fill', fillColor);
         monSvg.appendChild(r);
     };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, '#4a4a4a');
-    addRect(t2bX, baseY, t3X - t2bX, 100, '#81D4FA');
+    addRect(xCoords[0], baseY, t2bX - xCoords[0], 120, '#4a4a4a');  // 高度 100→120
+    addRect(t2bX, baseY, t3X - t2bX, 120, '#81D4FA');
 
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
@@ -142,19 +146,20 @@ function monInitMap() {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', gx);
         circle.setAttribute('cy', gy);
-        circle.setAttribute('r', '8');
+        circle.setAttribute('r', '10');   // 8→10
         circle.setAttribute('fill', '#fff');
         circle.setAttribute('stroke', '#444');
-        circle.setAttribute('stroke-width', '2');
+        circle.setAttribute('stroke-width', '2.5');
         monSvg.appendChild(circle);
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
         txt.setAttribute('x', gx);
-        txt.setAttribute('y', gy + 25);
+        txt.setAttribute('y', gy + 32);   // 25→32
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#fff');
+        txt.setAttribute('fill', '#FFD700');
         txt.setAttribute('font-weight', 'bold');
-        txt.setAttribute('font-size', '14');
+        txt.setAttribute('font-size', '22');  // 14→22
+        txt.setAttribute('filter', 'drop-shadow(0 0 8px rgba(255,215,0,0.7))');
         monSvg.appendChild(txt);
     });
 
@@ -164,50 +169,52 @@ function monInitMap() {
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     rope.setAttribute('points', monMapRopePts.map(p => p.join(',')).join(' '));
     rope.setAttribute('fill', 'none');
-    rope.setAttribute('stroke', '#666');
-    rope.setAttribute('stroke-width', '3');
+    rope.setAttribute('stroke', '#888');   // 更亮
+    rope.setAttribute('stroke-width', '5'); // 3→5
     monSvg.appendChild(rope);
 
+    // ★ 圖例整體放大並下移
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    legend.setAttribute('transform', 'translate(1800,550)');
+    legend.setAttribute('transform', 'translate(1780, 480)'); // 調整位置
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rectBg.setAttribute('x', '0');
     rectBg.setAttribute('y', '0');
-    rectBg.setAttribute('width', '280');
-    rectBg.setAttribute('height', '200');
+    rectBg.setAttribute('width', '300');
+    rectBg.setAttribute('height', '220');
     rectBg.setAttribute('fill', '#2d2d2d');
     rectBg.setAttribute('stroke', '#555');
-    rectBg.setAttribute('rx', '6');
+    rectBg.setAttribute('rx', '8');
     legend.appendChild(rectBg);
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     title.textContent = '車廂狀態';
-    title.setAttribute('x', '140');
-    title.setAttribute('y', '50');
-    title.setAttribute('font-size', '24');
+    title.setAttribute('x', '150');
+    title.setAttribute('y', '34');
+    title.setAttribute('font-size', '26');
     title.setAttribute('font-weight', 'bold');
     title.setAttribute('text-anchor', 'middle');
     title.setAttribute('fill', '#fff');
     legend.appendChild(title);
 
     const legendItems = [
-        { color: '#34A853', label: '已著陸', y: 60 },
-        { color: '#3b82f6', label: '已離開', y: 95 },
-        { color: '#FBBC05', label: '救援中', y: 130 },
-        { color: '#EA4335', label: '等待救援', y: 165 }
+        { color: '#34A853', label: '已著陸', y: 68 },
+        { color: '#3b82f6', label: '已離開', y: 108 },
+        { color: '#FBBC05', label: '救援中', y: 148 },
+        { color: '#EA4335', label: '等待救援', y: 188 }
     ];
     legendItems.forEach((item) => {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.setAttribute('transform', `translate(20, ${item.y})`);
+        g.setAttribute('transform', `translate(24, ${item.y})`);
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        r.setAttribute('width', '20');
-        r.setAttribute('height', '20');
+        r.setAttribute('width', '24');
+        r.setAttribute('height', '24');
         r.setAttribute('fill', item.color);
         r.setAttribute('stroke', '#333');
+        r.setAttribute('rx', '3');
         g.appendChild(r);
         const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        t.setAttribute('x', '30');
-        t.setAttribute('y', '15');
-        t.setAttribute('font-size', '18');
+        t.setAttribute('x', '36');
+        t.setAttribute('y', '18');
+        t.setAttribute('font-size', '20');
         t.setAttribute('fill', '#fff');
         t.textContent = item.label;
         g.appendChild(t);
@@ -267,8 +274,8 @@ function monBuildCabins() {
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     monMapCabins = [];
     const total = monCabinMode;
-    const size = 20;
-    const fontSize = 20;
+    const size = 22;      // 車廂六邊形大小 20→22
+    const fontSize = 22;  // 車廂編號字體 20→22
     const ropeLen = monLengthOf(monMapRopePts);
     const offset = monCurrentOffset;
     for (let i = 0; i < total; i++) {
@@ -283,6 +290,7 @@ function monBuildCabins() {
         hex.setAttribute('points', pts.join(' '));
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
+        hex.setAttribute('stroke-width', '2');
         g.appendChild(hex);
         const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         lbl.setAttribute('class', 'seq-label');
@@ -457,7 +465,6 @@ async function monUpdateFromFirestore() {
     }
 }
 
-// ★ 修正後：更新右側車廂狀態統計（含數字與車廂號碼列表）
 function monUpdateSummary() {
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
@@ -469,14 +476,12 @@ function monUpdateSummary() {
         else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
     });
 
-    // 更新數字
     document.getElementById('monWaiting').textContent = waiting;
     document.getElementById('monRescuing').textContent = rescuing;
     document.getElementById('monLanded').textContent = landed;
     document.getElementById('monDeparted').textContent = departed;
     document.getElementById('monTotalCabins').textContent = monMapCabins.length;
 
-    // 更新車廂號碼列表（用於右側卡片內的小字顯示）
     document.getElementById('monWaitingCabins').textContent = wc.join(', ');
     document.getElementById('monRescuingCabins').textContent = rc.join(', ');
     document.getElementById('monLandedCabins').textContent = lc.join(', ');
@@ -608,9 +613,7 @@ async function monLoadAllData() {
     }
 }
 
-// ★ 修正後：移除對已刪除 ID 的更新，保留所有現有統計
 function monUpdateAllDisplays() {
-    // OCC 求助記錄統計
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
     const processed = monRescueRecords.filter(r => r.processed).length;
@@ -618,7 +621,6 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-pending').textContent = pending;
     document.getElementById('occ-processed').textContent = processed;
 
-    // OCC 健康狀況
     let g = 0, y = 0, r = 0, b = 0;
     monRescueRecords.forEach(rec => {
         const h = rec.healthStatus || '';
@@ -632,7 +634,6 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-red-count').textContent = r;
     document.getElementById('occ-black-count').textContent = b;
 
-    // 救援記錄統計
     const totalG = monGuestRecords.length;
     const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
     const pendingG = totalG - completed;
@@ -642,7 +643,6 @@ function monUpdateAllDisplays() {
     document.getElementById('pendingRecords').textContent = pendingG;
     document.getElementById('ambulanceNeeded').textContent = ambNeeded;
 
-    // 賓客健康狀況
     let g2 = 0, y2 = 0, r2 = 0, b2 = 0;
     monGuestRecords.forEach(rec => {
         const h = rec.healthStatus || '';
@@ -655,8 +655,6 @@ function monUpdateAllDisplays() {
     document.getElementById('yellow-count').textContent = y2;
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
-
-    // ★ 已移除對 waiting-groups 等舊 ID 的更新（現由 monUpdateSummary 負責車廂狀態）
 
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
