@@ -182,7 +182,7 @@ function monInitMap() {
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     title.textContent = '車廂狀態';
     title.setAttribute('x', '140');
-    title.setAttribute('y', '30');
+    title.setAttribute('y', '50');
     title.setAttribute('font-size', '24');
     title.setAttribute('font-weight', 'bold');
     title.setAttribute('text-anchor', 'middle');
