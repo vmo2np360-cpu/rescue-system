@@ -1,6 +1,5 @@
 // ================================================================
 // 總監控平台模組（完整版，支援 84/109 車廂同步）
-// 相容最新 UI（地圖摘要移除、右側車廂狀態統計）
 // ================================================================
 
 let monMapCabins = [];
@@ -458,22 +457,30 @@ async function monUpdateFromFirestore() {
     }
 }
 
-// ★ 修正版：僅更新現有卡片（移除已刪除的地圖摘要元素）
+// ★ 修正後：更新右側車廂狀態統計（含數字與車廂號碼列表）
 function monUpdateSummary() {
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
+    const wc = [], rc = [], lc = [], dc = [];
     monMapCabins.forEach(c => {
-        if (c.el.classList.contains('status-red')) waiting++;
-        else if (c.el.classList.contains('status-yellow')) rescuing++;
-        else if (c.el.classList.contains('status-green')) landed++;
-        else if (c.el.classList.contains('status-departed')) departed++;
+        const seq = c.fields.sequence || '';
+        if (c.el.classList.contains('status-red')) { waiting++; if (seq) wc.push(seq); }
+        else if (c.el.classList.contains('status-yellow')) { rescuing++; if (seq) rc.push(seq); }
+        else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); }
+        else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
     });
 
-    // 更新右側「車廂狀態統計」卡片
+    // 更新數字
     document.getElementById('monWaiting').textContent = waiting;
     document.getElementById('monRescuing').textContent = rescuing;
     document.getElementById('monLanded').textContent = landed;
     document.getElementById('monDeparted').textContent = departed;
     document.getElementById('monTotalCabins').textContent = monMapCabins.length;
+
+    // 更新車廂號碼列表（用於右側卡片內的小字顯示）
+    document.getElementById('monWaitingCabins').textContent = wc.join(', ');
+    document.getElementById('monRescuingCabins').textContent = rc.join(', ');
+    document.getElementById('monLandedCabins').textContent = lc.join(', ');
+    document.getElementById('monDepartedCabins').textContent = dc.join(', ');
 }
 
 // ----- 搜尋車廂 -----
@@ -601,7 +608,7 @@ async function monLoadAllData() {
     }
 }
 
-// ★ 修正版：移除對已刪除 ID 的更新（waiting-groups 等）
+// ★ 修正後：移除對已刪除 ID 的更新，保留所有現有統計
 function monUpdateAllDisplays() {
     // OCC 求助記錄統計
     const total = monRescueRecords.length;
@@ -649,8 +656,7 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
-    // ★ 已移除對 waiting-groups, rescuing-groups, landed-groups, total-groups 的更新
-    // 因為這些元素已不存在（已被車廂狀態統計取代）
+    // ★ 已移除對 waiting-groups 等舊 ID 的更新（現由 monUpdateSummary 負責車廂狀態）
 
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
@@ -699,7 +705,6 @@ function monFilterRecords() { monRenderTable(); }
 
 function monUpdateTimestamp() {
     const now = new Date().toLocaleTimeString('zh-TW');
-    // 移除 last-chart-update，因為圖表已不存在，加入 last-cabin-stats
     ['last-map-update', 'last-data-update', 'last-monitor-update', 'last-cabin-stats'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = now;
