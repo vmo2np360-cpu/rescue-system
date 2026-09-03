@@ -169,7 +169,7 @@ function monInitMap() {
     monSvg.appendChild(rope);
 
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    legend.setAttribute('transform', 'translate(1800,420)');
+    legend.setAttribute('transform', 'translate(1800,550)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rectBg.setAttribute('x', '0');
     rectBg.setAttribute('y', '0');
