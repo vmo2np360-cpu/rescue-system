@@ -97,8 +97,8 @@ function monInitMap() {
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
-    bg.setAttribute('width', '2800');
-    bg.setAttribute('height', '700');
+    bg.setAttribute('width', '2500');
+    bg.setAttribute('height', '600');
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
