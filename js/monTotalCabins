@@ -1,5 +1,6 @@
 // ================================================================
 // 總監控平台模組（完整版，支援 84/109 車廂同步）
+// 相容最新 UI（地圖摘要移除、右側車廂狀態統計）
 // ================================================================
 
 let monMapCabins = [];
@@ -457,22 +458,22 @@ async function monUpdateFromFirestore() {
     }
 }
 
+// ★ 修正版：僅更新現有卡片（移除已刪除的地圖摘要元素）
 function monUpdateSummary() {
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
-    const wc = [], rc = [], lc = [], dc = [];
     monMapCabins.forEach(c => {
-        const seq = c.fields.sequence || '';
-        if (c.el.classList.contains('status-red')) { waiting++; if (seq) wc.push(seq); }
-        else if (c.el.classList.contains('status-yellow')) { rescuing++; if (seq) rc.push(seq); }
-        else if (c.el.classList.contains('status-green')) { landed++; if (seq) lc.push(seq); }
-        else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
+        if (c.el.classList.contains('status-red')) waiting++;
+        else if (c.el.classList.contains('status-yellow')) rescuing++;
+        else if (c.el.classList.contains('status-green')) landed++;
+        else if (c.el.classList.contains('status-departed')) departed++;
     });
+
+    // 更新右側「車廂狀態統計」卡片
     document.getElementById('monWaiting').textContent = waiting;
     document.getElementById('monRescuing').textContent = rescuing;
     document.getElementById('monLanded').textContent = landed;
-    document.getElementById('monWaitingCabins').textContent = wc.join(', ');
-    document.getElementById('monRescuingCabins').textContent = rc.join(', ');
-    document.getElementById('monLandedCabins').textContent = lc.join(', ');
+    document.getElementById('monDeparted').textContent = departed;
+    document.getElementById('monTotalCabins').textContent = monMapCabins.length;
 }
 
 // ----- 搜尋車廂 -----
@@ -600,7 +601,9 @@ async function monLoadAllData() {
     }
 }
 
+// ★ 修正版：移除對已刪除 ID 的更新（waiting-groups 等）
 function monUpdateAllDisplays() {
+    // OCC 求助記錄統計
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
     const processed = monRescueRecords.filter(r => r.processed).length;
@@ -608,6 +611,7 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-pending').textContent = pending;
     document.getElementById('occ-processed').textContent = processed;
 
+    // OCC 健康狀況
     let g = 0, y = 0, r = 0, b = 0;
     monRescueRecords.forEach(rec => {
         const h = rec.healthStatus || '';
@@ -621,6 +625,7 @@ function monUpdateAllDisplays() {
     document.getElementById('occ-red-count').textContent = r;
     document.getElementById('occ-black-count').textContent = b;
 
+    // 救援記錄統計
     const totalG = monGuestRecords.length;
     const completed = monGuestRecords.filter(rec => rec.status === 'completed' || rec.timeLanded).length;
     const pendingG = totalG - completed;
@@ -630,6 +635,7 @@ function monUpdateAllDisplays() {
     document.getElementById('pendingRecords').textContent = pendingG;
     document.getElementById('ambulanceNeeded').textContent = ambNeeded;
 
+    // 賓客健康狀況
     let g2 = 0, y2 = 0, r2 = 0, b2 = 0;
     monGuestRecords.forEach(rec => {
         const h = rec.healthStatus || '';
@@ -643,20 +649,9 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
-    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
-    monGuestRecords.forEach(rec => {
-        const s = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
-        if (s === 'departed') departed++;
-        else if (s === 'waiting') waiting++;
-        else if (s === 'rescuing') rescuing++;
-        else if (s === 'landed') landed++;
-    });
-    document.getElementById('waiting-groups').textContent = waiting;
-    document.getElementById('rescuing-groups').textContent = rescuing;
-    document.getElementById('landed-groups').textContent = landed;
-    document.getElementById('total-groups').textContent = monGuestRecords.length;
+    // ★ 已移除對 waiting-groups, rescuing-groups, landed-groups, total-groups 的更新
+    // 因為這些元素已不存在（已被車廂狀態統計取代）
 
-    // 圖表已移除，不再呼叫 monUpdateTimeChart()
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
 }
@@ -704,7 +699,8 @@ function monFilterRecords() { monRenderTable(); }
 
 function monUpdateTimestamp() {
     const now = new Date().toLocaleTimeString('zh-TW');
-    ['last-map-update', 'last-data-update', 'last-chart-update', 'last-monitor-update'].forEach(id => {
+    // 移除 last-chart-update，因為圖表已不存在，加入 last-cabin-stats
+    ['last-map-update', 'last-data-update', 'last-monitor-update', 'last-cabin-stats'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = now;
     });
