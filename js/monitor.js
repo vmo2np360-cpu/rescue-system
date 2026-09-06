@@ -731,7 +731,7 @@ function updateLatestRescueMsg() {
 }
 
 // ================================================================
-// ★ 救援建議功能（緊急指數）
+// ★ 救援建議功能（緊急指數）- 修正版
 // ================================================================
 
 function calculateUrgencyScore(record, allRescueRecords) {
@@ -739,28 +739,35 @@ function calculateUrgencyScore(record, allRescueRecords) {
     const healthMap = { '紅色': 100, '黑色': 100, '黃色': 66, '綠色': 33 };
     const healthScore = healthMap[record.healthStatus] || 0;
 
-    // 2. 等待時間 (30%) - 使用 createdAt
+    // 2. 等待時間 (30%) - 使用 createdAt（支援 Timestamp 和字串）
     let waitMinutes = 0;
     if (record.createdAt) {
-        const created = new Date(record.createdAt);
-        if (!isNaN(created.getTime())) {
-            waitMinutes = (Date.now() - created.getTime()) / 60000;
+        let createdDate = null;
+        if (typeof record.createdAt === 'object' && record.createdAt.toDate) {
+            createdDate = record.createdAt.toDate();
+        } else if (typeof record.createdAt === 'string') {
+            createdDate = new Date(record.createdAt);
+        } else if (record.createdAt.seconds !== undefined) {
+            createdDate = new Date(record.createdAt.seconds * 1000);
+        }
+        if (createdDate && !isNaN(createdDate.getTime())) {
+            waitMinutes = (Date.now() - createdDate.getTime()) / 60000;
         }
     }
     const timeScore = Math.min(waitMinutes / 60 * 100, 100);
 
-    // 3. 車廂內求助數 (15%) - 統計同車廂 rescue_records 數量
-    const sameCabinCount = allRescueRecords.filter(r => r.cabinNumber === record.cabinNumber).length;
+    // 3. 車廂內求助數 (15%) - 統計同車廂 rescue_records 數量（使用標準化車廂號碼）
+    const cabinKey = (record.cabinNumber || '').trim();
+    const sameCabinCount = allRescueRecords.filter(r => (r.cabinNumber || '').trim() === cabinKey).length;
     const groupScore = Math.min(sameCabinCount / 5 * 100, 100);
 
     // 4. 是否有未處理求助 (15%)
     const hasUnprocessed = allRescueRecords.some(r => 
-        r.cabinNumber === record.cabinNumber && r.processed === false
+        (r.cabinNumber || '').trim() === cabinKey && r.processed === false
     );
     const rescueScore = hasUnprocessed ? 100 : 0;
 
-    // 加權計算
-    return (healthScore * 0.4) + (timeScore * 0.3) + (groupScore * 0.15) + (rescueScore * 0.15);
+    return Math.round((healthScore * 0.4) + (timeScore * 0.3) + (groupScore * 0.15) + (rescueScore * 0.15));
 }
 
 function updateRescueSuggestion() {
@@ -792,7 +799,6 @@ function updateRescueSuggestion() {
     const urgencyList = [];
     Object.keys(cabinMap).forEach(cabin => {
         const records = cabinMap[cabin];
-        // 取該車廂中最高分的記錄
         let bestRecord = null;
         let bestScore = -1;
         records.forEach(r => {
@@ -828,12 +834,19 @@ function updateRescueSuggestion() {
     const top = urgencyList[0];
     const others = urgencyList.slice(1);
 
-    // 5. 計算等待時間
+    // 5. 計算等待時間（修正：支援 Timestamp）
     let waitMinutes = 0;
     if (top.record.createdAt) {
-        const created = new Date(top.record.createdAt);
-        if (!isNaN(created.getTime())) {
-            waitMinutes = Math.round((Date.now() - created.getTime()) / 60000);
+        let createdDate = null;
+        if (typeof top.record.createdAt === 'object' && top.record.createdAt.toDate) {
+            createdDate = top.record.createdAt.toDate();
+        } else if (typeof top.record.createdAt === 'string') {
+            createdDate = new Date(top.record.createdAt);
+        } else if (top.record.createdAt.seconds !== undefined) {
+            createdDate = new Date(top.record.createdAt.seconds * 1000);
+        }
+        if (createdDate && !isNaN(createdDate.getTime())) {
+            waitMinutes = Math.round((Date.now() - createdDate.getTime()) / 60000);
         }
     }
 
@@ -850,7 +863,7 @@ function updateRescueSuggestion() {
                 <span class="health-badge ${healthClass}">${top.healthStatus}</span>
                 <span class="wait-time">⏱ 等待 ${waitMinutes} 分鐘</span>
             </div>
-            <span class="urgency-score">緊急指數 ${top.score}</span>
+            <span class="urgency-score">指數 ${top.score}</span>
         </div>
     `;
 
@@ -859,9 +872,16 @@ function updateRescueSuggestion() {
         others.forEach(item => {
             let wm = 0;
             if (item.record.createdAt) {
-                const created = new Date(item.record.createdAt);
-                if (!isNaN(created.getTime())) {
-                    wm = Math.round((Date.now() - created.getTime()) / 60000);
+                let createdDate = null;
+                if (typeof item.record.createdAt === 'object' && item.record.createdAt.toDate) {
+                    createdDate = item.record.createdAt.toDate();
+                } else if (typeof item.record.createdAt === 'string') {
+                    createdDate = new Date(item.record.createdAt);
+                } else if (item.record.createdAt.seconds !== undefined) {
+                    createdDate = new Date(item.record.createdAt.seconds * 1000);
+                }
+                if (createdDate && !isNaN(createdDate.getTime())) {
+                    wm = Math.round((Date.now() - createdDate.getTime()) / 60000);
                 }
             }
             const cls = item.healthStatus === '紅色' || item.healthStatus === '黑色' ? 'red' :
@@ -916,9 +936,16 @@ function updateDelayAlert() {
     pendingRecords.forEach(record => {
         let waitMinutes = 0;
         if (record.createdAt) {
-            const created = new Date(record.createdAt);
-            if (!isNaN(created.getTime())) {
-                waitMinutes = Math.round((Date.now() - created.getTime()) / 60000);
+            let createdDate = null;
+            if (typeof record.createdAt === 'object' && record.createdAt.toDate) {
+                createdDate = record.createdAt.toDate();
+            } else if (typeof record.createdAt === 'string') {
+                createdDate = new Date(record.createdAt);
+            } else if (record.createdAt.seconds !== undefined) {
+                createdDate = new Date(record.createdAt.seconds * 1000);
+            }
+            if (createdDate && !isNaN(createdDate.getTime())) {
+                waitMinutes = Math.round((Date.now() - createdDate.getTime()) / 60000);
             }
         }
         delayList.push({
