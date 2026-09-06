@@ -1419,7 +1419,7 @@ async function performAutoMatch() {
             guests.push({ id: d.id, ...d.data() });
         });
         
-        // 3. 比對每一筆待處理記錄
+        // 3. 比對每一筆待處理記錄（★ 只保留匹配度 >= 50% 的）
         const newMatches = [];
         
         pendingRecords.forEach(record => {
@@ -1428,6 +1428,7 @@ async function performAutoMatch() {
             
             guests.forEach(guest => {
                 const score = calcMatchScore(guest, record);
+                // ★ 只記錄匹配度 >= 50% 的結果
                 if (score >= 50 && score > bestScore) {
                     bestScore = score;
                     bestMatch = {
@@ -1439,7 +1440,8 @@ async function performAutoMatch() {
                 }
             });
             
-            if (bestMatch) {
+            // ★ 只有當最佳匹配 >= 50% 時才加入提示列表
+            if (bestMatch && bestScore >= 50) {
                 newMatches.push({
                     recordId: record.id,
                     recordCabin: record.cabinNumber || '-',
@@ -1504,13 +1506,22 @@ function showMatchAlert(matches) {
         ">
             <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                 <span style="font-size:20px;">🔔</span>
-                <span style="font-weight:700; color:#ffd700; font-size:15px;">發現 ${matches.length} 筆匹配</span>
+                <span style="font-weight:700; color:#000000; font-size:15px;">發現 ${matches.length} 筆匹配</span>
             </div>
             <div style="flex:1; display:flex; flex-wrap:wrap; gap:6px;">
     `;
     
     matches.forEach((m) => {
-        const scoreColor = m.match.score >= 80 ? '#22c55e' : (m.match.score >= 60 ? '#eab308' : '#f97316');
+        // ★ 匹配度百分比顏色：綠（≥80）/ 紅（60-79）/ 藍（50-59）
+        let scoreColor;
+        if (m.match.score >= 80) {
+            scoreColor = '#22c55e';   // 綠色
+        } else if (m.match.score >= 60) {
+            scoreColor = '#dc2626';   // 紅色
+        } else {
+            scoreColor = '#3b82f6';   // 藍色 (50-59)
+        }
+        
         html += `
             <div style="
                 background: rgba(0,0,0,0.25);
@@ -1521,6 +1532,7 @@ function showMatchAlert(matches) {
                 gap: 6px;
                 font-size: 0.8rem;
                 border-left: 3px solid ${scoreColor};
+                color: #e0e0e0;
             ">
                 <span>🚠 ${m.recordCabin}</span>
                 <span style="color:${scoreColor}; font-weight:700;">${m.match.score}%</span>
