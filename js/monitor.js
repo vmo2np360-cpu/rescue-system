@@ -155,15 +155,14 @@ function monInitMap() {
         txt.setAttribute('x', gx);
         txt.setAttribute('y', gy + 40);
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#f6fa05');   // 紅色
-        txt.setAttribute('stroke', '#000000'); // 黑色描邊
+        txt.setAttribute('fill', '#fffb05');
+        txt.setAttribute('stroke', '#000000');
         txt.setAttribute('stroke-width', '2');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '25');
         monSvg.appendChild(txt);
     });
 
-    // ★ 增加垂直延伸：上下偏移從 ±60 改為 ±90
     const up = groundPts.map(p => [p[0], p[1] - 90]);
     const down = groundPts.map(p => [p[0], p[1] + 90]).reverse();
     monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
@@ -174,7 +173,6 @@ function monInitMap() {
     rope.setAttribute('stroke-width', '7');
     monSvg.appendChild(rope);
 
-    // 圖例
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1720, 700)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -657,8 +655,69 @@ function monUpdateAllDisplays() {
     document.getElementById('red-count').textContent = r2;
     document.getElementById('black-count').textContent = b2;
 
+    // ★ 更新最新救援訊息
+    updateLatestRescueMsg();
+
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
+}
+
+// ★ 新增：更新 Header 最新救援訊息
+function updateLatestRescueMsg() {
+    const el = document.getElementById('latestRescueMsg');
+    if (!el) return;
+
+    // 找出所有「救援中」的紀錄，按時間排序，取最新一筆
+    const rescuingRecords = monGuestRecords
+        .filter(rec => {
+            const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
+            return status === 'rescuing';
+        })
+        .sort((a, b) => {
+            const timeA = a.timeReachedTop || a.createdAt || '';
+            const timeB = b.timeReachedTop || b.createdAt || '';
+            return new Date(timeB) - new Date(timeA);
+        });
+
+    if (rescuingRecords.length > 0) {
+        const latest = rescuingRecords[0];
+        const cabinNumber = latest.cabinNumber || '未知車廂';
+        const groupNumber = latest.groupNumber ? `第${latest.groupNumber}組` : '';
+        const guestName = latest.guestName || '';
+
+        el.textContent = `🚨 車廂 ${cabinNumber} ${groupNumber} ${guestName} 開始救援`;
+        el.classList.add('highlight');
+
+        // 3 秒後移除高亮
+        clearTimeout(el._highlightTimer);
+        el._highlightTimer = setTimeout(() => {
+            el.classList.remove('highlight');
+        }, 3000);
+    } else {
+        // 檢查是否有「等待救援」的紀錄
+        const waitingRecords = monGuestRecords.filter(rec => {
+            const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
+            return status === 'waiting';
+        });
+
+        if (waitingRecords.length > 0) {
+            el.textContent = `⏳ 有 ${waitingRecords.length} 組等待救援中...`;
+            el.classList.remove('highlight');
+        } else {
+            const completedRecords = monGuestRecords.filter(rec => {
+                const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
+                return status === 'landed' || status === 'departed';
+            });
+
+            if (completedRecords.length > 0) {
+                el.textContent = `✅ 已有 ${completedRecords.length} 組完成救援`;
+                el.classList.remove('highlight');
+            } else {
+                el.textContent = '等待第一筆救援...';
+                el.classList.remove('highlight');
+            }
+        }
+    }
 }
 
 function monRenderTable() {
