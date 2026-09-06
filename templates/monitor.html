@@ -378,12 +378,15 @@
         margin-left: 8px;
     }
 
-    /* ★ 救援建議區塊（新增，不影響現有排版） */
+    /* ★ 救援建議區塊（修正：不透明背景，避免重疊） */
     .rescue-suggestion-container {
         margin-top: 8px;
         padding-top: 8px;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         flex-shrink: 0;
+        position: relative;
+        z-index: 5;
+        background: transparent;
     }
     .rescue-suggestion-container .suggestion-header {
         display: flex;
@@ -418,13 +421,20 @@
         overflow: hidden;
         transition: max-height 0.3s ease;
         max-height: 0;
+        background: rgba(20, 30, 50, 0.95);
+        border-radius: 8px;
+        margin-top: 4px;
+        padding: 0 12px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 215, 0, 0.1);
     }
     .rescue-suggestion-container .suggestion-content.open {
-        max-height: 300px;
+        max-height: 400px;
         overflow-y: auto;
+        padding: 12px;
     }
     .rescue-suggestion-container .suggestion-content::-webkit-scrollbar {
-        width: 3px;
+        width: 4px;
         background: transparent;
     }
     .rescue-suggestion-container .suggestion-content::-webkit-scrollbar-thumb {
