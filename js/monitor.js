@@ -724,18 +724,40 @@ function monRenderTable() {
     const tbody = document.getElementById('monitor-records-list');
     if (!tbody) return;
     tbody.innerHTML = '';
-    const search = document.getElementById('searchInput');
-    const searchValue = search ? search.value.toLowerCase() : '';
+    
+    // 獲取兩個搜索條件
+    const searchInput = document.getElementById('searchInput');
+    const cabinSearchInput = document.getElementById('cabinSearchInput');
+    const searchValue = searchInput ? searchInput.value.toLowerCase() : '';
+    const cabinSearchValue = cabinSearchInput ? cabinSearchInput.value.toLowerCase() : '';
+    
     let filtered = monGuestRecords;
+    
+    // 綜合搜索（車廂、組別、姓名）
     if (searchValue) {
-        filtered = monGuestRecords.filter(rec => {
+        filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').toLowerCase();
             const group = (rec.groupNumber || '');
             const name = (rec.guestName || '').toLowerCase();
             return cabin.includes(searchValue) || group.includes(searchValue) || name.includes(searchValue);
         });
     }
-    filtered.sort((a, b) => (a.cabinNumber || '').localeCompare((b.cabinNumber || ''), undefined, { numeric: true }));
+    
+    // 車廂號碼專用搜索（獨立篩選）
+    if (cabinSearchValue) {
+        filtered = filtered.filter(rec => {
+            const cabin = (rec.cabinNumber || '').toLowerCase();
+            return cabin.includes(cabinSearchValue);
+        });
+    }
+    
+    // ★ 按時間排序：最新在最上面（使用 timeReachedTop 或 createdAt）
+    filtered.sort((a, b) => {
+        const timeA = a.timeReachedTop || a.createdAt || '';
+        const timeB = b.timeReachedTop || b.createdAt || '';
+        return new Date(timeB) - new Date(timeA);
+    });
+    
     filtered.forEach(rec => {
         const tr = document.createElement('tr');
         const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
@@ -758,8 +780,9 @@ function monRenderTable() {
         tbody.appendChild(tr);
     });
 }
-
-function monFilterRecords() { monRenderTable(); }
+function monFilterRecords() { 
+    monRenderTable(); 
+}
 
 function monUpdateTimestamp() {
     const now = new Date().toLocaleTimeString('zh-TW');
