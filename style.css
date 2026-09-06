@@ -336,20 +336,71 @@ tr:hover td { background: #f8fafc; }
 }
 
 /* 表格滾動容器 */
+/* 表格滾動容器 */
 .map-table-panel .table-wrap {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
+    max-height: 100%;
+    /* ★ Firefox 滾動軸樣式 */
+    scrollbar-width: auto;
+    scrollbar-color: #94a3b8 #f1f5f9;
 }
 
+.map-table-panel .table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.map-table-panel .table-wrap thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.map-table-panel .table-wrap th {
+    background: #f1f5f9;
+    color: #1e293b;
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 2px solid #e2e8f0;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.map-table-panel .table-wrap td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+.map-table-panel .table-wrap tr:hover td {
+    background: #f8fafc;
+}
+
+/* ★ WebKit 瀏覽器（Chrome/Edge/Safari）滾動軸樣式 */
 .map-table-panel .table-wrap::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
+    height: 6px;
     background: #f1f5f9;
 }
 
-.map-table-panel .table-wrap::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+.map-table-panel .table-wrap::-webkit-scrollbar-track {
+    background: #f1f5f9;
     border-radius: 3px;
+}
+
+.map-table-panel .table-wrap::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+}
+
+.map-table-panel .table-wrap::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 
 .map-table-panel table {
