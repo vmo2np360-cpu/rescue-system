@@ -155,7 +155,7 @@ function monInitMap() {
         txt.setAttribute('x', gx);
         txt.setAttribute('y', gy + 40);
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#FF0000');   // 紅色
+        txt.setAttribute('fill', '#f6fa05');   // 紅色
         txt.setAttribute('stroke', '#000000'); // 黑色描邊
         txt.setAttribute('stroke-width', '2');
         txt.setAttribute('font-weight', 'bold');
