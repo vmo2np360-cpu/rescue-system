@@ -818,8 +818,67 @@ function monInit() {
         }
     }, 20000);
 }
+// ================================================================
+// ★ 全屏模式控制
+// ================================================================
+
+function toggleFullscreen() {
+    const btn = document.getElementById('fullscreenBtn');
+    const navbar = document.getElementById('navbar');
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (isFullscreen) {
+        // 退出全屏
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+        // 恢復顯示導航列
+        if (navbar) navbar.style.display = 'flex';
+        btn.innerHTML = '<i class="fas fa-expand"></i> 全屏';
+        btn.style.borderColor = 'rgba(0, 243, 255, 0.3)';
+    } else {
+        // 進入全屏
+        const element = document.documentElement;
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        }
+        // 隱藏導航列
+        if (navbar) navbar.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-compress"></i> 退出全屏';
+        btn.style.borderColor = '#ffd700';
+    }
+}
+
+// 監聽全屏變更事件（當使用者按 ESC 退出時同步更新按鈕狀態）
+function onFullscreenChange() {
+    const btn = document.getElementById('fullscreenBtn');
+    const navbar = document.getElementById('navbar');
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (!btn) return;
+
+    if (isFullscreen) {
+        btn.innerHTML = '<i class="fas fa-compress"></i> 退出全屏';
+        btn.style.borderColor = '#ffd700';
+        if (navbar) navbar.style.display = 'none';
+    } else {
+        btn.innerHTML = '<i class="fas fa-expand"></i> 全屏';
+        btn.style.borderColor = 'rgba(0, 243, 255, 0.3)';
+        if (navbar) navbar.style.display = 'flex';
+    }
+}
+
+// 註冊全屏變更事件
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 // ---- 暴露全域 ----
+// 暴露全域
+window.toggleFullscreen = toggleFullscreen;
 window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
 window.monLoadAllData = monLoadAllData;
