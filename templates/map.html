@@ -109,7 +109,8 @@
             <div class="map-table-header">
                 <span class="map-table-title"><i class="fas fa-clipboard-list"></i> 救援記錄</span>
                 <div class="map-table-toolbar">
-                    <input type="text" id="mapRescueSearch" placeholder="搜尋車廂/組別/姓名" oninput="mapFilterRescueTable()">
+                    <input type="text" id="mapRescueSearch" placeholder="綜合搜尋" oninput="mapFilterRescueTable()" style="min-width:100px;">
+                    <input type="text" id="mapRescueCabinSearch" placeholder="車廂號碼(精確)" oninput="mapFilterRescueTable()" style="min-width:120px; border-color:#3b82f6;">
                     <button onclick="mapRefreshTables()" class="btn-refresh">
                         <i class="fas fa-sync-alt"></i> 刷新
                     </button>
@@ -137,12 +138,15 @@
             <div class="map-table-header">
                 <span class="map-table-title"><i class="fas fa-headset"></i> OCC 求助記錄</span>
                 <div class="map-table-toolbar">
-                    <input type="text" id="mapOccSearch" placeholder="搜尋車廂/姓名" oninput="mapFilterOccTable()">
+                    <input type="text" id="mapOccSearch" placeholder="綜合搜尋" oninput="mapFilterOccTable()" style="min-width:100px;">
+                    <input type="text" id="mapOccCabinSearch" placeholder="車廂號碼(精確)" oninput="mapFilterOccTable()" style="min-width:120px; border-color:#3b82f6;">
                     <button onclick="mapRefreshTables()" class="btn-refresh">
                         <i class="fas fa-sync-alt"></i> 刷新
                     </button>
                 </div>
             </div>
+            <!-- ★ 提示欄放置於此（OCC 表格欄位上方） -->
+            <div id="matchAlertContainer"></div>
             <div class="table-wrap" id="mapOccTableWrap">
                 <table>
                     <thead>
