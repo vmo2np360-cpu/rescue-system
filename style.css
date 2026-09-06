@@ -457,6 +457,47 @@ tr:hover td { background: #f8fafc; }
 .map-table-panel .btn-process:hover {
     background: #16a34a;
 }
+/* ===== 車廂號碼搜尋欄專用樣式 ===== */
+.map-table-toolbar input[type="text"][id$="CabinSearch"] {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.map-table-toolbar input[type="text"][id$="CabinSearch"]:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ===== 匹配提示欄（OCC 表格內） ===== */
+#matchAlertContainer {
+    flex-shrink: 0;
+    margin-bottom: 6px;
+}
+
+#matchAlertContainer .match-alert {
+    background: rgba(255, 215, 0, 0.08);
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.08);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 /* 響應式調整：行動裝置仍保留適當高度 */
 @media (max-width: 768px) {
     #section-map.active {
