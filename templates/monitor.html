@@ -588,14 +588,18 @@
             <div class="mon-right-bottom">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-table"></i> 救援記錄</div>
-                    <div class="filter-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-search"></i> 搜尋</label>
-                            <input type="text" id="searchInput" placeholder="車廂、組別、姓名" oninput="monFilterRecords()">
-                        </div>
-                        <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
-                        <span class="text-muted" style="margin-left:auto;">更新: <span id="last-monitor-update">--:--:--</span></span>
-                    </div>
+                <div class="filter-row">
+    <div class="form-group" style="flex:1.5;">
+        <label><i class="fas fa-search"></i> 綜合搜尋</label>
+        <input type="text" id="searchInput" placeholder="車廂、組別、姓名" oninput="monFilterRecords()">
+    </div>
+    <div class="form-group" style="flex:1;">
+        <label><i class="fas fa-hashtag"></i> 車廂號碼</label>
+        <input type="text" id="cabinSearchInput" placeholder="輸入車廂號碼" oninput="monFilterRecords()">
+    </div>
+    <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
+    <span class="text-muted" style="margin-left:auto;">更新: <span id="last-monitor-update">--:--:--</span></span>
+</div>
                     <div class="table-wrap">
                         <table>
                             <thead>
