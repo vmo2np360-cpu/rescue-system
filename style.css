@@ -92,6 +92,7 @@ tr:hover td { background: #f8fafc; }
 .status-pending { background: #fef3c7; color: #92400e; }
 .status-processed { background: #dbeafe; color: #1e40af; }
 .status-waiting { background: #fef2f2; color: #dc2626; }
+.status-departed { background: #3b82f6; color: #ffffff; }
 
 /* ===== 統計卡片 ===== */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin-bottom: 20px; }
@@ -119,14 +120,6 @@ tr:hover td { background: #f8fafc; }
 .scanner-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 70%; height: 70%; border: 3px solid #eab308; border-radius: 12px; pointer-events: none; }
 .scanner-controls { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 
-/* ===== 地圖相關（原始樣式，將被下方覆蓋） ===== */
-#map { width: 100%; height: 700px; background: #dbeafe; border-radius: 12px; border: 1px solid #e2e8f0; }
-.map-toolbar { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px; background: white; border-radius: 12px; margin-bottom: 16px; align-items: center; border: 1px solid #e2e8f0; }
-.map-toolbar textarea { flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; resize: vertical; font-family: inherit; }
-.map-toolbar input[type="text"] { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; min-width: 120px; }
-.map-toolbar button { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: 0.2s; }
-.map-toolbar button:hover { opacity: 0.8; }
-
 /* ===== 模態框 ===== */
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 999; }
 .modal-content { background: white; border-radius: 16px; padding: 30px; max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; }
@@ -146,6 +139,8 @@ tr:hover td { background: #f8fafc; }
 .status-counter.waiting { border-left: 4px solid #dc2626; }
 .status-counter.rescuing { border-left: 4px solid #eab308; }
 .status-counter.landed { border-left: 4px solid #22c55e; }
+.status-counter.departed { border-left: 4px solid #3b82f6; }
+.status-counter.departed .counter-number { color: #3b82f6; }
 .counter-number { font-size: 2rem; font-weight: 700; }
 .counter-label { font-size: 0.85rem; color: #64748b; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .cabin-numbers { font-size: 0.75rem; color: #475569; max-height: 40px; overflow-y: auto; margin-top: 4px; }
@@ -157,101 +152,11 @@ tr:hover td { background: #f8fafc; }
 .loader-content i { font-size: 3rem; color: #2563eb; }
 .loader-content p { margin-top: 12px; font-weight: 500; }
 
-/* ===== 響應式 ===== */
-@media (max-width: 768px) {
-    .navbar { flex-direction: column; align-items: stretch; gap: 12px; }
-    .navbar-menu { justify-content: center; flex-wrap: wrap; }
-    .navbar-user { margin-left: 0; justify-content: center; }
-    .nav-btn { font-size: 0.8rem; padding: 6px 12px; }
-    .filter-row { flex-direction: column; }
-    .filter-row .form-group { min-width: 100%; }
-    #map { height: 400px; }
-    .modal-content { padding: 20px; }
-    .summary-enhanced { flex-direction: column; }
-}
-@media (max-width: 480px) {
-    .app-container { padding: 0 8px; }
-    .card { padding: 16px; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-}
-#cabinGroupList .status-badge {
-    font-size: 0.8rem;
-    padding: 2px 10px;
-}
-
 /* ================================================================
-   新增：地圖區塊全螢幕適配（不影響其他區塊）
+   地圖區塊（#section-map）- 統一管理
    ================================================================ */
-#section-map.active {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 110px);
-    background: #f0f4f8;
-    padding: 0;
-    margin: 0 -16px;          /* 抵消父容器 .app-container 的左右內邊距，使地圖滿版 */
-    overflow: hidden;
-    border-radius: 0;
-}
-/* ===== 已離開（藍色）狀態樣式 ===== */
-.status-departed {
-    background: #3b82f6;
-    color: #ffffff;
-}
 
-/* 地圖車廂已離開（藍色） */
-.cabin.status-departed polygon {
-    fill: #3b82f6;
-    stroke: #2563eb;
-}
-
-/* 監控平台地圖車廂已離開（藍色） */
-#section-monitor .cabin.status-departed polygon {
-    fill: #3b82f6;
-    stroke: #2563eb;
-}
-
-/* 地圖摘要中的已離開（若有需要顯示） */
-.status-counter.departed {
-    border-left: 4px solid #3b82f6;
-}
-.status-counter.departed .counter-number {
-    color: #3b82f6;
-}
-
-/* 地圖圖例新增藍色（需同步修改 SVG 圖例） */
-/* 在 map.html 和 monitor.html 中，圖例需加入藍色區塊 */
-/* 地圖區塊內的 toolbar、摘要、SVG 依序排列 */
-#section-map.active .map-toolbar {
-    flex-shrink: 0;
-    margin: 0 16px 12px;      /* 還原左右邊距，避免貼邊 */
-    border-radius: 12px;
-}
-
-#section-map.active .summary-enhanced {
-    flex-shrink: 0;
-    margin: 0 16px 12px;
-}
-
-/* 覆蓋原始 #map 樣式，使其填滿剩餘空間 */
-#section-map.active #map {
-    flex: 1;
-    width: 100%;
-    height: auto !important;   /* 覆蓋原固定高度 700px */
-    min-height: 300px;         /* 避免過小 */
-    background: #f0f4f8;       /* 與容器背景一致 */
-    border-radius: 0;
-    border: none;
-    border-top: 1px solid #e2e8f0;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-/* 若地圖區塊內的 SVG 需要完全撐開，確保父層無額外邊距 */
-#section-map.active #map svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-}
-/* ===== 地圖頁面新佈局 ===== */
+/* 地圖區塊容器 */
 #section-map.active {
     display: flex;
     flex-direction: column;
@@ -263,8 +168,44 @@ tr:hover td { background: #f8fafc; }
 
 #section-map.active .map-toolbar {
     flex-shrink: 0;
-    margin-bottom: 12px;
+    margin: 0 0 12px 0;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
 }
+
+#section-map.active .map-toolbar textarea {
+    flex: 1;
+    min-width: 180px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+#section-map.active .map-toolbar input[type="text"] {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    min-width: 120px;
+}
+
+#section-map.active .map-toolbar button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+#section-map.active .map-toolbar button:hover { opacity: 0.8; }
 
 /* 地圖 + 表格容器 (4:6) */
 .map-content-container {
@@ -293,8 +234,21 @@ tr:hover td { background: #f8fafc; }
 }
 
 .map-svg-wrapper #map svg {
+    display: block;
     width: 100%;
     height: 100%;
+}
+
+/* 地圖車廂已離開（藍色） */
+.cabin.status-departed polygon {
+    fill: #3b82f6;
+    stroke: #2563eb;
+}
+
+/* 監控平台地圖車廂已離開（藍色） */
+#section-monitor .cabin.status-departed polygon {
+    fill: #3b82f6;
+    stroke: #2563eb;
 }
 
 /* 表格容器 (60%) */
@@ -350,6 +304,17 @@ tr:hover td { background: #f8fafc; }
 .map-table-toolbar input[type="text"]:focus {
     outline: none;
     border-color: #2563eb;
+}
+
+/* ★ 車廂號碼搜尋欄專用樣式 */
+.map-table-toolbar input[type="text"][id$="CabinSearch"] {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.map-table-toolbar input[type="text"][id$="CabinSearch"]:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .btn-refresh {
@@ -457,16 +422,6 @@ tr:hover td { background: #f8fafc; }
 .map-table-panel .btn-process:hover {
     background: #16a34a;
 }
-/* ===== 車廂號碼搜尋欄專用樣式 ===== */
-.map-table-toolbar input[type="text"][id$="CabinSearch"] {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.05);
-}
-
-.map-table-toolbar input[type="text"][id$="CabinSearch"]:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
 
 /* ===== 匹配提示欄（OCC 表格內） ===== */
 #matchAlertContainer {
@@ -498,28 +453,14 @@ tr:hover td { background: #f8fafc; }
         transform: translateY(0);
     }
 }
-/* 響應式調整：行動裝置仍保留適當高度 */
-@media (max-width: 768px) {
-    #section-map.active {
-        height: calc(100vh - 100px);
-        margin: 0 -8px;        /* 對應較小的 .app-container padding */
-    }
-    #section-map.active .map-toolbar,
-    #section-map.active .summary-enhanced {
-        margin-left: 8px;
-        margin-right: 8px;
-    }
-    #section-map.active #map {
-        min-height: 200px;
-    }
-}
+
 /* ===== 表單備註欄增大 ===== */
 textarea#cabinRemarks,
 textarea#groupRemarks,
 textarea#occNotes {
-    min-height: 120px;          /* 增加預設高度 */
-    width: 120%;
-    resize: vertical;           /* 允許使用者垂直拖曳調整 */
+    min-height: 120px;
+    width: 100%;
+    resize: vertical;
     padding: 12px 14px;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
@@ -535,4 +476,65 @@ textarea#occNotes:focus {
     border-color: #2563eb;
     outline: none;
     box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+/* ===== 組別列表狀態標籤 ===== */
+#cabinGroupList .status-badge {
+    font-size: 0.8rem;
+    padding: 2px 10px;
+}
+
+/* ================================================================
+   響應式
+   ================================================================ */
+@media (max-width: 768px) {
+    .navbar { flex-direction: column; align-items: stretch; gap: 12px; }
+    .navbar-menu { justify-content: center; flex-wrap: wrap; }
+    .navbar-user { margin-left: 0; justify-content: center; }
+    .nav-btn { font-size: 0.8rem; padding: 6px 12px; }
+    .filter-row { flex-direction: column; }
+    .filter-row .form-group { min-width: 100%; }
+    .modal-content { padding: 20px; }
+    .summary-enhanced { flex-direction: column; }
+    
+    #section-map.active {
+        height: calc(100vh - 100px);
+        padding: 0 8px;
+    }
+    #section-map.active .map-toolbar {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .map-tables-container {
+        flex-direction: column;
+    }
+    .map-table-panel {
+        min-height: 200px;
+    }
+    .map-svg-wrapper {
+        min-height: 200px;
+    }
+    .map-table-toolbar {
+        flex-wrap: wrap;
+    }
+    .map-table-toolbar input[type="text"] {
+        min-width: 100px;
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .app-container { padding: 0 8px; }
+    .card { padding: 16px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    #section-map.active .map-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #section-map.active .map-toolbar textarea {
+        min-width: unset;
+    }
+    #section-map.active .map-toolbar input[type="text"] {
+        min-width: unset;
+    }
 }
