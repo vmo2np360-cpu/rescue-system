@@ -155,8 +155,8 @@ function monInitMap() {
         txt.setAttribute('x', gx);
         txt.setAttribute('y', gy + 40);
         txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('fill', '#fffb05');
-        txt.setAttribute('stroke', '#000000');
+        txt.setAttribute('fill', '#f20c0c');
+        txt.setAttribute('stroke', '#f20c0c');
         txt.setAttribute('stroke-width', '2');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '25');
