@@ -22,6 +22,8 @@
         background: rgba(0, 243, 255, 0.05);
         border-bottom: 1px solid rgba(0, 243, 255, 0.2);
         flex-shrink: 0;
+        gap: 16px;
+        flex-wrap: wrap;
     }
     #monitor-header h1 {
         font-size: 28px;
@@ -30,6 +32,15 @@
         text-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
         margin: 0;
         letter-spacing: 2px;
+        flex-shrink: 0;
+    }
+    #monitor-header .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        flex: 1;
+        justify-content: flex-end;
     }
     #monitor-header .latest-msg {
         font-size: 18px;
@@ -42,6 +53,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
     }
     #monitor-header .latest-msg .badge {
         background: #00f3ff;
@@ -58,6 +70,42 @@
     #latestRescueMsg.highlight {
         color: #ffd700;
         text-shadow: 0 0 10px #ffd700;
+    }
+
+    /* ★ 延遲警報橫幅（同一列內） */
+    #delayAlertContainer {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 18px;
+        border-radius: 30px;
+        font-size: 15px;
+        font-weight: 600;
+        flex-shrink: 0;
+        animation: pulseAlert 1.5s ease-in-out infinite;
+    }
+    #delayAlertContainer.show {
+        display: flex;
+    }
+    #delayAlertContainer.warning {
+        background: rgba(234, 179, 8, 0.2);
+        border: 2px solid #eab308;
+        color: #eab308;
+    }
+    #delayAlertContainer.danger {
+        background: rgba(239, 68, 68, 0.2);
+        border: 2px solid #ef4444;
+        color: #ef4444;
+    }
+    #delayAlertContainer .alert-icon {
+        font-size: 20px;
+    }
+    #delayAlertContainer .alert-text {
+        white-space: nowrap;
+    }
+    @keyframes pulseAlert {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
     }
 
     /* ---- 主體 Flex 容器 ---- */
@@ -330,6 +378,152 @@
         margin-left: 8px;
     }
 
+    /* ★ 救援建議區塊（新增，不影響現有排版） */
+    .rescue-suggestion-container {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+    }
+    .rescue-suggestion-container .suggestion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding: 4px 0;
+        user-select: none;
+    }
+    .rescue-suggestion-container .suggestion-header .title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #ff6b6b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .rescue-suggestion-container .suggestion-header .toggle-btn {
+        font-size: 0.75rem;
+        color: #8ab4f8;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 8px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+    .rescue-suggestion-container .suggestion-header .toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .rescue-suggestion-container .suggestion-content {
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        max-height: 0;
+    }
+    .rescue-suggestion-container .suggestion-content.open {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .rescue-suggestion-container .suggestion-content::-webkit-scrollbar {
+        width: 3px;
+        background: transparent;
+    }
+    .rescue-suggestion-container .suggestion-content::-webkit-scrollbar-thumb {
+        background: #2a4a6a;
+        border-radius: 2px;
+    }
+
+    /* ★ 最優先車廂卡片 */
+    .top-priority-cabin {
+        background: rgba(255, 215, 0, 0.08);
+        border: 2px solid #ffd700;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        animation: glowPulse 2s ease-in-out infinite;
+    }
+    @keyframes glowPulse {
+        0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.2); }
+        50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
+    }
+    .top-priority-cabin .cabin-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .top-priority-cabin .cabin-number {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    .top-priority-cabin .health-badge {
+        padding: 2px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .top-priority-cabin .health-badge.red { background: #dc2626; color: #fff; }
+    .top-priority-cabin .health-badge.black { background: #1a1a1a; color: #fff; }
+    .top-priority-cabin .health-badge.yellow { background: #eab308; color: #000; }
+    .top-priority-cabin .health-badge.green { background: #22c55e; color: #000; }
+    .top-priority-cabin .wait-time {
+        font-size: 0.85rem;
+        color: #94a3b8;
+    }
+    .top-priority-cabin .urgency-score {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #ffd700;
+    }
+    .top-priority-cabin .no-data {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        padding: 8px 0;
+    }
+
+    /* 其餘車廂列表（下拉展開） */
+    .other-cabins-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 4px 0;
+    }
+    .other-cabins-list .other-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-size: 0.8rem;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .other-cabins-list .other-item .cabin-num {
+        font-weight: 600;
+        color: #e0e0e0;
+    }
+    .other-cabins-list .other-item .health-badge-sm {
+        padding: 1px 10px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .other-cabins-list .other-item .health-badge-sm.red { background: #dc2626; color: #fff; }
+    .other-cabins-list .other-item .health-badge-sm.black { background: #1a1a1a; color: #fff; }
+    .other-cabins-list .other-item .health-badge-sm.yellow { background: #eab308; color: #000; }
+    .other-cabins-list .other-item .health-badge-sm.green { background: #22c55e; color: #000; }
+    .other-cabins-list .other-item .score-sm {
+        font-weight: 600;
+        color: #8ab4f8;
+        font-size: 0.75rem;
+    }
+
     /* ---- 表格區 ---- */
     #section-monitor .filter-row {
         display: flex;
@@ -436,10 +630,15 @@
     <!-- 頂部 Header -->
     <div id="monitor-header">
         <h1>🚀 救援實時監控</h1>
-        <div style="display:flex; align-items:center; gap:16px;">
+        <div class="header-right">
             <div class="latest-msg">
                 <span class="badge">最新</span>
                 <span id="latestRescueMsg">等待第一筆救援...</span>
+            </div>
+            <!-- ★ 延遲警報橫幅（同一列，有延遲時顯示） -->
+            <div id="delayAlertContainer">
+                <span class="alert-icon">⚠️</span>
+                <span class="alert-text" id="delayAlertText">車廂 5 已等待 32 分鐘</span>
             </div>
             <!-- ★ 全屏按鈕 -->
             <button id="fullscreenBtn" onclick="toggleFullscreen()" style="
@@ -548,7 +747,7 @@
 
         <!-- 右欄 (25%) -->
         <div class="mon-right">
-            <!-- 右上：車廂狀態統計 -->
+            <!-- 右上：車廂狀態統計 + 救援建議 -->
             <div class="mon-right-top">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-chart-pie"></i> 車廂狀態統計</div>
@@ -578,6 +777,20 @@
                             <span class="label">總車廂數</span>
                         </div>
                     </div>
+                    <!-- ★ 救援建議區塊（新增，不影響現有排版） -->
+                    <div class="rescue-suggestion-container" id="rescueSuggestionContainer">
+                        <div class="suggestion-header" onclick="toggleRescueSuggestion()">
+                            <span class="title">🚨 救援建議</span>
+                            <button class="toggle-btn" id="suggestionToggleBtn">▼ 展開</button>
+                        </div>
+                        <div class="suggestion-content" id="suggestionContent">
+                            <div id="suggestionBody">
+                                <div class="top-priority-cabin">
+                                    <div class="no-data">載入中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div style="display:flex; justify-content:flex-end; margin-top:4px; flex-shrink:0;">
                         <span class="text-muted">更新: <span id="last-cabin-stats">--:--:--</span></span>
                     </div>
@@ -588,18 +801,18 @@
             <div class="mon-right-bottom">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-table"></i> 救援記錄</div>
-                <div class="filter-row">
-    <div class="form-group" style="flex:1.5;">
-        <label><i class="fas fa-search"></i> 綜合搜尋</label>
-        <input type="text" id="searchInput" placeholder="車廂、組別、姓名" oninput="monFilterRecords()">
-    </div>
-    <div class="form-group" style="flex:1;">
-        <label><i class="fas fa-hashtag"></i> 車廂號碼</label>
-        <input type="text" id="cabinSearchInput" placeholder="輸入車廂號碼" oninput="monFilterRecords()">
-    </div>
-    <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
-    <span class="text-muted" style="margin-left:auto;">更新: <span id="last-monitor-update">--:--:--</span></span>
-</div>
+                    <div class="filter-row">
+                        <div class="form-group" style="flex:1.5;">
+                            <label><i class="fas fa-search"></i> 綜合搜尋</label>
+                            <input type="text" id="searchInput" placeholder="車廂、組別、姓名" oninput="monFilterRecords()">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label><i class="fas fa-hashtag"></i> 車廂號碼</label>
+                            <input type="text" id="cabinSearchInput" placeholder="輸入車廂號碼" oninput="monFilterRecords()">
+                        </div>
+                        <button class="btn-secondary" onclick="monLoadAllData()"><i class="fas fa-sync-alt"></i> 刷新</button>
+                        <span class="text-muted" style="margin-left:auto;">更新: <span id="last-monitor-update">--:--:--</span></span>
+                    </div>
                     <div class="table-wrap">
                         <table>
                             <thead>
