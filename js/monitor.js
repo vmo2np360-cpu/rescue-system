@@ -725,15 +725,14 @@ function monRenderTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    // 獲取兩個搜索條件
     const searchInput = document.getElementById('searchInput');
     const cabinSearchInput = document.getElementById('cabinSearchInput');
     const searchValue = searchInput ? searchInput.value.toLowerCase() : '';
-    const cabinSearchValue = cabinSearchInput ? cabinSearchInput.value.toLowerCase() : '';
+    const cabinSearchValue = cabinSearchInput ? cabinSearchInput.value.trim() : '';
     
     let filtered = monGuestRecords;
     
-    // 綜合搜索（車廂、組別、姓名）
+    // 綜合搜索（車廂、組別、姓名）- 模糊比對
     if (searchValue) {
         filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').toLowerCase();
@@ -743,15 +742,15 @@ function monRenderTable() {
         });
     }
     
-    // 車廂號碼專用搜索（獨立篩選）
+    // ★ 車廂號碼專用搜索 - 精確匹配（完全相符）
     if (cabinSearchValue) {
         filtered = filtered.filter(rec => {
-            const cabin = (rec.cabinNumber || '').toLowerCase();
-            return cabin.includes(cabinSearchValue);
+            const cabin = (rec.cabinNumber || '').trim();
+            return cabin === cabinSearchValue;
         });
     }
     
-    // ★ 按時間排序：最新在最上面（使用 timeReachedTop 或 createdAt）
+    // 最新優先排序
     filtered.sort((a, b) => {
         const timeA = a.timeReachedTop || a.createdAt || '';
         const timeB = b.timeReachedTop || b.createdAt || '';
