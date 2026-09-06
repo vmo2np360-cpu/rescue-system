@@ -18,6 +18,10 @@ let _mapOffsetUnsubscribe = null;
 let mapRescueRecords = [];
 let mapOccRecords = [];
 
+// ★ 自動比對變數
+let lastMatchResults = [];
+let matchNotifiedIds = new Set();
+
 // ---- 初始化地圖 (加入重試機制，限制次數) ----
 let _mapInitRetryCount = 0;
 const MAP_INIT_MAX_RETRIES = 10;
@@ -316,7 +320,12 @@ async function mapInit() {
     }
 
     // 其他事件 (匯出、搜尋、清除等)
-    document.getElementById('exportCsvBtn').addEventListener('click', mapExportCSV);
+    const exportBtn = document.getElementById('exportCsvBtn');
+    if (exportBtn) {
+        const newExportBtn = exportBtn.cloneNode(true);
+        exportBtn.parentNode.replaceChild(newExportBtn, exportBtn);
+        newExportBtn.addEventListener('click', mapExportCSV);
+    }
     document.getElementById('seqInput').addEventListener('keypress', e => { if(e.key==='Enter') mapApplySequences(); });
     document.getElementById('mapSearchBox').addEventListener('keypress', e => { if(e.key==='Enter') mapSearchCabin(); });
 
@@ -358,6 +367,8 @@ async function mapInit() {
             console.log('🔄 定時刷新地圖 (30秒)');
             mapUpdateFromFirestore();
             mapLoadTables();
+            // ★ 自動比對（僅在定時刷新時觸發）
+            performAutoMatch();
         }
     }, 30000);
 
@@ -459,7 +470,10 @@ function mapRestoreState() {
     const savedMode = localStorage.getItem('mapCabinMode');
     if (savedMode) {
         mapCabinMode = parseInt(savedMode);
-        document.getElementById('mapToggleBtn').textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+        const toggleBtn = document.getElementById('mapToggleBtn');
+        if (toggleBtn) {
+            toggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+        }
         document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
     }
 }
@@ -1140,6 +1154,8 @@ async function mapLoadTables() {
             mapLoadRescueTable(),
             mapLoadOccTable()
         ]);
+        // ★ 頁面載入時執行一次比對
+        performAutoMatch();
     } catch (e) {
         console.error('載入表格失敗:', e);
     }
@@ -1166,16 +1182,29 @@ function mapRenderRescueTable() {
     const tbody = document.getElementById('mapRescueTableBody');
     if (!tbody) return;
     
-    const search = document.getElementById('mapRescueSearch');
-    const searchValue = search ? search.value.toLowerCase() : '';
+    // 獲取兩個搜尋條件
+    const searchInput = document.getElementById('mapRescueSearch');
+    const cabinSearchInput = document.getElementById('mapRescueCabinSearch');
+    const searchValue = searchInput ? searchInput.value.toLowerCase() : '';
+    const cabinSearchValue = cabinSearchInput ? cabinSearchInput.value.trim() : '';
     
     let filtered = mapRescueRecords;
+    
+    // 綜合搜尋（車廂、組別、姓名）- 模糊比對
     if (searchValue) {
         filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').toLowerCase();
             const group = (rec.groupNumber || '');
             const name = (rec.guestName || '').toLowerCase();
             return cabin.includes(searchValue) || group.includes(searchValue) || name.includes(searchValue);
+        });
+    }
+    
+    // ★ 車廂號碼精準匹配
+    if (cabinSearchValue) {
+        filtered = filtered.filter(rec => {
+            const cabin = (rec.cabinNumber || '').trim();
+            return cabin === cabinSearchValue;
         });
     }
     
@@ -1245,15 +1274,28 @@ function mapRenderOccTable() {
     const tbody = document.getElementById('mapOccTableBody');
     if (!tbody) return;
     
-    const search = document.getElementById('mapOccSearch');
-    const searchValue = search ? search.value.toLowerCase() : '';
+    // 獲取兩個搜尋條件
+    const searchInput = document.getElementById('mapOccSearch');
+    const cabinSearchInput = document.getElementById('mapOccCabinSearch');
+    const searchValue = searchInput ? searchInput.value.toLowerCase() : '';
+    const cabinSearchValue = cabinSearchInput ? cabinSearchInput.value.trim() : '';
     
     let filtered = mapOccRecords;
+    
+    // 綜合搜尋（車廂、姓名）- 模糊比對
     if (searchValue) {
         filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').toLowerCase();
             const name = (rec.guestName || '').toLowerCase();
             return cabin.includes(searchValue) || name.includes(searchValue);
+        });
+    }
+    
+    // ★ 車廂號碼精準匹配
+    if (cabinSearchValue) {
+        filtered = filtered.filter(rec => {
+            const cabin = (rec.cabinNumber || '').trim();
+            return cabin === cabinSearchValue;
         });
     }
     
@@ -1308,6 +1350,272 @@ function mapRefreshTables() {
     });
 }
 
+// ================================================================
+// ★ 加權比對函式（cabinNumber 權重 2 倍）
+// ================================================================
+function calcMatchScore(guest, record) {
+    let score = 0;
+    let totalWeight = 0;
+    
+    const fields = [
+        { key: 'cabinNumber', weight: 2 },
+        { key: 'guestName', weight: 1 },
+        { key: 'contactNumber', weight: 1 },
+        { key: 'gender', weight: 1 },
+        { key: 'ageRange', weight: 1 },
+        { key: 'healthStatus', weight: 1 }
+    ];
+    
+    fields.forEach(f => {
+        if (record[f.key]) {
+            totalWeight += f.weight;
+            const guestVal = (guest[f.key] || '').toLowerCase().trim();
+            const recordVal = (record[f.key] || '').toLowerCase().trim();
+            // 健康狀況特別處理：包含比對（如「紅色」匹配「紅色(第一優先)」）
+            if (f.key === 'healthStatus') {
+                if (guestVal.includes(recordVal) || recordVal.includes(guestVal)) {
+                    score += f.weight;
+                }
+            } else if (guestVal === recordVal) {
+                score += f.weight;
+            }
+        }
+    });
+    
+    return totalWeight ? Math.round((score / totalWeight) * 100) : 0;
+}
+
+// ================================================================
+// ★ 自動比對與提示功能（僅在定時刷新時觸發）
+// ================================================================
+
+// ---- 執行自動比對 ----
+async function performAutoMatch() {
+    try {
+        // 1. 取得所有「待處理」的 OCC 求助記錄
+        const rescueSnap = await db.collection('rescue_records')
+            .where('processed', '==', false)
+            .get();
+        
+        if (rescueSnap.empty) {
+            hideMatchAlert();
+            return;
+        }
+        
+        const pendingRecords = [];
+        rescueSnap.forEach(d => {
+            pendingRecords.push({ id: d.id, ...d.data() });
+        });
+        
+        // 2. 取得所有 guests 記錄
+        const guestSnap = await db.collection('guests').get();
+        if (guestSnap.empty) {
+            hideMatchAlert();
+            return;
+        }
+        
+        const guests = [];
+        guestSnap.forEach(d => {
+            guests.push({ id: d.id, ...d.data() });
+        });
+        
+        // 3. 比對每一筆待處理記錄
+        const newMatches = [];
+        
+        pendingRecords.forEach(record => {
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            guests.forEach(guest => {
+                const score = calcMatchScore(guest, record);
+                if (score >= 50 && score > bestScore) {
+                    bestScore = score;
+                    bestMatch = {
+                        guestId: guest.id,
+                        guestName: guest.guestName || '未提供姓名',
+                        cabinNumber: guest.cabinNumber || '-',
+                        score: score
+                    };
+                }
+            });
+            
+            if (bestMatch) {
+                newMatches.push({
+                    recordId: record.id,
+                    recordCabin: record.cabinNumber || '-',
+                    recordName: record.guestName || '未提供姓名',
+                    match: bestMatch
+                });
+            }
+        });
+        
+        // 4. 儲存比對結果
+        lastMatchResults = newMatches;
+        
+        // 5. 更新提示欄
+        if (newMatches.length > 0) {
+            showMatchAlert(newMatches);
+        } else {
+            hideMatchAlert();
+        }
+        
+        // 6. 記錄已提示的記錄 ID（避免重複提示）
+        newMatches.forEach(m => {
+            if (!matchNotifiedIds.has(m.recordId)) {
+                matchNotifiedIds.add(m.recordId);
+            }
+        });
+        
+    } catch (e) {
+        console.error('自動比對失敗:', e);
+    }
+}
+
+// ---- 顯示匹配提示欄 ----
+function showMatchAlert(matches) {
+    let container = document.getElementById('matchAlertContainer');
+    if (!container) {
+        // 若容器不存在，則動態創建（備用方案）
+        container = document.createElement('div');
+        container.id = 'matchAlertContainer';
+        const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
+        if (occPanel) {
+            const header = occPanel.querySelector('.map-table-header');
+            if (header) {
+                header.parentNode.insertBefore(container, header.nextSibling);
+            }
+        }
+    }
+    
+    if (!container) return;
+    
+    let html = `
+        <div class="match-alert" style="
+            background: rgba(255, 215, 0, 0.12);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(4px);
+        ">
+            <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                <span style="font-size:20px;">🔔</span>
+                <span style="font-weight:700; color:#ffd700; font-size:15px;">發現 ${matches.length} 筆匹配</span>
+            </div>
+            <div style="flex:1; display:flex; flex-wrap:wrap; gap:6px;">
+    `;
+    
+    matches.forEach((m) => {
+        const scoreColor = m.match.score >= 80 ? '#22c55e' : (m.match.score >= 60 ? '#eab308' : '#f97316');
+        html += `
+            <div style="
+                background: rgba(0,0,0,0.25);
+                padding: 4px 12px;
+                border-radius: 6px;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.8rem;
+                border-left: 3px solid ${scoreColor};
+            ">
+                <span>🚠 ${m.recordCabin}</span>
+                <span style="color:${scoreColor}; font-weight:700;">${m.match.score}%</span>
+                <button onclick="quickHandleMatch('${m.recordId}')" style="
+                    background: #22c55e;
+                    color: white;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 1px 10px;
+                    font-size: 0.65rem;
+                    cursor: pointer;
+                    font-weight: 500;
+                ">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button onclick="dismissMatch('${m.recordId}')" style="
+                    background: transparent;
+                    color: #94a3b8;
+                    border: none;
+                    border-radius: 3px;
+                    padding: 1px 6px;
+                    font-size: 0.65rem;
+                    cursor: pointer;
+                ">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+            <button onclick="hideMatchAlert()" style="
+                background: transparent;
+                border: none;
+                color: #94a3b8;
+                cursor: pointer;
+                font-size: 16px;
+                flex-shrink:0;
+            ">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    container.style.display = 'block';
+}
+
+// ---- 隱藏提示欄 ----
+function hideMatchAlert() {
+    const container = document.getElementById('matchAlertContainer');
+    if (container) {
+        container.style.display = 'none';
+    }
+}
+
+// ---- 快速處理匹配（標記為已處理） ----
+async function quickHandleMatch(recordId) {
+    if (!confirm('確定標記此求助為已處理？')) return;
+    try {
+        showLoader(true);
+        await db.collection('rescue_records').doc(recordId).update({
+            processed: true,
+            processedAt: new Date()
+        });
+        // 從已提示集合中移除
+        matchNotifiedIds.delete(recordId);
+        showMessage('mapMessage', '✅ 求助記錄已標記為已處理', 'success');
+        // 重新載入表格與比對
+        await mapLoadTables();
+        await performAutoMatch();
+    } catch (e) {
+        showMessage('mapMessage', '操作失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// ---- 忽略匹配提示 ----
+function dismissMatch(recordId) {
+    matchNotifiedIds.add(recordId);
+    // 從提示欄中移除該項
+    const container = document.getElementById('matchAlertContainer');
+    if (container) {
+        const remaining = lastMatchResults.filter(m => m.recordId !== recordId);
+        if (remaining.length > 0) {
+            lastMatchResults = remaining;
+            showMatchAlert(remaining);
+        } else {
+            hideMatchAlert();
+        }
+    }
+}
+
 // ---- 手動刷新地圖（僅限地圖頁面） ----
 function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
@@ -1315,6 +1623,7 @@ function mapManualRefresh() {
     if (section && section.classList.contains('active')) {
         mapUpdateFromFirestore();
         mapLoadTables();
+        performAutoMatch();
         const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
         if (btn) {
             const originalHtml = btn.innerHTML;
@@ -1364,5 +1673,10 @@ window.mapRenderOccTable = mapRenderOccTable;
 window.mapFilterRescueTable = mapFilterRescueTable;
 window.mapFilterOccTable = mapFilterOccTable;
 window.mapRefreshTables = mapRefreshTables;
+window.calcMatchScore = calcMatchScore;
+window.performAutoMatch = performAutoMatch;
+window.quickHandleMatch = quickHandleMatch;
+window.dismissMatch = dismissMatch;
+window.hideMatchAlert = hideMatchAlert;
 
 console.log('✅ map.js 已載入');
