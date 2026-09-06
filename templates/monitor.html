@@ -79,13 +79,13 @@
         min-width: 0;
     }
     .mon-left-top {
-        flex: 7;          /* 70% */
+        flex: 7;
         min-height: 0;
         display: flex;
         flex-direction: column;
     }
     .mon-left-bottom {
-        flex: 3;          /* 30% */
+        flex: 3;
         min-height: 0;
         display: flex;
         gap: 12px;
@@ -255,81 +255,80 @@
     }
 
     /* ---- 右上方「車廂狀態統計」專屬樣式 ---- */
-/* ---- 右上方「車廂狀態統計」專屬樣式 ---- */
-.cabin-stats-vertical {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    gap: 4px;
-    min-height: 0;
-    justify-content: space-evenly;   /* 均勻分佈 */
-}
+    .cabin-stats-vertical {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 4px;
+        min-height: 0;
+        justify-content: space-evenly;
+    }
 
-.stat-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(0, 0, 0, 0.25);
-    padding: 6px 12px;
-    border-radius: 4px;
-    flex: 0 1 auto;          /* 不強制拉伸，但會隨容器均分空間 */
-    min-height: 40px;        /* 最小高度，保持可讀性 */
-}
-.stat-row .label {
-    font-size: 0.8rem;
-    color: #b0d0ff;
-    min-width: 60px;
-}
-.stat-row .number {
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin-right: 6px;
-    min-width: 30px;
-    text-align: right;
-}
-.stat-row .cabin-list {
-    font-size: 0.7rem;
-    color: #ccc;
-    max-height: 36px;
-    overflow-y: auto;
-    flex: 1;
-    text-align: right;
-    padding-left: 8px;
-    white-space: nowrap;
-    scrollbar-width: thin;
-}
-.stat-row .cabin-list::-webkit-scrollbar {
-    width: 3px;
-    background: transparent;
-}
-.stat-row .cabin-list::-webkit-scrollbar-thumb {
-    background: #2a4a6a;
-    border-radius: 2px;
-}
-.stat-row.waiting .number { color: #EA4335; }
-.stat-row.rescuing .number { color: #FBBC05; }
-.stat-row.landed .number { color: #34A853; }
-.stat-row.departed .number { color: #3b82f6; }
+    .stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 6px 12px;
+        border-radius: 4px;
+        flex: 0 1 auto;
+        min-height: 40px;
+    }
+    .stat-row .label {
+        font-size: 0.8rem;
+        color: #b0d0ff;
+        min-width: 60px;
+    }
+    .stat-row .number {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-right: 6px;
+        min-width: 30px;
+        text-align: right;
+    }
+    .stat-row .cabin-list {
+        font-size: 0.7rem;
+        color: #ccc;
+        max-height: 36px;
+        overflow-y: auto;
+        flex: 1;
+        text-align: right;
+        padding-left: 8px;
+        white-space: nowrap;
+        scrollbar-width: thin;
+    }
+    .stat-row .cabin-list::-webkit-scrollbar {
+        width: 3px;
+        background: transparent;
+    }
+    .stat-row .cabin-list::-webkit-scrollbar-thumb {
+        background: #2a4a6a;
+        border-radius: 2px;
+    }
+    .stat-row.waiting .number { color: #EA4335; }
+    .stat-row.rescuing .number { color: #FBBC05; }
+    .stat-row.landed .number { color: #34A853; }
+    .stat-row.departed .number { color: #3b82f6; }
 
-.cabin-stats-total {
-    margin-top: 4px;
-    background: rgba(0, 243, 255, 0.08);
-    border: 1px solid rgba(0, 243, 255, 0.2);
-    border-radius: 4px;
-    padding: 4px 12px;
-    text-align: center;
-    flex-shrink: 0;          /* 固定不伸縮 */
-}
-.cabin-stats-total .number {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #00f3ff;
-}
-.cabin-stats-total .label {
-    font-size: 0.7rem;
-    color: #8ab4f8;
-    margin-left: 8px;
-}
+    .cabin-stats-total {
+        margin-top: 4px;
+        background: rgba(0, 243, 255, 0.08);
+        border: 1px solid rgba(0, 243, 255, 0.2);
+        border-radius: 4px;
+        padding: 4px 12px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    .cabin-stats-total .number {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #00f3ff;
+    }
+    .cabin-stats-total .label {
+        font-size: 0.7rem;
+        color: #8ab4f8;
+        margin-left: 8px;
+    }
 
     /* ---- 表格區 ---- */
     #section-monitor .filter-row {
@@ -437,28 +436,30 @@
     <!-- 頂部 Header -->
     <div id="monitor-header">
         <h1>🚀 救援實時監控</h1>
-        <div class="latest-msg">
-            <span class="badge">最新</span>
-            <span id="latestRescueMsg">等待第一筆救援...</span>
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div class="latest-msg">
+                <span class="badge">最新</span>
+                <span id="latestRescueMsg">等待第一筆救援...</span>
+            </div>
+            <!-- ★ 全屏按鈕 -->
+            <button id="fullscreenBtn" onclick="toggleFullscreen()" style="
+                background: rgba(0, 243, 255, 0.15);
+                border: 1px solid rgba(0, 243, 255, 0.3);
+                color: #00f3ff;
+                padding: 8px 18px;
+                border-radius: 30px;
+                cursor: pointer;
+                font-size: 16px;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s;
+                flex-shrink: 0;
+            ">
+                <i class="fas fa-expand"></i> 全屏
+            </button>
         </div>
-         <!-- ★ 新增：全屏按鈕 -->
-        <button id="fullscreenBtn" onclick="toggleFullscreen()" style="
-            background: rgba(0, 243, 255, 0.15);
-            border: 1px solid rgba(0, 243, 255, 0.3);
-            color: #00f3ff;
-            padding: 8px 18px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-        ">
-            <i class="fas fa-expand"></i> 全屏
-        </button>
-    </div>
     </div>
 
     <!-- 主體 -->
@@ -547,36 +548,31 @@
 
         <!-- 右欄 (25%) -->
         <div class="mon-right">
-            <!-- 右上：車廂狀態統計（直立式 + 車廂號碼列表） -->
+            <!-- 右上：車廂狀態統計 -->
             <div class="mon-right-top">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-chart-pie"></i> 車廂狀態統計</div>
                     <div class="cabin-stats-vertical">
-                        <!-- 等待 -->
                         <div class="stat-row waiting">
                             <span class="label">⏳ 等待</span>
                             <span class="number" id="monWaiting">0</span>
                             <span class="cabin-list" id="monWaitingCabins"></span>
                         </div>
-                        <!-- 救援中 -->
                         <div class="stat-row rescuing">
                             <span class="label">🔄 救援中</span>
                             <span class="number" id="monRescuing">0</span>
                             <span class="cabin-list" id="monRescuingCabins"></span>
                         </div>
-                        <!-- 已著陸 -->
                         <div class="stat-row landed">
                             <span class="label">✅ 已著陸</span>
                             <span class="number" id="monLanded">0</span>
                             <span class="cabin-list" id="monLandedCabins"></span>
                         </div>
-                        <!-- 已離開 -->
                         <div class="stat-row departed">
                             <span class="label">🚁 已離開</span>
                             <span class="number" id="monDeparted">0</span>
                             <span class="cabin-list" id="monDepartedCabins"></span>
                         </div>
-                        <!-- 總車廂數（橫向） -->
                         <div class="cabin-stats-total">
                             <span class="number" id="monTotalCabins">0</span>
                             <span class="label">總車廂數</span>
@@ -588,7 +584,7 @@
                 </div>
             </div>
 
-            <!-- 右下：所有救援記錄表格 -->
+            <!-- 右下：救援記錄表格 -->
             <div class="mon-right-bottom">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-table"></i> 救援記錄</div>
@@ -614,7 +610,7 @@
 
     </div>
 
-    <!-- 隱藏輔助元素（保留 id 供 JS 更新時間戳） -->
+    <!-- 隱藏輔助元素 -->
     <div class="hidden-helper">
         <span id="last-map-update"></span>
         <span id="last-data-update"></span>
@@ -623,7 +619,6 @@
 
 <script src="js/monitor.js"></script>
 <script>
-    // 確保初始化
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof monInit === 'function') monInit();
     });
