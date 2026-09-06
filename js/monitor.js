@@ -23,6 +23,7 @@ function monSyncOffsetAndLayout() {
 }
 
 // ---- 檢查車廂模式是否變更（與主地圖同步） ----
+// ---- 檢查車廂模式是否變更（與主地圖同步） ----
 function monCheckModeChange() {
     const newMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
     if (newMode !== monCabinMode) {
@@ -31,6 +32,11 @@ function monCheckModeChange() {
         monBuildCabins();
         monLayoutCabins();
         monUpdateFromFirestore();
+        // ★ 強制更新總車廂數顯示
+        const totalEl = document.getElementById('monTotalCabins');
+        if (totalEl) totalEl.textContent = monMapCabins.length;
+        // ★ 強制更新車廂狀態摘要
+        monUpdateSummary();
     }
 }
 
@@ -479,6 +485,7 @@ function monUpdateSummary() {
     document.getElementById('monRescuing').textContent = rescuing;
     document.getElementById('monLanded').textContent = landed;
     document.getElementById('monDeparted').textContent = departed;
+    // ★ 確保總車廂數正確更新
     document.getElementById('monTotalCabins').textContent = monMapCabins.length;
 
     document.getElementById('monWaitingCabins').textContent = wc.join(', ');
@@ -793,8 +800,16 @@ function monUpdateTimestamp() {
 
 function monManualRefresh() {
     console.log('🔄 手動刷新監控頁面');
+    // ★ 先檢查模式是否變更
+    monCheckModeChange();
+    // 載入最新資料
     monLoadAllData();
-    setTimeout(() => { monSyncOffsetAndLayout(); }, 100);
+    setTimeout(() => { 
+        monSyncOffsetAndLayout(); 
+        // ★ 再次確保總車廂數更新
+        const totalEl = document.getElementById('monTotalCabins');
+        if (totalEl) totalEl.textContent = monMapCabins.length;
+    }, 100);
 }
 
 // ---- 初始化 ----
