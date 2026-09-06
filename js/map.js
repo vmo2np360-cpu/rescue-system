@@ -1474,6 +1474,7 @@ async function performAutoMatch() {
 }
 
 // ---- 顯示匹配提示欄 ----
+// ---- 顯示匹配提示欄 ----
 function showMatchAlert(matches) {
     let container = document.getElementById('matchAlertContainer');
     if (!container) {
@@ -1524,7 +1525,7 @@ function showMatchAlert(matches) {
         
         html += `
             <div style="
-                background: rgba(0,0,0,0.25);
+                background: rgba(255, 255, 255, 0.20);
                 padding: 4px 12px;
                 border-radius: 6px;
                 display: inline-flex;
@@ -1532,9 +1533,9 @@ function showMatchAlert(matches) {
                 gap: 6px;
                 font-size: 0.8rem;
                 border-left: 3px solid ${scoreColor};
-                color: #e0e0e0;
+                color: #1a1a1a;
             ">
-                <span>🚠 ${m.recordCabin}</span>
+                <span style="color:#1a1a1a; font-weight:500;">🚠 ${m.recordCabin}</span>
                 <span style="color:${scoreColor}; font-weight:700;">${m.match.score}%</span>
                 <button onclick="quickHandleMatch('${m.recordId}')" style="
                     background: #22c55e;
@@ -1550,7 +1551,7 @@ function showMatchAlert(matches) {
                 </button>
                 <button onclick="dismissMatch('${m.recordId}')" style="
                     background: transparent;
-                    color: #94a3b8;
+                    color: #64748b;
                     border: none;
                     border-radius: 3px;
                     padding: 1px 6px;
@@ -1568,7 +1569,7 @@ function showMatchAlert(matches) {
             <button onclick="hideMatchAlert()" style="
                 background: transparent;
                 border: none;
-                color: #94a3b8;
+                color: #64748b;
                 cursor: pointer;
                 font-size: 16px;
                 flex-shrink:0;
