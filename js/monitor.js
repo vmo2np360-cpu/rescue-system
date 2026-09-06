@@ -12,6 +12,10 @@ let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
 let monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
 
+// ★ 救援建議相關變數
+let monUrgencyData = [];
+let monSuggestionExpanded = false;
+
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
     monCurrentOffset = await window.getGlobalOffsetFromFirestore();
@@ -23,7 +27,6 @@ function monSyncOffsetAndLayout() {
 }
 
 // ---- 檢查車廂模式是否變更（與主地圖同步） ----
-// ---- 檢查車廂模式是否變更（與主地圖同步） ----
 function monCheckModeChange() {
     const newMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
     if (newMode !== monCabinMode) {
@@ -32,10 +35,8 @@ function monCheckModeChange() {
         monBuildCabins();
         monLayoutCabins();
         monUpdateFromFirestore();
-        // ★ 強制更新總車廂數顯示
         const totalEl = document.getElementById('monTotalCabins');
         if (totalEl) totalEl.textContent = monMapCabins.length;
-        // ★ 強制更新車廂狀態摘要
         monUpdateSummary();
     }
 }
@@ -485,7 +486,6 @@ function monUpdateSummary() {
     document.getElementById('monRescuing').textContent = rescuing;
     document.getElementById('monLanded').textContent = landed;
     document.getElementById('monDeparted').textContent = departed;
-    // ★ 確保總車廂數正確更新
     document.getElementById('monTotalCabins').textContent = monMapCabins.length;
 
     document.getElementById('monWaitingCabins').textContent = wc.join(', ');
@@ -592,7 +592,7 @@ function monOpenCabinReadonly(cabin) {
 }
 
 // ================================================================
-// 3. 統計數據、表格（已移除圖表功能）
+// 3. 統計數據、表格
 // ================================================================
 
 async function monLoadAllData() {
@@ -665,6 +665,12 @@ function monUpdateAllDisplays() {
     // ★ 更新最新救援訊息
     updateLatestRescueMsg();
 
+    // ★ 更新救援建議（緊急指數）
+    updateRescueSuggestion();
+
+    // ★ 更新延遲警報
+    updateDelayAlert();
+
     monRenderTable();
     if (monMapCabins.length > 0) monUpdateFromFirestore();
 }
@@ -674,7 +680,6 @@ function updateLatestRescueMsg() {
     const el = document.getElementById('latestRescueMsg');
     if (!el) return;
 
-    // 找出所有「救援中」的紀錄，按時間排序，取最新一筆
     const rescuingRecords = monGuestRecords
         .filter(rec => {
             const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
@@ -695,13 +700,11 @@ function updateLatestRescueMsg() {
         el.textContent = `🚨 車廂 ${cabinNumber} ${groupNumber} ${guestName} 開始救援`;
         el.classList.add('highlight');
 
-        // 3 秒後移除高亮
         clearTimeout(el._highlightTimer);
         el._highlightTimer = setTimeout(() => {
             el.classList.remove('highlight');
         }, 3000);
     } else {
-        // 檢查是否有「等待救援」的紀錄
         const waitingRecords = monGuestRecords.filter(rec => {
             const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
             return status === 'waiting';
@@ -727,6 +730,235 @@ function updateLatestRescueMsg() {
     }
 }
 
+// ================================================================
+// ★ 救援建議功能（緊急指數）
+// ================================================================
+
+function calculateUrgencyScore(record, allRescueRecords) {
+    // 1. 健康狀況 (40%) - 紅/黑=100, 黃=66, 綠=33
+    const healthMap = { '紅色': 100, '黑色': 100, '黃色': 66, '綠色': 33 };
+    const healthScore = healthMap[record.healthStatus] || 0;
+
+    // 2. 等待時間 (30%) - 使用 createdAt
+    let waitMinutes = 0;
+    if (record.createdAt) {
+        const created = new Date(record.createdAt);
+        if (!isNaN(created.getTime())) {
+            waitMinutes = (Date.now() - created.getTime()) / 60000;
+        }
+    }
+    const timeScore = Math.min(waitMinutes / 60 * 100, 100);
+
+    // 3. 車廂內求助數 (15%) - 統計同車廂 rescue_records 數量
+    const sameCabinCount = allRescueRecords.filter(r => r.cabinNumber === record.cabinNumber).length;
+    const groupScore = Math.min(sameCabinCount / 5 * 100, 100);
+
+    // 4. 是否有未處理求助 (15%)
+    const hasUnprocessed = allRescueRecords.some(r => 
+        r.cabinNumber === record.cabinNumber && r.processed === false
+    );
+    const rescueScore = hasUnprocessed ? 100 : 0;
+
+    // 加權計算
+    return (healthScore * 0.4) + (timeScore * 0.3) + (groupScore * 0.15) + (rescueScore * 0.15);
+}
+
+function updateRescueSuggestion() {
+    const container = document.getElementById('suggestionBody');
+    if (!container) return;
+
+    // 1. 過濾出有車廂號碼的求助記錄
+    const validRecords = monRescueRecords.filter(r => r.cabinNumber && r.cabinNumber.trim() !== '');
+
+    if (validRecords.length === 0) {
+        container.innerHTML = `
+            <div class="top-priority-cabin">
+                <div class="no-data">暫無求助記錄</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 2. 計算每個車廂的緊急指數（取該車廂最高分的那筆）
+    const cabinMap = {};
+    validRecords.forEach(record => {
+        const cabin = record.cabinNumber.trim();
+        if (!cabinMap[cabin]) {
+            cabinMap[cabin] = [];
+        }
+        cabinMap[cabin].push(record);
+    });
+
+    const urgencyList = [];
+    Object.keys(cabinMap).forEach(cabin => {
+        const records = cabinMap[cabin];
+        // 取該車廂中最高分的記錄
+        let bestRecord = null;
+        let bestScore = -1;
+        records.forEach(r => {
+            const score = calculateUrgencyScore(r, validRecords);
+            if (score > bestScore) {
+                bestScore = score;
+                bestRecord = r;
+            }
+        });
+        if (bestRecord) {
+            urgencyList.push({
+                cabin: cabin,
+                record: bestRecord,
+                score: Math.round(bestScore),
+                healthStatus: bestRecord.healthStatus || '未知'
+            });
+        }
+    });
+
+    // 3. 按分數排序（高分優先）
+    urgencyList.sort((a, b) => b.score - a.score);
+
+    if (urgencyList.length === 0) {
+        container.innerHTML = `
+            <div class="top-priority-cabin">
+                <div class="no-data">暫無可評估的車廂</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 4. 取得最優先車廂
+    const top = urgencyList[0];
+    const others = urgencyList.slice(1);
+
+    // 5. 計算等待時間
+    let waitMinutes = 0;
+    if (top.record.createdAt) {
+        const created = new Date(top.record.createdAt);
+        if (!isNaN(created.getTime())) {
+            waitMinutes = Math.round((Date.now() - created.getTime()) / 60000);
+        }
+    }
+
+    // 6. 健康狀態對應顏色
+    const healthClass = top.healthStatus === '紅色' || top.healthStatus === '黑色' ? 'red' :
+                        top.healthStatus === '黃色' ? 'yellow' :
+                        top.healthStatus === '綠色' ? 'green' : '';
+
+    // 7. 構建 HTML
+    let html = `
+        <div class="top-priority-cabin">
+            <div class="cabin-info">
+                <span class="cabin-number">🚠 車廂 ${top.cabin}</span>
+                <span class="health-badge ${healthClass}">${top.healthStatus}</span>
+                <span class="wait-time">⏱ 等待 ${waitMinutes} 分鐘</span>
+            </div>
+            <span class="urgency-score">緊急指數 ${top.score}</span>
+        </div>
+    `;
+
+    if (others.length > 0) {
+        html += `<div class="other-cabins-list">`;
+        others.forEach(item => {
+            let wm = 0;
+            if (item.record.createdAt) {
+                const created = new Date(item.record.createdAt);
+                if (!isNaN(created.getTime())) {
+                    wm = Math.round((Date.now() - created.getTime()) / 60000);
+                }
+            }
+            const cls = item.healthStatus === '紅色' || item.healthStatus === '黑色' ? 'red' :
+                        item.healthStatus === '黃色' ? 'yellow' : 'green';
+            html += `
+                <div class="other-item">
+                    <span class="cabin-num">🚠 車廂 ${item.cabin}</span>
+                    <span class="health-badge-sm ${cls}">${item.healthStatus}</span>
+                    <span style="color:#94a3b8; font-size:0.7rem;">⏱ ${wm}分</span>
+                    <span class="score-sm">指數 ${item.score}</span>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+// ---- 切換救援建議展開/收起 ----
+function toggleRescueSuggestion() {
+    const content = document.getElementById('suggestionContent');
+    const btn = document.getElementById('suggestionToggleBtn');
+    if (!content || !btn) return;
+
+    monSuggestionExpanded = !monSuggestionExpanded;
+    content.classList.toggle('open', monSuggestionExpanded);
+    btn.textContent = monSuggestionExpanded ? '▲ 收起' : '▼ 展開';
+}
+
+// ================================================================
+// ★ 延遲警報功能
+// ================================================================
+
+function updateDelayAlert() {
+    const container = document.getElementById('delayAlertContainer');
+    const textEl = document.getElementById('delayAlertText');
+    if (!container || !textEl) return;
+
+    // 過濾出有車廂號碼且未處理的求助記錄
+    const pendingRecords = monRescueRecords.filter(r => 
+        r.cabinNumber && r.cabinNumber.trim() !== '' && r.processed === false
+    );
+
+    if (pendingRecords.length === 0) {
+        container.classList.remove('show', 'warning', 'danger');
+        return;
+    }
+
+    // 計算每個車廂的等待時間
+    const delayList = [];
+    pendingRecords.forEach(record => {
+        let waitMinutes = 0;
+        if (record.createdAt) {
+            const created = new Date(record.createdAt);
+            if (!isNaN(created.getTime())) {
+                waitMinutes = Math.round((Date.now() - created.getTime()) / 60000);
+            }
+        }
+        delayList.push({
+            cabin: record.cabinNumber.trim(),
+            waitMinutes: waitMinutes,
+            record: record
+        });
+    });
+
+    // 找出等待最久的車廂
+    delayList.sort((a, b) => b.waitMinutes - a.waitMinutes);
+    const worst = delayList[0];
+
+    // 檢查是否超過閾值（15分鐘以上才顯示警報）
+    if (worst.waitMinutes < 15) {
+        container.classList.remove('show', 'warning', 'danger');
+        return;
+    }
+
+    // 設定警報等級和文字
+    let level = 'warning';
+    let emoji = '⚠️';
+    if (worst.waitMinutes >= 45) {
+        level = 'danger';
+        emoji = '🔴';
+    } else if (worst.waitMinutes >= 30) {
+        level = 'danger';
+        emoji = '🔶';
+    } else {
+        emoji = '🟡';
+    }
+
+    container.className = `show ${level}`;
+    textEl.textContent = `${emoji} 車廂 ${worst.cabin} 已等待 ${worst.waitMinutes} 分鐘`;
+}
+
+// ================================================================
+// 表格渲染與過濾
+// ================================================================
+
 function monRenderTable() {
     const tbody = document.getElementById('monitor-records-list');
     if (!tbody) return;
@@ -739,7 +971,6 @@ function monRenderTable() {
     
     let filtered = monGuestRecords;
     
-    // 綜合搜索（車廂、組別、姓名）- 模糊比對
     if (searchValue) {
         filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').toLowerCase();
@@ -749,7 +980,6 @@ function monRenderTable() {
         });
     }
     
-    // ★ 車廂號碼專用搜索 - 精確匹配（完全相符）
     if (cabinSearchValue) {
         filtered = filtered.filter(rec => {
             const cabin = (rec.cabinNumber || '').trim();
@@ -757,7 +987,6 @@ function monRenderTable() {
         });
     }
     
-    // 最新優先排序
     filtered.sort((a, b) => {
         const timeA = a.timeReachedTop || a.createdAt || '';
         const timeB = b.timeReachedTop || b.createdAt || '';
@@ -786,6 +1015,7 @@ function monRenderTable() {
         tbody.appendChild(tr);
     });
 }
+
 function monFilterRecords() { 
     monRenderTable(); 
 }
@@ -800,13 +1030,10 @@ function monUpdateTimestamp() {
 
 function monManualRefresh() {
     console.log('🔄 手動刷新監控頁面');
-    // ★ 先檢查模式是否變更
     monCheckModeChange();
-    // 載入最新資料
     monLoadAllData();
     setTimeout(() => { 
         monSyncOffsetAndLayout(); 
-        // ★ 再次確保總車廂數更新
         const totalEl = document.getElementById('monTotalCabins');
         if (totalEl) totalEl.textContent = monMapCabins.length;
     }, 100);
@@ -855,6 +1082,7 @@ function monInit() {
         }
     }, 20000);
 }
+
 // ================================================================
 // ★ 全屏模式控制
 // ================================================================
@@ -865,32 +1093,27 @@ function toggleFullscreen() {
     const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
 
     if (isFullscreen) {
-        // 退出全屏
         if (document.exitFullscreen) {
             document.exitFullscreen();
         } else if (document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
         }
-        // 恢復顯示導航列
         if (navbar) navbar.style.display = 'flex';
         btn.innerHTML = '<i class="fas fa-expand"></i> 全屏';
         btn.style.borderColor = 'rgba(0, 243, 255, 0.3)';
     } else {
-        // 進入全屏
         const element = document.documentElement;
         if (element.requestFullscreen) {
             element.requestFullscreen();
         } else if (element.webkitRequestFullscreen) {
             element.webkitRequestFullscreen();
         }
-        // 隱藏導航列
         if (navbar) navbar.style.display = 'none';
         btn.innerHTML = '<i class="fas fa-compress"></i> 退出全屏';
         btn.style.borderColor = '#ffd700';
     }
 }
 
-// 監聽全屏變更事件（當使用者按 ESC 退出時同步更新按鈕狀態）
 function onFullscreenChange() {
     const btn = document.getElementById('fullscreenBtn');
     const navbar = document.getElementById('navbar');
@@ -909,17 +1132,16 @@ function onFullscreenChange() {
     }
 }
 
-// 註冊全屏變更事件
 document.addEventListener('fullscreenchange', onFullscreenChange);
 document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 // ---- 暴露全域 ----
-// 暴露全域
 window.toggleFullscreen = toggleFullscreen;
 window.monInit = monInit;
 window.monSearchCabin = monSearchCabin;
 window.monLoadAllData = monLoadAllData;
 window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
+window.toggleRescueSuggestion = toggleRescueSuggestion;
 
 console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
