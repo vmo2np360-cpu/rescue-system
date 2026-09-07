@@ -372,6 +372,10 @@ async function mapInit() {
 
     // 2. 載入表格資料（此時車廂狀態已更新）
     await mapLoadTables();
+// ★ 3. 載入 OCC 數據（填充 allRescueRecords，供對比使用）
+        if (typeof occLoadRecords === 'function') {
+        await occLoadRecords();
+    }
 
     // ★★★★★ 新增：設定表格滾動與對比結果容器 ★★★★★
     // 設定滾動
