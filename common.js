@@ -261,7 +261,6 @@ function showMessage(elementId, message, type = 'info', duration = 5000) {
     }
     el.textContent = message;
     el.className = 'message';
-    // ★ 新增：顯示訊息
     el.classList.add('show');
     if (type === 'success') el.classList.add('message-success');
     else if (type === 'error') el.classList.add('message-error');
@@ -271,7 +270,6 @@ function showMessage(elementId, message, type = 'info', duration = 5000) {
         setTimeout(() => {
             el.textContent = '';
             el.className = 'message';
-            // 移除顯示狀態
             el.classList.remove('show');
         }, duration);
     }
@@ -387,6 +385,52 @@ function listenGlobalOffset(callback) {
     });
 }
 
+// ================================================================
+// ★ 全域車廂模式同步（Firestore）【新增】
+// ================================================================
+
+const MAP_MODE_DOC = 'config/mapMode';
+
+async function getGlobalModeFromFirestore() {
+    try {
+        const doc = await db.collection('config').doc('mapMode').get();
+        if (doc.exists && doc.data().mode !== undefined) {
+            return doc.data().mode;
+        }
+        return 84; // 預設值
+    } catch (e) {
+        console.warn('讀取模式失敗，使用 84:', e);
+        return 84;
+    }
+}
+
+async function setGlobalModeToFirestore(mode) {
+    try {
+        const role = await getUserRole();
+        if (!['admin', 'occ'].includes(role)) {
+            console.warn('無權限寫入模式');
+            return;
+        }
+        await db.collection('config').doc('mapMode').set({ mode }, { merge: true });
+        console.log('模式已同步至雲端:', mode);
+    } catch (e) {
+        console.warn('寫入模式失敗:', e);
+    }
+}
+
+function listenGlobalMode(callback) {
+    return db.collection('config').doc('mapMode').onSnapshot((doc) => {
+        if (doc.exists) {
+            const mode = doc.data().mode || 84;
+            callback(mode);
+        } else {
+            callback(84);
+        }
+    }, (error) => {
+        console.warn('監聽模式失敗:', error);
+    });
+}
+
 // ==================== 認證函數 ====================
 async function login(email, password) {
     try {
@@ -439,5 +483,9 @@ window.logAction = logAction;
 window.getGlobalOffsetFromFirestore = getGlobalOffsetFromFirestore;
 window.setGlobalOffsetToFirestore = setGlobalOffsetToFirestore;
 window.listenGlobalOffset = listenGlobalOffset;
+// ★ 新增模式同步函數匯出
+window.getGlobalModeFromFirestore = getGlobalModeFromFirestore;
+window.setGlobalModeToFirestore = setGlobalModeToFirestore;
+window.listenGlobalMode = listenGlobalMode;
 
 console.log('✅ common.js 已載入');
