@@ -10,12 +10,12 @@ let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
-let monCabinMode = 84;  // ★ 改為初始值，將從 Firestore 讀取
-let _monModeUnsubscribe = null;  // ★ 新增
+let monCabinMode = 84;
+let _monModeUnsubscribe = null;
 
-// ★ 救援建議相關變數
+// ★ 救援建議相關變數（預設展開）
 let monUrgencyData = [];
-let monSuggestionExpanded = false;
+let monSuggestionExpanded = true;
 
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
@@ -27,9 +27,8 @@ function monSyncOffsetAndLayout() {
     monLayoutCabins();
 }
 
-// ---- 檢查車廂模式是否變更（與主地圖同步） ----
+// ---- 檢查車廂模式 ----
 function monCheckModeChange(forceRebuild = false) {
-    // 從 Firestore 讀取最新模式（異步）
     window.getGlobalModeFromFirestore().then(newMode => {
         if (newMode !== monCabinMode || forceRebuild) {
             if (newMode !== monCabinMode) {
@@ -54,8 +53,6 @@ function monInitMap() {
         console.log('Monitor 地圖已初始化，跳過');
         return;
     }
-    // ★ 不再從 localStorage 讀取，改為從 Firestore 讀取（在下方）
-    // monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
 
     monSvg = document.getElementById('monitorMap');
     if (!monSvg) {
@@ -239,7 +236,6 @@ function monInitMap() {
 
     // ★ 讀取 Firestore 偏移量與模式
     monLoadOffsetFromFirestore().then(async () => {
-        // ★ 從 Firestore 讀取模式
         monCabinMode = await window.getGlobalModeFromFirestore();
         localStorage.setItem('mapCabinMode', monCabinMode);
 
@@ -253,7 +249,6 @@ function monInitMap() {
             }
         });
 
-        // ★ 監聽雲端模式變化【新增】
         if (_monModeUnsubscribe) _monModeUnsubscribe();
         _monModeUnsubscribe = window.listenGlobalMode((newMode) => {
             if (newMode !== monCabinMode) {
@@ -263,7 +258,6 @@ function monInitMap() {
                 monBuildCabins();
                 monLayoutCabins();
                 monUpdateFromFirestore();
-                // 更新總車廂數
                 const totalEl = document.getElementById('monTotalCabins');
                 if (totalEl) totalEl.textContent = monMapCabins.length;
                 monUpdateSummary();
@@ -271,13 +265,26 @@ function monInitMap() {
         });
     });
 
+    // ★ 監聽車廂序號變化（即時同步）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
-        if (!data) return;
+        // 如果整個資料被清除，清空所有車廂標籤
+        if (!data) {
+            monMapCabins.forEach(c => {
+                c.fields = {};
+                c.label.textContent = '';
+            });
+            monUpdateFromFirestore();
+            return;
+        }
         monMapCabins.forEach(c => {
             if (data[c.id]) {
                 c.fields = data[c.id];
                 c.label.textContent = c.fields.sequence || '';
+            } else {
+                // ★ 當車廂被刪除時，清空其標籤
+                c.fields = {};
+                c.label.textContent = '';
             }
         });
         monUpdateFromFirestore();
@@ -285,11 +292,21 @@ function monInitMap() {
 
     realtimeDb.ref('cabins').once('value').then(snap => {
         const data = snap.val();
-        if (!data) return;
+        if (!data) {
+            monMapCabins.forEach(c => {
+                c.fields = {};
+                c.label.textContent = '';
+            });
+            monUpdateFromFirestore();
+            return;
+        }
         monMapCabins.forEach(c => {
             if (data[c.id]) {
                 c.fields = data[c.id];
                 c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
             }
         });
         monUpdateFromFirestore();
@@ -305,7 +322,7 @@ function monInitMap() {
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
 }
 
-// ----- 構建車廂（使用動態模式） -----
+// ----- 構建車廂 -----
 function monBuildCabins() {
     if (!monSvg) return;
     monMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
@@ -384,7 +401,7 @@ function monPointAt(pts, d) {
 }
 
 // ================================================================
-// 2. 更新車廂狀態（使用車廂綜合狀態）
+// 2. 更新車廂狀態
 // ================================================================
 
 async function monUpdateFromFirestore() {
@@ -650,6 +667,24 @@ async function monLoadAllData() {
     }
 }
 
+// ★ 手動重新讀取車廂序號（用於刷新）
+function monRefreshCabinsSequences() {
+    realtimeDb.ref('cabins').once('value').then(snap => {
+        const data = snap.val();
+        monMapCabins.forEach(c => {
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        monUpdateSummary();
+        console.log('✅ Monitor 車廂序號已重新讀取');
+    }).catch(err => console.warn('讀取車廂序號失敗:', err));
+}
+
 function monUpdateAllDisplays() {
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
@@ -699,6 +734,19 @@ function monUpdateAllDisplays() {
     // ★ 更新救援建議（緊急指數）
     updateRescueSuggestion();
 
+    // ★ 確保救援建議預設展開
+    const content = document.getElementById('suggestionContent');
+    const btn = document.getElementById('suggestionToggleBtn');
+    if (content && btn) {
+        if (monSuggestionExpanded) {
+            content.classList.add('open');
+            btn.textContent = '▲ 收起';
+        } else {
+            content.classList.remove('open');
+            btn.textContent = '▼ 展開';
+        }
+    }
+
     // ★ 更新延遲警報
     updateDelayAlert();
 
@@ -706,7 +754,7 @@ function monUpdateAllDisplays() {
     if (monMapCabins.length > 0) monUpdateFromFirestore();
 }
 
-// ★ 新增：更新 Header 最新救援訊息
+// ★ 更新 Header 最新救援訊息
 function updateLatestRescueMsg() {
     const el = document.getElementById('latestRescueMsg');
     if (!el) return;
@@ -762,15 +810,13 @@ function updateLatestRescueMsg() {
 }
 
 // ================================================================
-// ★ 救援建議功能（緊急指數）- 修正版
+// ★ 救援建議功能（緊急指數）
 // ================================================================
 
 function calculateUrgencyScore(record, allRescueRecords) {
-    // 1. 健康狀況 (40%) - 紅/黑=100, 黃=66, 綠=33
     const healthMap = { '紅色': 100, '黑色': 100, '黃色': 66, '綠色': 33 };
     const healthScore = healthMap[record.healthStatus] || 0;
 
-    // 2. 等待時間 (30%) - 使用 createdAt（支援 Timestamp 和字串）
     let waitMinutes = 0;
     if (record.createdAt) {
         let createdDate = null;
@@ -787,12 +833,10 @@ function calculateUrgencyScore(record, allRescueRecords) {
     }
     const timeScore = Math.min(waitMinutes / 60 * 100, 100);
 
-    // 3. 車廂內求助數 (15%) - 統計同車廂 rescue_records 數量（使用標準化車廂號碼）
     const cabinKey = (record.cabinNumber || '').trim();
     const sameCabinCount = allRescueRecords.filter(r => (r.cabinNumber || '').trim() === cabinKey).length;
     const groupScore = Math.min(sameCabinCount / 5 * 100, 100);
 
-    // 4. 是否有未處理求助 (15%)
     const hasUnprocessed = allRescueRecords.some(r => 
         (r.cabinNumber || '').trim() === cabinKey && r.processed === false
     );
@@ -805,19 +849,22 @@ function updateRescueSuggestion() {
     const container = document.getElementById('suggestionBody');
     if (!container) return;
 
-    // 1. 過濾出有車廂號碼的求助記錄
-    const validRecords = monRescueRecords.filter(r => r.cabinNumber && r.cabinNumber.trim() !== '');
+    // ★ 只取「未處理」的求助記錄
+    const validRecords = monRescueRecords.filter(r => 
+        r.cabinNumber && 
+        r.cabinNumber.trim() !== '' && 
+        r.processed === false
+    );
 
     if (validRecords.length === 0) {
         container.innerHTML = `
             <div class="top-priority-cabin">
-                <div class="no-data">暫無求助記錄</div>
+                <div class="no-data">✅ 目前無待處理求助</div>
             </div>
         `;
         return;
     }
 
-    // 2. 計算每個車廂的緊急指數（取該車廂最高分的那筆）
     const cabinMap = {};
     validRecords.forEach(record => {
         const cabin = record.cabinNumber.trim();
@@ -849,7 +896,6 @@ function updateRescueSuggestion() {
         }
     });
 
-    // 3. 按分數排序（高分優先）
     urgencyList.sort((a, b) => b.score - a.score);
 
     if (urgencyList.length === 0) {
@@ -861,11 +907,9 @@ function updateRescueSuggestion() {
         return;
     }
 
-    // 4. 取得最優先車廂
     const top = urgencyList[0];
     const others = urgencyList.slice(1);
 
-    // 5. 計算等待時間（修正：支援 Timestamp）
     let waitMinutes = 0;
     if (top.record.createdAt) {
         let createdDate = null;
@@ -881,12 +925,10 @@ function updateRescueSuggestion() {
         }
     }
 
-    // 6. 健康狀態對應顏色
     const healthClass = top.healthStatus === '紅色' || top.healthStatus === '黑色' ? 'red' :
                         top.healthStatus === '黃色' ? 'yellow' :
                         top.healthStatus === '綠色' ? 'green' : '';
 
-    // 7. 構建 HTML
     let html = `
         <div class="top-priority-cabin">
             <div class="cabin-info">
@@ -952,7 +994,6 @@ function updateDelayAlert() {
     const textEl = document.getElementById('delayAlertText');
     if (!container || !textEl) return;
 
-    // 過濾出有車廂號碼且未處理的求助記錄
     const pendingRecords = monRescueRecords.filter(r => 
         r.cabinNumber && r.cabinNumber.trim() !== '' && r.processed === false
     );
@@ -962,7 +1003,6 @@ function updateDelayAlert() {
         return;
     }
 
-    // 計算每個車廂的等待時間
     const delayList = [];
     pendingRecords.forEach(record => {
         let waitMinutes = 0;
@@ -986,17 +1026,14 @@ function updateDelayAlert() {
         });
     });
 
-    // 找出等待最久的車廂
     delayList.sort((a, b) => b.waitMinutes - a.waitMinutes);
     const worst = delayList[0];
 
-    // 檢查是否超過閾值（15分鐘以上才顯示警報）
     if (worst.waitMinutes < 15) {
         container.classList.remove('show', 'warning', 'danger');
         return;
     }
 
-    // 設定警報等級和文字
     let level = 'warning';
     let emoji = '⚠️';
     if (worst.waitMinutes >= 45) {
@@ -1088,8 +1125,21 @@ function monUpdateTimestamp() {
 
 function monManualRefresh() {
     console.log('🔄 手動刷新監控頁面');
-    // ★ 強制檢查模式（從 Firestore 讀取）
+    // ★ 按鈕回饋
+    const btn = document.querySelector('#section-monitor .map-toolbar button[onclick="monManualRefresh()"]');
+    if (btn) {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 更新中';
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }, 1500);
+    }
+
     monCheckModeChange(true);
+    // ★ 重新讀取車廂序號
+    monRefreshCabinsSequences();
     monLoadAllData();
     setTimeout(() => { 
         monSyncOffsetAndLayout(); 
@@ -1202,5 +1252,6 @@ window.monLoadAllData = monLoadAllData;
 window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
 window.toggleRescueSuggestion = toggleRescueSuggestion;
+window.monRefreshCabinsSequences = monRefreshCabinsSequences; // 新增
 
 console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
