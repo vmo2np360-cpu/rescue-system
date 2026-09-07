@@ -67,7 +67,7 @@ async function occLoadRecords() {
     }
 }
 
-// ---- 渲染表格 (改用 data-id 屬性，不使用 inline onclick) ----
+// ---- 渲染表格 (使用 data-id 與事件委派) ----
 function occRenderTable(records) {
     const tbody = document.getElementById('occTableBody');
     tbody.innerHTML = '';
@@ -104,7 +104,7 @@ function occRenderTable(records) {
         tbody.appendChild(tr);
     });
 
-    // ★ 綁定事件委派（比 inline onclick 更穩健）
+    // ★ 事件委派（取代 inline onclick）
     tbody.querySelectorAll('[data-action]').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -211,30 +211,46 @@ function occCalcMatchScore(guest, record) {
     return total ? Math.round((score/total)*100) : 0;
 }
 
-// ★ 顯示比對結果
+// ★ 顯示比對結果（強化插入邏輯 + 除錯日誌）
 function occDisplayComparison(results, record) {
+    console.log('occDisplayComparison called, results count:', results.length);
+
+    // 移除舊容器
     let container = document.getElementById('occComparisonResult');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'occComparisonResult';
-        container.className = 'card';
-        container.style.marginTop = '16px';
-        // 將結果插入到表格卡片之後
-        const tableCard = document.querySelector('#section-occ .card:last-child');
-        if (tableCard) tableCard.parentNode.insertBefore(container, tableCard.nextSibling);
-        else document.querySelector('#section-occ').appendChild(container);
-    }
-    if (!results.length) {
-        container.innerHTML = '<div class="message message-info">未找到匹配度50%以上的記錄</div>';
-        container.style.display = 'block';
+    if (container) container.remove();
+
+    // 建立新容器
+    container = document.createElement('div');
+    container.id = 'occComparisonResult';
+    container.className = 'card';
+    container.style.marginTop = '16px';
+    container.style.marginBottom = '16px';
+    container.style.borderLeft = '4px solid #2563eb';
+    container.style.backgroundColor = '#f8fafc';
+    container.style.display = 'block'; // 強制顯示
+
+    // ★ 直接插入到 #section-occ 內
+    const section = document.getElementById('section-occ');
+    if (section) {
+        section.appendChild(container);
+        console.log('✅ 容器已插入 #section-occ');
+    } else {
+        console.error('❌ 找不到 #section-occ，容器未插入');
         return;
     }
-    let html = `<h4 style="color:#1e3a5f;">比對結果 (找到 ${results.length} 條匹配)</h4>
+
+    if (!results.length) {
+        container.innerHTML = '<div class="message message-info">未找到匹配度 50% 以上的記錄</div>';
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+
+    let html = `<h4 style="color:#1e3a5f;">🔍 比對結果 (找到 ${results.length} 條匹配)</h4>
                 <p style="font-size:0.85rem; color:#64748b;">💡 點擊下方按鈕可將此求助記錄標記為「已處理」，不會影響被救者記錄 (guests)。</p>`;
     results.forEach(g => {
         const level = g.matchScore >= 80 ? '高' : (g.matchScore >= 50 ? '中' : '低');
         html += `
-            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:8px 0;">
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:8px 0; background:white;">
                 <div><strong>${g.guestName||'未提供'}</strong> (車廂 ${g.cabinNumber||'-'}) 匹配度: ${g.matchScore}% (${level})</div>
                 <div style="font-size:0.85rem; color:#475569;">
                     聯絡: ${g.contactNumber||'-'} ｜ 健康: ${g.healthStatus||'-'} ｜ 組別: ${g.groupNumber ? '第'+g.groupNumber+'組' : '-'}
@@ -249,18 +265,23 @@ function occDisplayComparison(results, record) {
     html += `
         <div style="text-align:center; margin-top:12px;">
             <button class="btn btn-secondary" onclick="occCloseComparison()" style="padding:6px 20px;">
-                <i class="fas fa-times"></i> 關閉對比結果
+                <i class="fas fa-times"></i> 關閉比對結果
             </button>
         </div>
     `;
     container.innerHTML = html;
-    container.style.display = 'block';
+
+    // ★ 自動滾動到結果區域
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 顯示提示訊息
+    showMessage('occMessage', `✅ 比對完成，找到 ${results.length} 筆匹配記錄`, 'success', 3000);
 }
 
-// ★ 關閉對比結果
+// ★ 關閉比對結果（直接移除容器）
 function occCloseComparison() {
     const container = document.getElementById('occComparisonResult');
-    if (container) container.style.display = 'none';
+    if (container) container.remove();
 }
 
 // ---- 初始化 ----
