@@ -53,7 +53,7 @@ async function occLoadRecords() {
         const snap = await db.collection('rescue_records').orderBy('createdAt', 'desc').get();
         allRescueRecords = [];
         snap.forEach(d => allRescueRecords.push({ id: d.id, ...d.data() }));
-        occRenderTable(allRescueRecords);
+        occRenderTable(allRescueRecords); // ★ 安全，內部已檢查元素存在
     } catch(e) {
         showMessage('occMessage', '載入失敗: ' + e.message, 'error');
     } finally { showLoader(false); }
