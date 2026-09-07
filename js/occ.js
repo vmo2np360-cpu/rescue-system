@@ -12,6 +12,7 @@ function occToggleOtherSource() {
 
 // ---- 儲存求助記錄 ----
 async function occSaveRecord() {
+    console.log('occSaveRecord called');
     const cabin = document.getElementById('occCabinNumber').value.trim();
     const name = document.getElementById('occGuestName').value.trim();
     const contact = document.getElementById('occContactNumber').value.trim();
@@ -21,7 +22,7 @@ async function occSaveRecord() {
     if (!source) { showMessage('occMessage', '請選擇資料來源', 'error'); return; }
     if (!cabin && !name) { showMessage('occMessage', '請至少填寫車廂或姓名', 'error'); return; }
     try {
-        showLoader(true);
+        showLoader();
         await db.collection('rescue_records').add({
             cabinNumber: cabin,
             guestName: name,
@@ -42,24 +43,31 @@ async function occSaveRecord() {
         occLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
+        console.error('儲存失敗:', e);
         showMessage('occMessage', '儲存失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        hideLoader();
+    }
 }
 
 // ---- 載入求助記錄 ----
 async function occLoadRecords() {
+    console.log('occLoadRecords called');
     try {
-        showLoader(true);
+        showLoader();
         const snap = await db.collection('rescue_records').orderBy('createdAt', 'desc').get();
         allRescueRecords = [];
         snap.forEach(d => allRescueRecords.push({ id: d.id, ...d.data() }));
         occRenderTable(allRescueRecords);
     } catch(e) {
+        console.error('載入失敗:', e);
         showMessage('occMessage', '載入失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        hideLoader();
+    }
 }
 
-// ---- 渲染表格 ----
+// ---- 渲染表格 (改用 data-id 屬性，不使用 inline onclick) ----
 function occRenderTable(records) {
     const tbody = document.getElementById('occTableBody');
     tbody.innerHTML = '';
@@ -88,12 +96,24 @@ function occRenderTable(records) {
             <td>${r.source||'-'}</td>
             <td><span class="status-badge ${badge}">${statusText}</span></td>
             <td>
-                ${canEdit && !r.processed ? `<button class="btn btn-success" style="padding:4px 10px;font-size:0.8rem;" onclick="occMarkProcessed('${r.id}')">標記已處理</button>` : ''}
-                <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.8rem;" onclick="occCompareRecord('${r.id}')"><i class="fas fa-search"></i> 對比</button>
-                ${window.currentRole === 'admin' ? `<button class="btn btn-danger" style="padding:4px 10px;font-size:0.8rem;" onclick="occDeleteRecord('${r.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                ${canEdit && !r.processed ? `<button class="btn btn-success btn-sm" data-action="markProcessed" data-id="${r.id}">標記已處理</button>` : ''}
+                <button class="btn btn-secondary btn-sm" data-action="compare" data-id="${r.id}"><i class="fas fa-search"></i> 對比</button>
+                ${window.currentRole === 'admin' ? `<button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
+    });
+
+    // ★ 綁定事件委派（比 inline onclick 更穩健）
+    tbody.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = this.dataset.action;
+            const id = this.dataset.id;
+            if (action === 'compare') occCompareRecord(id);
+            else if (action === 'markProcessed') occMarkProcessed(id);
+            else if (action === 'delete') occDeleteRecord(id);
+        });
     });
 }
 
@@ -101,45 +121,40 @@ function occFilterRecords() { occRenderTable(allRescueRecords); }
 
 // ---- ★ 僅更新 rescue_records，完全不動 guests ----
 async function occMarkProcessed(id) {
+    console.log('occMarkProcessed called with id:', id);
     if (!confirm('標記此求助為已處理？')) return;
     try {
-        showLoader(true);
-        await db.collection('rescue_records').doc(id).update({ 
-            processed: true, 
-            processedAt: new Date() 
-        });
+        showLoader();
         const update = { processed: true, processedAt: new Date() };
-await db.collection('rescue_records').doc(id).update(update);
-await logAction('rescue_records', id, 'update', update, null);
+        await db.collection('rescue_records').doc(id).update(update);
+        await logAction('rescue_records', id, 'update', update, null);
         showMessage('occMessage', '✅ 求助記錄已標記為已處理', 'success');
         occLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
+        console.error('標記失敗:', e);
         showMessage('occMessage', '操作失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        hideLoader();
+    }
 }
 
 async function occDeleteRecord(id) {
+    console.log('occDeleteRecord called with id:', id);
     if (!confirm('確定刪除？')) return;
     try {
-        showLoader(true);
+        showLoader();
         await db.collection('rescue_records').doc(id).delete();
-        
-        // ★ 立即從本地陣列移除該記錄
         const index = allRescueRecords.findIndex(r => r.id === id);
-        if (index !== -1) {
-            allRescueRecords.splice(index, 1);
-        }
-        // 重新渲染表格（使用已更新的本地陣列）
+        if (index !== -1) allRescueRecords.splice(index, 1);
         occRenderTable(allRescueRecords);
-        
         showMessage('occMessage', '✅ 已刪除', 'success');
-        // 同步更新地圖（若有需要）
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
+        console.error('刪除失敗:', e);
         showMessage('occMessage', '刪除失敗: ' + e.message, 'error');
     } finally {
-        showLoader(false);
+        hideLoader();
     }
 }
 
@@ -148,11 +163,15 @@ async function occDeleteRecord(id) {
 // ================================================================
 
 async function occCompareRecord(recordId) {
+    console.log('occCompareRecord called with recordId:', recordId);
     const record = allRescueRecords.find(r => r.id === recordId);
-    if (!record) { showMessage('occMessage', '找不到記錄', 'error'); return; }
+    if (!record) {
+        showMessage('occMessage', '找不到記錄', 'error');
+        return;
+    }
 
     try {
-        showLoader(true);
+        showLoader();
         const snap = await db.collection('guests').get();
         let results = [];
         snap.forEach(doc => {
@@ -173,8 +192,11 @@ async function occCompareRecord(recordId) {
         results = results.filter(r => r.matchScore >= 50);
         occDisplayComparison(results, record);
     } catch(e) {
+        console.error('比對失敗:', e);
         showMessage('occMessage', '比對失敗: ' + e.message, 'error');
-    } finally { showLoader(false); }
+    } finally {
+        hideLoader();
+    }
 }
 
 function occCalcMatchScore(guest, record) {
@@ -189,7 +211,7 @@ function occCalcMatchScore(guest, record) {
     return total ? Math.round((score/total)*100) : 0;
 }
 
-// ★ 顯示比對結果（「求助個案已救援」按鈕只標記求助記錄，不動 guests）
+// ★ 顯示比對結果
 function occDisplayComparison(results, record) {
     let container = document.getElementById('occComparisonResult');
     if (!container) {
@@ -197,11 +219,14 @@ function occDisplayComparison(results, record) {
         container.id = 'occComparisonResult';
         container.className = 'card';
         container.style.marginTop = '16px';
-        const card = document.querySelector('#section-occ .card:last-child');
-        if (card) card.parentNode.insertBefore(container, card.nextSibling);
+        // 將結果插入到表格卡片之後
+        const tableCard = document.querySelector('#section-occ .card:last-child');
+        if (tableCard) tableCard.parentNode.insertBefore(container, tableCard.nextSibling);
+        else document.querySelector('#section-occ').appendChild(container);
     }
     if (!results.length) {
         container.innerHTML = '<div class="message message-info">未找到匹配度50%以上的記錄</div>';
+        container.style.display = 'block';
         return;
     }
     let html = `<h4 style="color:#1e3a5f;">比對結果 (找到 ${results.length} 條匹配)</h4>
@@ -214,7 +239,6 @@ function occDisplayComparison(results, record) {
                 <div style="font-size:0.85rem; color:#475569;">
                     聯絡: ${g.contactNumber||'-'} ｜ 健康: ${g.healthStatus||'-'} ｜ 組別: ${g.groupNumber ? '第'+g.groupNumber+'組' : '-'}
                 </div>
-                <!-- ★ 只傳 recordId，只標記求助記錄，完全不動 guests -->
                 <button class="btn btn-success" style="padding:4px 12px;font-size:0.8rem;margin-top:6px;" 
                         onclick="occMarkProcessed('${record.id}')">
                     <i class="fas fa-check"></i> 求助個案已處理
@@ -222,7 +246,6 @@ function occDisplayComparison(results, record) {
             </div>
         `;
     });
-    // ★ 加入「關閉對比結果」按鈕
     html += `
         <div style="text-align:center; margin-top:12px;">
             <button class="btn btn-secondary" onclick="occCloseComparison()" style="padding:6px 20px;">
@@ -237,9 +260,7 @@ function occDisplayComparison(results, record) {
 // ★ 關閉對比結果
 function occCloseComparison() {
     const container = document.getElementById('occComparisonResult');
-    if (container) {
-        container.style.display = 'none';
-    }
+    if (container) container.style.display = 'none';
 }
 
 // ---- 初始化 ----
@@ -248,7 +269,7 @@ function initOcc() {
     occLoadRecords();
 }
 
-// ---- 暴露 ----
+// ---- 暴露至全域 ----
 window.occToggleOtherSource = occToggleOtherSource;
 window.occSaveRecord = occSaveRecord;
 window.occLoadRecords = occLoadRecords;
