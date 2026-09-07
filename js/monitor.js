@@ -15,7 +15,7 @@ let _monModeUnsubscribe = null;
 
 // ★ 救援建議相關變數（預設展開）
 let monUrgencyData = [];
-let monSuggestionExpanded = false; // 修正拼寫錯誤
+let monSuggestionExpanded = fales;
 
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
@@ -147,7 +147,6 @@ function monInitMap() {
     mountain.setAttribute('fill', 'url(#monGradMountain)');
     monSvg.appendChild(mountain);
 
-    // ----- 建立視覺站點（保留原有寬幅座標）-----
     let groundPts = [];
     segments.forEach((s, i) => {
         let gx = xCoords[i], gy = baseY;
@@ -177,47 +176,16 @@ function monInitMap() {
         monSvg.appendChild(txt);
     });
 
-    // ★ 繪製視覺纜繩（灰色線條），使用原有 groundPts（基於 50~2750）
-    const visUp = groundPts.map(p => [p[0], p[1] - 90]);
-    const visDown = groundPts.map(p => [p[0], p[1] + 90]).reverse();
-    const visRopePts = [...visUp, ...visDown, [visUp[0][0], visUp[0][1]]];
+    const up = groundPts.map(p => [p[0], p[1] - 90]);
+    const down = groundPts.map(p => [p[0], p[1] + 90]).reverse();
+    monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    rope.setAttribute('points', visRopePts.map(p => p.join(',')).join(' '));
+    rope.setAttribute('points', monMapRopePts.map(p => p.join(',')).join(' '));
     rope.setAttribute('fill', 'none');
     rope.setAttribute('stroke', '#aaaaaa');
     rope.setAttribute('stroke-width', '7');
     monSvg.appendChild(rope);
 
-    // ★ 新增：建立「車廂定位專用」的繩索座標（與地圖頁面完全一致：startX=150, endX=2650）
-    const mapStartX = 150, mapEndX = 2650;
-    const mapUnit = (mapEndX - mapStartX) / 42;
-    let mapX = mapStartX;
-    const mapXCoords = [mapX];
-    for (let i = 0; i < slots.length; i++) {
-        mapX += slots[i] * mapUnit;
-        mapXCoords.push(mapX);
-    }
-    const mapT3X = mapXCoords[5], mapNlsX = mapXCoords[8], mapNpX = mapXCoords[11];
-
-    let mapGroundPts = [];
-    segments.forEach((s, i) => {
-        let gx = mapXCoords[i], gy = baseY;
-        if (s === 'NLS') gy = topY;
-        else if (s === 'NP') gy = npY;
-        else if (s === 'T3' || (i > 5 && i < segments.indexOf('NLS'))) {
-            gy = baseY - (baseY - topY) * ((gx - mapT3X) / (mapNlsX - mapT3X));
-        } else if (i > segments.indexOf('NLS')) {
-            gy = topY + (npY - topY) * ((gx - mapNlsX) / (mapNpX - mapNlsX));
-        }
-        mapGroundPts.push([gx, gy]);
-    });
-
-    // ★ 使用地圖座標生成 monMapRopePts（垂直偏移與地圖一致為 60，確保水平位置完全同步）
-    const up = mapGroundPts.map(p => [p[0], p[1] - 60]);
-    const down = mapGroundPts.map(p => [p[0], p[1] + 60]).reverse();
-    monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
-
-    // 圖例（位置不變）
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1720, 700)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -300,6 +268,7 @@ function monInitMap() {
     // ★ 監聽車廂序號變化（即時同步）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
+        // 如果整個資料被清除，清空所有車廂標籤
         if (!data) {
             monMapCabins.forEach(c => {
                 c.fields = {};
@@ -313,6 +282,7 @@ function monInitMap() {
                 c.fields = data[c.id];
                 c.label.textContent = c.fields.sequence || '';
             } else {
+                // ★ 當車廂被刪除時，清空其標籤
                 c.fields = {};
                 c.label.textContent = '';
             }
@@ -1282,6 +1252,6 @@ window.monLoadAllData = monLoadAllData;
 window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
 window.toggleRescueSuggestion = toggleRescueSuggestion;
-window.monRefreshCabinsSequences = monRefreshCabinsSequences;
+window.monRefreshCabinsSequences = monRefreshCabinsSequences; // 新增
 
 console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
