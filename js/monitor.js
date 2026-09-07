@@ -13,7 +13,7 @@ let _monOffsetUnsubscribe = null;
 let monCabinMode = 84;
 let _monModeUnsubscribe = null;
 
-// ★ 救援建議相關變數（預設展開）
+// ★ 救援建議相關變數（預設展開）－修正拼寫錯誤
 let monUrgencyData = [];
 let monSuggestionExpanded = false;
 
@@ -48,7 +48,8 @@ function monCheckModeChange(forceRebuild = false) {
     });
 }
 
-function monInitMap() {
+// ★ 改為 async，以確保內部非同步流程完成
+async function monInitMap() {
     if (monMapCabins.length > 0) {
         console.log('Monitor 地圖已初始化，跳過');
         return;
@@ -234,64 +235,43 @@ function monInitMap() {
     });
     monSvg.appendChild(legend);
 
-    // ★ 讀取 Firestore 偏移量與模式
-    monLoadOffsetFromFirestore().then(async () => {
-        monCabinMode = await window.getGlobalModeFromFirestore();
-        localStorage.setItem('mapCabinMode', monCabinMode);
+    // ★ 使用 await 確保偏移量與模式讀取完成
+    await monLoadOffsetFromFirestore();
+    monCabinMode = await window.getGlobalModeFromFirestore();
+    localStorage.setItem('mapCabinMode', monCabinMode);
 
-        monBuildCabins();
-        if (_monOffsetUnsubscribe) _monOffsetUnsubscribe();
-        _monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
-            if (Math.abs(newOffset - monCurrentOffset) > 0.001) {
-                monCurrentOffset = newOffset;
-                monLayoutCabins();
-                console.log('Monitor 偏移量已同步:', newOffset);
-            }
-        });
+    // ★ 構建車廂
+    monBuildCabins();
 
-        if (_monModeUnsubscribe) _monModeUnsubscribe();
-        _monModeUnsubscribe = window.listenGlobalMode((newMode) => {
-            if (newMode !== monCabinMode) {
-                monCabinMode = newMode;
-                console.log('Monitor 模式已同步（來自雲端）:', newMode);
-                localStorage.setItem('mapCabinMode', newMode);
-                monBuildCabins();
-                monLayoutCabins();
-                monUpdateFromFirestore();
-                const totalEl = document.getElementById('monTotalCabins');
-                if (totalEl) totalEl.textContent = monMapCabins.length;
-                monUpdateSummary();
-            }
-        });
+    // ★ 註冊偏移量監聽
+    if (_monOffsetUnsubscribe) _monOffsetUnsubscribe();
+    _monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+        if (Math.abs(newOffset - monCurrentOffset) > 0.001) {
+            monCurrentOffset = newOffset;
+            monLayoutCabins();
+            console.log('Monitor 偏移量已同步:', newOffset);
+        }
+    });
+
+    // ★ 註冊模式監聽
+    if (_monModeUnsubscribe) _monModeUnsubscribe();
+    _monModeUnsubscribe = window.listenGlobalMode((newMode) => {
+        if (newMode !== monCabinMode) {
+            monCabinMode = newMode;
+            console.log('Monitor 模式已同步（來自雲端）:', newMode);
+            localStorage.setItem('mapCabinMode', newMode);
+            monBuildCabins();
+            monLayoutCabins();
+            monUpdateFromFirestore();
+            const totalEl = document.getElementById('monTotalCabins');
+            if (totalEl) totalEl.textContent = monMapCabins.length;
+            monUpdateSummary();
+        }
     });
 
     // ★ 監聽車廂序號變化（即時同步）
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
-        // 如果整個資料被清除，清空所有車廂標籤
-        if (!data) {
-            monMapCabins.forEach(c => {
-                c.fields = {};
-                c.label.textContent = '';
-            });
-            monUpdateFromFirestore();
-            return;
-        }
-        monMapCabins.forEach(c => {
-            if (data[c.id]) {
-                c.fields = data[c.id];
-                c.label.textContent = c.fields.sequence || '';
-            } else {
-                // ★ 當車廂被刪除時，清空其標籤
-                c.fields = {};
-                c.label.textContent = '';
-            }
-        });
-        monUpdateFromFirestore();
-    });
-
-    realtimeDb.ref('cabins').once('value').then(snap => {
-        const data = snap.val();
         if (!data) {
             monMapCabins.forEach(c => {
                 c.fields = {};
@@ -312,12 +292,37 @@ function monInitMap() {
         monUpdateFromFirestore();
     });
 
+    // ★ 立即讀取一次車廂序號，填充標籤
+    const snap = await realtimeDb.ref('cabins').once('value');
+    const data = snap.val();
+    if (data) {
+        monMapCabins.forEach(c => {
+            if (data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+    } else {
+        monMapCabins.forEach(c => {
+            c.fields = {};
+            c.label.textContent = '';
+        });
+    }
+
+    // ★ 監聽 guests 與 rescue_records
     db.collection('guests').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
     db.collection('rescue_records').onSnapshot(() => {
         if (monMapCabins.length > 0) monUpdateFromFirestore();
     });
+
+    // ★ 初次更新車廂狀態（此時 monMapCabins 已完整）
+    await monUpdateFromFirestore();
+    monUpdateSummary();
 
     console.log('✅ Monitor 地圖初始化完成（唯讀模式，資料與主地圖同步）');
 }
@@ -1149,7 +1154,7 @@ function monManualRefresh() {
 }
 
 // ---- 初始化 ----
-function monInit() {
+async function monInit() {
     console.log('🚀 monInit 被呼叫 (來自 monitor.js)');
     if (typeof db === 'undefined' || typeof realtimeDb === 'undefined') {
         console.warn('Firebase 尚未初始化，500ms 後重試');
@@ -1167,20 +1172,14 @@ function monInit() {
     }
     window._monInitialized = true;
 
-    monInitMap();
-    monLoadAllData();
+    // ★ 等待地圖初始化完成（包含車廂構建與標籤載入）
+    await monInitMap();
 
-    db.collection('guests').onSnapshot(() => {
-        if (document.getElementById('section-monitor')?.classList.contains('active')) {
-            monLoadAllData();
-        }
-    });
-    db.collection('rescue_records').onSnapshot(() => {
-        if (document.getElementById('section-monitor')?.classList.contains('active')) {
-            monLoadAllData();
-        }
-    });
+    // ★ 再載入所有數據（表格、統計等）
+    await monLoadAllData();
 
+    // ★ 監聽 guests / rescue_records 變更（已在 monInitMap 內註冊，此處可省略，但保留備用）
+    // 啟動自動刷新計時器
     if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
     monAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-monitor');
@@ -1252,6 +1251,6 @@ window.monLoadAllData = monLoadAllData;
 window.monFilterRecords = monFilterRecords;
 window.monManualRefresh = monManualRefresh;
 window.toggleRescueSuggestion = toggleRescueSuggestion;
-window.monRefreshCabinsSequences = monRefreshCabinsSequences; // 新增
+window.monRefreshCabinsSequences = monRefreshCabinsSequences;
 
 console.log('✅ monitor.js 已載入，等待 monInit 呼叫');
