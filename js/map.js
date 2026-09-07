@@ -556,16 +556,50 @@ function mapRestoreState() {
 function mapRestoreSequences() {
 realtimeDb.ref('cabins').on('value', (snap) => {
     const data = snap.val();
-    if (!data) return;
+    // 如果整個資料被清除，清空所有車廂標籤
+    if (!data) {
+        mapCabins.forEach(c => {
+            c.fields = {};
+            c.label.textContent = '';
+        });
+        mapUpdateFromFirestore();
+        return;
+    }
     mapCabins.forEach(c => {
         if (data[c.id]) {
             c.fields = data[c.id];
             c.label.textContent = c.fields.sequence || '';
+        } else {
+            // ★ 當車廂被刪除時，清空其標籤
+            c.fields = {};
+            c.label.textContent = '';
         }
     });
-    mapUpdateFromFirestore();  // ★ 修正為 mapUpdateFromFirestore
+    mapUpdateFromFirestore();
 });
-}
+
+// 同樣修改 once
+realtimeDb.ref('cabins').once('value').then(snap => {
+    const data = snap.val();
+    if (!data) {
+        mapCabins.forEach(c => {
+            c.fields = {};
+            c.label.textContent = '';
+        });
+        mapUpdateFromFirestore();
+        return;
+    }
+    mapCabins.forEach(c => {
+        if (data[c.id]) {
+            c.fields = data[c.id];
+            c.label.textContent = c.fields.sequence || '';
+        } else {
+            c.fields = {};
+            c.label.textContent = '';
+        }
+    });
+    mapUpdateFromFirestore();
+});
 
 // ---- 移動模式設定 (修復游標與拖曳) ----
 function setupMoveMode() {
