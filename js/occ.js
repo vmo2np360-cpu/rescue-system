@@ -21,7 +21,7 @@ async function occSaveRecord() {
     if (!source) { showMessage('occMessage', '請選擇資料來源', 'error'); return; }
     if (!cabin && !name) { showMessage('occMessage', '請至少填寫車廂或姓名', 'error'); return; }
     try {
-        showLoader(); // ✅ 修正：不帶參數
+        showLoader(true);
         await db.collection('rescue_records').add({
             cabinNumber: cabin,
             guestName: name,
@@ -43,24 +43,20 @@ async function occSaveRecord() {
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
         showMessage('occMessage', '儲存失敗: ' + e.message, 'error');
-    } finally {
-        hideLoader(); // ✅ 修正
-    }
+    } finally { showLoader(false); }
 }
 
 // ---- 載入求助記錄 ----
 async function occLoadRecords() {
     try {
-        showLoader(); // ✅ 修正
+        showLoader(true);
         const snap = await db.collection('rescue_records').orderBy('createdAt', 'desc').get();
         allRescueRecords = [];
         snap.forEach(d => allRescueRecords.push({ id: d.id, ...d.data() }));
         occRenderTable(allRescueRecords);
     } catch(e) {
         showMessage('occMessage', '載入失敗: ' + e.message, 'error');
-    } finally {
-        hideLoader(); // ✅ 修正
-    }
+    } finally { showLoader(false); }
 }
 
 // ---- 渲染表格 ----
@@ -107,28 +103,26 @@ function occFilterRecords() { occRenderTable(allRescueRecords); }
 async function occMarkProcessed(id) {
     if (!confirm('標記此求助為已處理？')) return;
     try {
-        showLoader(); // ✅ 修正
+        showLoader(true);
         await db.collection('rescue_records').doc(id).update({ 
             processed: true, 
             processedAt: new Date() 
         });
         const update = { processed: true, processedAt: new Date() };
-        await db.collection('rescue_records').doc(id).update(update);
-        await logAction('rescue_records', id, 'update', update, null);
+await db.collection('rescue_records').doc(id).update(update);
+await logAction('rescue_records', id, 'update', update, null);
         showMessage('occMessage', '✅ 求助記錄已標記為已處理', 'success');
         occLoadRecords();
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
         showMessage('occMessage', '操作失敗: ' + e.message, 'error');
-    } finally {
-        hideLoader(); // ✅ 修正
-    }
+    } finally { showLoader(false); }
 }
 
 async function occDeleteRecord(id) {
     if (!confirm('確定刪除？')) return;
     try {
-        showLoader(); // ✅ 修正
+        showLoader(true);
         await db.collection('rescue_records').doc(id).delete();
         
         // ★ 立即從本地陣列移除該記錄
@@ -140,11 +134,12 @@ async function occDeleteRecord(id) {
         occRenderTable(allRescueRecords);
         
         showMessage('occMessage', '✅ 已刪除', 'success');
+        // 同步更新地圖（若有需要）
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
     } catch(e) {
         showMessage('occMessage', '刪除失敗: ' + e.message, 'error');
     } finally {
-        hideLoader(); // ✅ 修正
+        showLoader(false);
     }
 }
 
@@ -154,13 +149,10 @@ async function occDeleteRecord(id) {
 
 async function occCompareRecord(recordId) {
     const record = allRescueRecords.find(r => r.id === recordId);
-    if (!record) {
-        showMessage('occMessage', '找不到記錄', 'error');
-        return;
-    }
+    if (!record) { showMessage('occMessage', '找不到記錄', 'error'); return; }
 
     try {
-        showLoader(); // ✅ 修正
+        showLoader(true);
         const snap = await db.collection('guests').get();
         let results = [];
         snap.forEach(doc => {
@@ -182,9 +174,7 @@ async function occCompareRecord(recordId) {
         occDisplayComparison(results, record);
     } catch(e) {
         showMessage('occMessage', '比對失敗: ' + e.message, 'error');
-    } finally {
-        hideLoader(); // ✅ 修正
-    }
+    } finally { showLoader(false); }
 }
 
 function occCalcMatchScore(guest, record) {
