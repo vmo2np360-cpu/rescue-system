@@ -136,6 +136,11 @@
         <!-- OCC 求助記錄 (40%) -->
      <div class="map-table-panel" style="flex: 4;">
     <div class="map-table-header">
+        <div id="occMessage" class="message"></div>
+         <div id="occComparisonResult" style="display:none; max-height:280px; overflow-y:auto; margin-top:12px; padding:12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;"></div>
+    <div id="matchAlertContainer"></div>
+    <div class="table-wrap" id="mapOccTableWrap">...</div>
+</div>
         <span class="map-table-title"><i class="fas fa-headset"></i> OCC 求助記錄</span>
         <div class="map-table-toolbar">
             <input type="text" id="mapOccSearch" placeholder="綜合搜尋" oninput="mapFilterOccTable()" style="min-width:100px;">
