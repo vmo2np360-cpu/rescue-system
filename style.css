@@ -351,7 +351,30 @@ tr:hover td { background: #f8fafc; }
 /* ================================================================
    地圖區塊（#section-map）- 統一管理
    ================================================================ */
+/* ================================================================
+   地圖頁面 - OCC 比對結果容器
+   ================================================================ */
+#occComparisonResult {
+    max-height: 280px;
+    overflow-y: auto;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
 
+/* 捲動條美化 (非必須但推薦) */
+#occComparisonResult::-webkit-scrollbar {
+    width: 6px;
+}
+#occComparisonResult::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
+}
+#occComparisonResult::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
 /* 地圖區塊容器 */
 #section-map.active {
     display: flex;
