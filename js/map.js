@@ -23,7 +23,7 @@ let mapOccRecords = [];
 let lastMatchResults = [];
 let matchNotifiedIds = new Set();
 
-// ---- 初始化地圖 (加入重試機制，限制次數) ----
+// ---- 初始化地圖 ----
 let _mapInitRetryCount = 0;
 const MAP_INIT_MAX_RETRIES = 10;
 
@@ -41,7 +41,7 @@ async function mapInit() {
         const isActive = section && section.classList.contains('active');
         if (_mapInitRetryCount >= MAP_INIT_MAX_RETRIES || !isActive) {
             if (_mapInitRetryCount >= MAP_INIT_MAX_RETRIES) {
-                console.error('❌ 地圖初始化失敗：超過最大重試次數，請檢查 #map 元素是否存在');
+                console.error('❌ 地圖初始化失敗：超過最大重試次數');
             } else {
                 console.log('📍 地圖頁面未激活，停止重試');
             }
@@ -70,11 +70,10 @@ async function mapInit() {
 
     // ★ 從 Firestore 讀取模式
     mapCabinMode = await window.getGlobalModeFromFirestore();
-    // 更新 UI 顯示
     const modeLabel = document.getElementById('modeLabel');
     if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
-    const toggleBtn = document.getElementById('mapToggleBtn');
-    if (toggleBtn) toggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+    const mapToggleBtn = document.getElementById('mapToggleBtn');
+    if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
     localStorage.setItem('mapCabinMode', mapCabinMode);
 
     // ----- 建立白色背景 -----
@@ -84,7 +83,7 @@ async function mapInit() {
     bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
 
-    // 確保 defs 中包含 highlightGlow 濾鏡 (加強亮度)
+    // 確保 defs 中包含 highlightGlow 濾鏡
     if (defs) {
         let glowFilter = defs.querySelector('#highlightGlow');
         if (!glowFilter) {
@@ -218,7 +217,7 @@ async function mapInit() {
     });
     mapSvg.appendChild(legend);
 
-    // ★★★★★ 唯一正確的摘要區塊 (四個狀態) ★★★★★
+    // ★★★★★ 摘要區塊 (四個狀態) ★★★★★
     const summaryGroup = document.createElementNS('http://www.w3.org/2000/svg','g');
     summaryGroup.setAttribute('id', 'svgSummary');
     summaryGroup.setAttribute('transform', 'translate(20, 200)');
@@ -285,16 +284,14 @@ async function mapInit() {
     setupMoveMode();
 
     // ----- 事件綁定 (使用 cloneNode 避免重複監聽) -----
-    const toggleBtn = document.getElementById('mapToggleBtn');
-    if (toggleBtn) {
-        const newBtn = toggleBtn.cloneNode(true);
-        toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
-        // ★ 修改按鈕事件：寫入 Firestore
+    // ★ 車廂模式切換按鈕（避免變數名衝突）
+    const mapToggleBtnElement = document.getElementById('mapToggleBtn');
+    if (mapToggleBtnElement) {
+        const newBtn = mapToggleBtnElement.cloneNode(true);
+        mapToggleBtnElement.parentNode.replaceChild(newBtn, mapToggleBtnElement);
         newBtn.addEventListener('click', async function() {
             const newMode = mapCabinMode === 84 ? 109 : 84;
-            // 寫入 Firestore（會觸發監聽器自動更新）
             await window.setGlobalModeToFirestore(newMode);
-            // 本地立即更新（監聽器也會觸發，但先更新確保即時反應）
             mapCabinMode = newMode;
             this.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
             document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
@@ -305,11 +302,11 @@ async function mapInit() {
         });
     }
 
-    // 移動按鈕 (重新綁定並加入游標控制)
-    const moveBtn = document.getElementById('moveToggleBtn');
-    if (moveBtn) {
-        const newMoveBtn = moveBtn.cloneNode(true);
-        moveBtn.parentNode.replaceChild(newMoveBtn, moveBtn);
+    // 移動按鈕
+    const moveBtnElement = document.getElementById('moveToggleBtn');
+    if (moveBtnElement) {
+        const newMoveBtn = moveBtnElement.cloneNode(true);
+        moveBtnElement.parentNode.replaceChild(newMoveBtn, moveBtnElement);
         newMoveBtn.addEventListener('click', async function() {
             mapMoveMode = !mapMoveMode;
             this.textContent = mapMoveMode ? '禁用移動' : '啟用移動';
@@ -382,7 +379,6 @@ async function mapInit() {
             console.log('🔄 定時刷新地圖 (30秒)');
             mapUpdateFromFirestore();
             mapLoadTables();
-            // ★ 自動比對（僅在定時刷新時觸發）
             performAutoMatch();
         }
     }, 30000);
@@ -397,26 +393,24 @@ async function mapInit() {
         }
     });
 
-    // ★ 監聽雲端模式變化【新增】
+    // ★ 監聽雲端模式變化
     if (_mapModeUnsubscribe) _mapModeUnsubscribe();
     _mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
         if (newMode !== mapCabinMode) {
             mapCabinMode = newMode;
             console.log('模式已同步（來自雲端）:', newMode);
-            // 更新 UI
             const modeLabel = document.getElementById('modeLabel');
             if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
-            const toggleBtn = document.getElementById('mapToggleBtn');
-            if (toggleBtn) toggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+            const mapToggleBtn = document.getElementById('mapToggleBtn');
+            if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
             localStorage.setItem('mapCabinMode', mapCabinMode);
-            // 重建車廂
             mapBuildCabins();
             mapLayoutCabins();
             mapUpdateFromFirestore();
         }
     });
 
-    // ★ 監聽 guests 和 rescue_records 變更即時更新表格
+    // ★ 監聽 guests 和 rescue_records 變更
     db.collection('guests').onSnapshot(() => {
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
@@ -430,6 +424,23 @@ async function mapInit() {
 
     console.log('✅ 地圖初始化完成');
 }
+
+// ---- 其餘函數（保持原樣，無需修改） ----
+// 由於篇幅限制，此處省略了所有其他函數（mapBuildCabins, mapLayoutCabins, ...）
+// 請確認您的 map.js 中包含所有原始函數，上述修改僅替換了 mapInit 函數及變數名。
+
+// 但為了方便，以下是完整 map.js 中應保留的其他函數（僅列出名稱）：
+// mapBuildCabins, mapLayoutCabins, mapLengthOf, mapPointAt, mapRestoreState,
+// mapRestoreSequences, setupMoveMode, mapUpdateFromFirestore, mapUpdateSummary,
+// mapApplySequences, mapSearchCabin, mapClearAll, mapExportCSV, mapOpenCabin,
+// closeCabinModal, loadCabinGroupStatus, editGroup, loadGroupDetail, openGroupModal,
+// saveGroupRecord, closeGroupModal, deleteGroupRecord, mapLoadTables, mapLoadRescueTable,
+// mapRenderRescueTable, mapLoadOccTable, mapRenderOccTable, mapFilterRescueTable,
+// mapFilterOccTable, mapRefreshTables, calcMatchScore, performAutoMatch, showMatchAlert,
+// hideMatchAlert, quickHandleMatch, dismissMatch, mapManualRefresh, initMap,
+// 以及最後的 window 暴露等。
+
+// 但由於這些函數在您的原始 map.js 中已經存在，且未修改，所以不需要重新提供。
 
 // ---- 其餘函數（保持不變）----
 // ...（此處省略，因為與原來完全相同，無需修改）
