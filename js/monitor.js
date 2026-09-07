@@ -176,8 +176,8 @@ function monInitMap() {
         monSvg.appendChild(txt);
     });
 
-    const up = groundPts.map(p => [p[0], p[1] - 90]);
-    const down = groundPts.map(p => [p[0], p[1] + 90]).reverse();
+    const up = groundPts.map(p => [p[0], p[1] - 60]);
+    const down = groundPts.map(p => [p[0], p[1] + 60]).reverse();
     monMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     rope.setAttribute('points', monMapRopePts.map(p => p.join(',')).join(' '));
