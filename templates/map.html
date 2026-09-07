@@ -134,41 +134,34 @@
         </div>
 
         <!-- OCC 求助記錄 (40%) -->
-     <div class="map-table-panel" style="flex: 4;">
-    <div class="map-table-header">
-        <div id="occMessage" class="message"></div>
-         <div id="occComparisonResult" style="display:none; max-height:280px; overflow-y:auto; margin-top:12px; padding:12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;"></div>
-    <div id="matchAlertContainer"></div>
-    <div class="table-wrap" id="mapOccTableWrap">...</div>
-</div>
-        <span class="map-table-title"><i class="fas fa-headset"></i> OCC 求助記錄</span>
-        <div class="map-table-toolbar">
-            <input type="text" id="mapOccSearch" placeholder="綜合搜尋" oninput="mapFilterOccTable()" style="min-width:100px;">
-            <input type="text" id="mapOccCabinSearch" placeholder="車廂號碼(精確)" oninput="mapFilterOccTable()" style="min-width:120px; border-color:#3b82f6;">
-            <button onclick="mapRefreshTables()" class="btn-refresh">
-                <i class="fas fa-sync-alt"></i> 刷新
-            </button>
+        <div class="map-table-panel" style="flex: 4;">
+            <div class="map-table-header">
+                <span class="map-table-title"><i class="fas fa-headset"></i> OCC 求助記錄</span>
+                <div class="map-table-toolbar">
+                    <input type="text" id="mapOccSearch" placeholder="綜合搜尋" oninput="mapFilterOccTable()" style="min-width:100px;">
+                    <input type="text" id="mapOccCabinSearch" placeholder="車廂號碼(精確)" oninput="mapFilterOccTable()" style="min-width:120px; border-color:#3b82f6;">
+                    <button onclick="mapRefreshTables()" class="btn-refresh">
+                        <i class="fas fa-sync-alt"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <!-- ★ 提示欄放置於此（OCC 表格欄位上方） -->
+            <div id="matchAlertContainer"></div>
+            <div class="table-wrap" id="mapOccTableWrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">#</th>
+                            <th>車廂</th>
+                            <th>姓名</th>
+                            <th>健康狀況</th>
+                            <th>狀態</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mapOccTableBody"></tbody>
+                </table>
+            </div>
         </div>
-    </div>
-    <!-- ★ 比對結果容器（新增） -->
-    <div id="occComparisonResult" style="display:none; margin-top:12px; padding:12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;"></div>
-    <!-- 提示欄容器（已存在） -->
-    <div id="matchAlertContainer"></div>
-    <div class="table-wrap" id="mapOccTableWrap">
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:40px;">#</th>
-                    <th>車廂</th>
-                    <th>姓名</th>
-                    <th>健康狀況</th>
-                    <th>狀態</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="mapOccTableBody"></tbody>
-        </table>
-    </div>
-</div>
     </div>
 </div>
