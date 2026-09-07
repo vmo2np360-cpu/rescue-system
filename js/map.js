@@ -373,6 +373,39 @@ async function mapInit() {
     // 2. 載入表格資料（此時車廂狀態已更新）
     await mapLoadTables();
 
+    // ★★★★★ 新增：設定表格滾動與對比結果容器 ★★★★★
+    // 設定滾動
+    const rescueWrap = document.getElementById('mapRescueTableWrap');
+    const occWrap = document.getElementById('mapOccTableWrap');
+    if (rescueWrap) {
+        rescueWrap.style.maxHeight = '350px';
+        rescueWrap.style.overflowY = 'auto';
+    }
+    if (occWrap) {
+        occWrap.style.maxHeight = '250px';
+        occWrap.style.overflowY = 'auto';
+    }
+    // 確保對比結果容器存在（放在 OCC 表格上方）
+    if (!document.getElementById('occComparisonResult')) {
+        const container = document.createElement('div');
+        container.id = 'occComparisonResult';
+        container.className = 'card';
+        container.style.marginTop = '12px';
+        container.style.marginBottom = '8px';
+        container.style.padding = '12px';
+        container.style.background = '#f8fafc';
+        container.style.borderRadius = '8px';
+        container.style.border = '1px solid #e2e8f0';
+        container.style.display = 'none'; // 初始隱藏，由 occ.js 控制顯示
+        const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
+        if (occPanel) {
+            const wrap = occPanel.querySelector('#mapOccTableWrap');
+            if (wrap) {
+                wrap.parentNode.insertBefore(container, wrap);
+            }
+        }
+    }
+
     // ★★★★★ 至此，車廂標籤與顏色應該已完整顯示 ★★★★★
 
     // ★ 定期刷新（作為監聽器的備援）
@@ -434,12 +467,11 @@ function mapRestoreSequences() {
     return realtimeDb.ref('cabins').once('value').then(snap => {
         const data = snap.val();
         if (!data) {
-            // 若無資料，清空所有標籤
             mapCabins.forEach(c => {
                 c.fields = {};
                 c.label.textContent = '';
             });
-            return mapUpdateFromFirestore(); // 仍需更新狀態（清除顏色）
+            return mapUpdateFromFirestore();
         }
         mapCabins.forEach(c => {
             if (data[c.id]) {
@@ -450,22 +482,9 @@ function mapRestoreSequences() {
                 c.label.textContent = '';
             }
         });
-        // 填充完畢後，更新車廂顏色與統計
         return mapUpdateFromFirestore();
     });
 }
-
-// 其餘函數（mapBuildCabins, mapLayoutCabins, mapLengthOf, mapPointAt, 
-// mapRestoreState, setupMoveMode, mapUpdateFromFirestore, mapUpdateSummary,
-// mapApplySequences, mapSearchCabin, mapClearAll, mapExportCSV,
-// mapOpenCabin, closeCabinModal, loadCabinGroupStatus, editGroup,
-// loadGroupDetail, openGroupModal, saveGroupRecord, closeGroupModal,
-// deleteGroupRecord, mapLoadTables, mapLoadRescueTable, mapRenderRescueTable,
-// mapLoadOccTable, mapRenderOccTable, mapFilterRescueTable, mapFilterOccTable,
-// mapRefreshTables, calcMatchScore, performAutoMatch, showMatchAlert,
-// hideMatchAlert, quickHandleMatch, dismissMatch, mapManualRefresh,
-// initMap 等）保持不變，但因篇幅限制，此處僅顯示修改部分。
-// 請注意：為了確保完整，以下將補上所有未變動的函數（實際上它們與您提供的原始碼完全相同）。
 
 // ---- 以下為原本就存在的函數（保持原樣） ----
 function mapBuildCabins() {
@@ -705,9 +724,6 @@ async function mapUpdateFromFirestore() {
         }
 
         mapUpdateSummary();
-        // ★ 同時更新表格（但 mapInit 中已經 await mapLoadTables，此處為額外更新）
-        // 為了避免重複，可在此處不呼叫 mapLoadTables，或者保留供其他調用。
-        // 此處保留，因為其他地方（如手動刷新）需要更新表格。
         mapLoadTables();
     } catch(e) {
         console.error('地圖更新失敗:', e);
@@ -1317,7 +1333,7 @@ async function mapLoadOccTable() {
     }
 }
 
-// ---- 渲染 OCC 求助記錄表格 ----
+// ---- 渲染 OCC 求助記錄表格（★ 新增對比按鈕）----
 function mapRenderOccTable() {
     const tbody = document.getElementById('mapOccTableBody');
     if (!tbody) return;
@@ -1353,6 +1369,7 @@ function mapRenderOccTable() {
         const statusText = rec.processed ? '已處理' : '待處理';
         const badgeClass = rec.processed ? 'status-processed' : 'status-pending';
         
+        // ★★★ 增加「對比」按鈕，呼叫 occCompareRecord ★★★
         tr.innerHTML = `
             <td>${idx--}</td>
             <td>${rec.cabinNumber || '-'}</td>
@@ -1361,6 +1378,9 @@ function mapRenderOccTable() {
             <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
             <td>
                 ${canEdit && !rec.processed ? `<button class="btn-sm btn-process" onclick="occMarkProcessed('${rec.id}')"><i class="fas fa-check"></i></button>` : ''}
+                <button class="btn-sm btn-secondary" onclick="occCompareRecord('${rec.id}')" title="對比">
+                    <i class="fas fa-search"></i>
+                </button>
                 ${window.currentRole === 'admin' ? `<button class="btn-sm btn-delete" onclick="occDeleteRecord('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
