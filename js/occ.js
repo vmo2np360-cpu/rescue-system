@@ -211,7 +211,7 @@ function occCalcMatchScore(guest, record) {
     return total ? Math.round((score/total)*100) : 0;
 }
 
-// ★ 顯示比對結果（強化插入邏輯 + 除錯日誌）
+// ★ 顯示比對結果（強化插入邏輯 + 修正無結果顯示）
 function occDisplayComparison(results, record) {
     console.log('occDisplayComparison called, results count:', results.length);
 
@@ -239,12 +239,20 @@ function occDisplayComparison(results, record) {
         return;
     }
 
+    // ★ 無結果時顯示可見的自訂提示（不使用 .message 類）
     if (!results.length) {
-        container.innerHTML = '<div class="message message-info">未找到匹配度 50% 以上的記錄</div>';
+        container.innerHTML = `
+            <div style="padding: 16px; background: #dbeafe; border-radius: 8px; color: #1e40af; font-weight: 500;">
+                <i class="fas fa-info-circle"></i> 未找到匹配度 50% 以上的記錄
+            </div>
+        `;
+        // 同時使用 showMessage 在頂部提示
+        showMessage('occMessage', 'ℹ️ 未找到匹配度 50% 以上的記錄', 'info', 4000);
         container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
     }
 
+    // 有結果時顯示列表
     let html = `<h4 style="color:#1e3a5f;">🔍 比對結果 (找到 ${results.length} 條匹配)</h4>
                 <p style="font-size:0.85rem; color:#64748b;">💡 點擊下方按鈕可將此求助記錄標記為「已處理」，不會影響被救者記錄 (guests)。</p>`;
     results.forEach(g => {
@@ -271,10 +279,8 @@ function occDisplayComparison(results, record) {
     `;
     container.innerHTML = html;
 
-    // ★ 自動滾動到結果區域
+    // 自動滾動到結果區域
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    // 顯示提示訊息
     showMessage('occMessage', `✅ 比對完成，找到 ${results.length} 筆匹配記錄`, 'success', 3000);
 }
 
