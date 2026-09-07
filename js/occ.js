@@ -58,7 +58,11 @@ async function occLoadRecords() {
         showMessage('occMessage', '載入失敗: ' + e.message, 'error');
     } finally { showLoader(false); }
 }
-
+function occRenderTable(records) {
+    const tbody = document.getElementById('occTableBody');
+    if (!tbody) return; // ★ 若不在 OCC 頁面則不渲染
+    // ... 原有渲染邏輯
+}
 // ---- 渲染表格 ----
 function occRenderTable(records) {
     const tbody = document.getElementById('occTableBody');
