@@ -441,7 +441,7 @@ function mapRefreshCabinsSequences() {
 
     console.log('✅ 地圖初始化完成');
 }
-
+}
 // ---- 其餘函數（保持原樣，無需修改） ----
 // 由於篇幅限制，此處省略了所有其他函數（mapBuildCabins, mapLayoutCabins, ...）
 // 請確認您的 map.js 中包含所有原始函數，上述修改僅替換了 mapInit 函數及變數名。
