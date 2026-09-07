@@ -115,7 +115,7 @@ async function mapInit() {
     // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
-    const startX = 150, endX = 2650, unit = (endX - startX) / 42;
+    const startX = 50, endX = 2750, unit = (endX - startX) / 42;
     const baseY = 600, topY = 300, npY = 340;
     let x = startX;
     const xCoords = [x];
