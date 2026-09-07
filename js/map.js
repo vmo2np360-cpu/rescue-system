@@ -1686,15 +1686,12 @@ function dismissMatch(recordId) {
         }
     }
 }
-
 // ---- 手動刷新地圖（僅限地圖頁面） ----
 function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
     const section = document.getElementById('section-map');
     if (section && section.classList.contains('active')) {
-        mapUpdateFromFirestore();
-        mapLoadTables();
-        performAutoMatch();
+        // ★ 顯示載入狀態
         const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
         if (btn) {
             const originalHtml = btn.innerHTML;
@@ -1705,6 +1702,23 @@ function mapManualRefresh() {
                 btn.disabled = false;
             }, 1500);
         }
+
+        // ★ 1. 重新讀取車廂序號（從 Realtime Database）
+        mapRefreshCabinsSequences();
+
+        // ★ 2. 更新地圖狀態（顏色、摘要）
+        mapUpdateFromFirestore();
+
+        // ★ 3. 重新載入表格（救援記錄 + OCC）
+        mapLoadTables();
+
+        // ★ 4. 自動比對（如果有）
+        performAutoMatch();
+
+        // ★ 5. 確保偏移量同步
+        mapLayoutCabins();
+
+        console.log('✅ 地圖手動刷新完成');
     } else {
         console.warn('地圖頁面未啟用，跳過刷新');
     }
