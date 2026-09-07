@@ -367,7 +367,24 @@ async function mapInit() {
     }
 
     mapRestoreSequences();
-
+// ---- 重新讀取車廂序號（用於手動刷新） ----
+function mapRefreshCabinsSequences() {
+    realtimeDb.ref('cabins').once('value').then(snap => {
+        const data = snap.val();
+        if (!data) return;
+        mapCabins.forEach(c => {
+            if (data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            }
+        });
+        // 更新摘要（可能影響車廂狀態統計）
+        mapUpdateSummary();
+        console.log('✅ 車廂序號已重新讀取');
+    }).catch(err => {
+        console.warn('讀取車廂序號失敗:', err);
+    });
+}
     // ★ 載入表格
     mapLoadTables();
 
@@ -537,17 +554,17 @@ function mapRestoreState() {
 }
 
 function mapRestoreSequences() {
-    realtimeDb.ref('cabins').once('value').then(snap => {
-        const data = snap.val();
-        if(!data) return;
-        mapCabins.forEach(c => {
-            if(data[c.id]) {
-                c.fields = data[c.id];
-                c.label.textContent = c.fields.sequence || '';
-            }
-        });
-        mapUpdateFromFirestore();
+realtimeDb.ref('cabins').on('value', (snap) => {
+    const data = snap.val();
+    if (!data) return;
+    mapCabins.forEach(c => {
+        if (data[c.id]) {
+            c.fields = data[c.id];
+            c.label.textContent = c.fields.sequence || '';
+        }
     });
+    mapUpdateFromFirestore();  // ★ 修正為 mapUpdateFromFirestore
+});
 }
 
 // ---- 移動模式設定 (修復游標與拖曳) ----
