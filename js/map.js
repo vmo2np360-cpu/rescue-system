@@ -13,6 +13,7 @@ let isDragging = false;
 let dragStartX = 0;
 let mapRopeElement = null;
 let _mapOffsetUnsubscribe = null;
+let _mapModeUnsubscribe = null;  // ★ 新增
 
 // ★ 表格資料變數
 let mapRescueRecords = [];
@@ -66,6 +67,15 @@ async function mapInit() {
 
     // ★ 從 Firestore 讀取偏移量
     mapGlobalOffset = await window.getGlobalOffsetFromFirestore();
+
+    // ★ 從 Firestore 讀取模式
+    mapCabinMode = await window.getGlobalModeFromFirestore();
+    // 更新 UI 顯示
+    const modeLabel = document.getElementById('modeLabel');
+    if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
+    const toggleBtn = document.getElementById('mapToggleBtn');
+    if (toggleBtn) toggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+    localStorage.setItem('mapCabinMode', mapCabinMode);
 
     // ----- 建立白色背景 -----
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -279,8 +289,13 @@ async function mapInit() {
     if (toggleBtn) {
         const newBtn = toggleBtn.cloneNode(true);
         toggleBtn.parentNode.replaceChild(newBtn, toggleBtn);
-        newBtn.addEventListener('click', function() {
-            mapCabinMode = mapCabinMode === 84 ? 109 : 84;
+        // ★ 修改按鈕事件：寫入 Firestore
+        newBtn.addEventListener('click', async function() {
+            const newMode = mapCabinMode === 84 ? 109 : 84;
+            // 寫入 Firestore（會觸發監聽器自動更新）
+            await window.setGlobalModeToFirestore(newMode);
+            // 本地立即更新（監聽器也會觸發，但先更新確保即時反應）
+            mapCabinMode = newMode;
             this.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
             document.getElementById('modeLabel').textContent = '模式: ' + mapCabinMode + ' 車廂';
             localStorage.setItem('mapCabinMode', mapCabinMode);
@@ -382,6 +397,25 @@ async function mapInit() {
         }
     });
 
+    // ★ 監聽雲端模式變化【新增】
+    if (_mapModeUnsubscribe) _mapModeUnsubscribe();
+    _mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
+        if (newMode !== mapCabinMode) {
+            mapCabinMode = newMode;
+            console.log('模式已同步（來自雲端）:', newMode);
+            // 更新 UI
+            const modeLabel = document.getElementById('modeLabel');
+            if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
+            const toggleBtn = document.getElementById('mapToggleBtn');
+            if (toggleBtn) toggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+            localStorage.setItem('mapCabinMode', mapCabinMode);
+            // 重建車廂
+            mapBuildCabins();
+            mapLayoutCabins();
+            mapUpdateFromFirestore();
+        }
+    });
+
     // ★ 監聽 guests 和 rescue_records 變更即時更新表格
     db.collection('guests').onSnapshot(() => {
         if (document.getElementById('section-map')?.classList.contains('active')) {
@@ -396,6 +430,19 @@ async function mapInit() {
 
     console.log('✅ 地圖初始化完成');
 }
+
+// ---- 其餘函數（保持不變）----
+// ...（此處省略，因為與原來完全相同，無需修改）
+// 注意：mapBuildCabins, mapLayoutCabins, mapLengthOf, mapPointAt, mapRestoreState, 
+// mapRestoreSequences, setupMoveMode, mapUpdateFromFirestore, mapUpdateSummary,
+// mapApplySequences, mapSearchCabin, mapClearAll, mapExportCSV, mapOpenCabin,
+// closeCabinModal, loadCabinGroupStatus, editGroup, loadGroupDetail, openGroupModal,
+// saveGroupRecord, closeGroupModal, deleteGroupRecord, mapLoadTables, mapLoadRescueTable,
+// mapRenderRescueTable, mapLoadOccTable, mapRenderOccTable, mapFilterRescueTable,
+// mapFilterOccTable, mapRefreshTables, calcMatchScore, performAutoMatch, showMatchAlert,
+// hideMatchAlert, quickHandleMatch, dismissMatch, mapManualRefresh, initMap,
+// 以及最後的 window 暴露等均保持原樣，無需變更。
+// 但為了完整性，請確保您原有的 map.js 中上述函數保持不變。
 
 // ---- 構建車廂 (放大) ----
 function mapBuildCabins() {
