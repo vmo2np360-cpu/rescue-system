@@ -15,7 +15,7 @@ let _monModeUnsubscribe = null;
 
 // ★ 救援建議相關變數（預設展開）
 let monUrgencyData = [];
-let monSuggestionExpanded = fales;
+let monSuggestionExpanded = false;
 
 // ---- 輔助：從 Firestore 載入偏移量 ----
 async function monLoadOffsetFromFirestore() {
