@@ -1737,40 +1737,33 @@ function dismissMatch(recordId) {
     }
 }
 // ---- 手動刷新地圖（僅限地圖頁面） ----
-function mapManualRefresh() {
-    console.log('🔄 手動刷新地圖');
-    const section = document.getElementById('section-map');
-    if (section && section.classList.contains('active')) {
-        // ★ 顯示載入狀態
-        const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
-        if (btn) {
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> 更新中';
-            btn.disabled = true;
-            setTimeout(() => {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }, 1500);
+// ---- 重新讀取車廂序號（用於手動刷新） ----
+async function mapRefreshCabinsSequences() {
+    try {
+        const snap = await realtimeDb.ref('cabins').once('value');
+        const data = snap.val();
+        if (!data) {
+            // 若資料為空，清空所有標籤
+            mapCabins.forEach(c => {
+                c.fields = {};
+                c.label.textContent = '';
+            });
+            mapUpdateSummary();
+            return;
         }
-
-        // ★ 1. 重新讀取車廂序號（從 Realtime Database）
-        mapRefreshCabinsSequences();
-
-        // ★ 2. 更新地圖狀態（顏色、摘要）
-        mapUpdateFromFirestore();
-
-        // ★ 3. 重新載入表格（救援記錄 + OCC）
-        mapLoadTables();
-
-        // ★ 4. 自動比對（如果有）
-        performAutoMatch();
-
-        // ★ 5. 確保偏移量同步
-        mapLayoutCabins();
-
-        console.log('✅ 地圖手動刷新完成');
-    } else {
-        console.warn('地圖頁面未啟用，跳過刷新');
+        mapCabins.forEach(c => {
+            if (data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        mapUpdateSummary();
+        console.log('✅ 車廂序號已重新讀取');
+    } catch (err) {
+        console.warn('讀取車廂序號失敗:', err);
     }
 }
 
@@ -1813,5 +1806,6 @@ window.performAutoMatch = performAutoMatch;
 window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
-
+window.mapRefreshCabinsSequences = mapRefreshCabinsSequences;
+    
 console.log('✅ map.js 已載入');
