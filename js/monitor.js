@@ -10,7 +10,8 @@ let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let _monOffsetUnsubscribe = null;
-let monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
+let monCabinMode = 84;  // ★ 改為初始值，將從 Firestore 讀取
+let _monModeUnsubscribe = null;  // ★ 新增
 
 // ★ 救援建議相關變數
 let monUrgencyData = [];
@@ -27,18 +28,25 @@ function monSyncOffsetAndLayout() {
 }
 
 // ---- 檢查車廂模式是否變更（與主地圖同步） ----
-function monCheckModeChange() {
-    const newMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
-    if (newMode !== monCabinMode) {
-        monCabinMode = newMode;
-        console.log(`🔄 Monitor 車廂模式變更為 ${monCabinMode}`);
-        monBuildCabins();
-        monLayoutCabins();
-        monUpdateFromFirestore();
-        const totalEl = document.getElementById('monTotalCabins');
-        if (totalEl) totalEl.textContent = monMapCabins.length;
-        monUpdateSummary();
-    }
+function monCheckModeChange(forceRebuild = false) {
+    // 從 Firestore 讀取最新模式（異步）
+    window.getGlobalModeFromFirestore().then(newMode => {
+        if (newMode !== monCabinMode || forceRebuild) {
+            if (newMode !== monCabinMode) {
+                console.log(`🔄 Monitor 車廂模式變更為 ${newMode}`);
+            } else {
+                console.log('🔄 強制重新構建車廂（模式相同）');
+            }
+            monCabinMode = newMode;
+            localStorage.setItem('mapCabinMode', newMode);
+            monBuildCabins();
+            monLayoutCabins();
+            monUpdateFromFirestore();
+            const totalEl = document.getElementById('monTotalCabins');
+            if (totalEl) totalEl.textContent = monMapCabins.length;
+            monUpdateSummary();
+        }
+    });
 }
 
 function monInitMap() {
@@ -46,7 +54,8 @@ function monInitMap() {
         console.log('Monitor 地圖已初始化，跳過');
         return;
     }
-    monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
+    // ★ 不再從 localStorage 讀取，改為從 Firestore 讀取（在下方）
+    // monCabinMode = parseInt(localStorage.getItem('mapCabinMode')) || 84;
 
     monSvg = document.getElementById('monitorMap');
     if (!monSvg) {
@@ -228,7 +237,12 @@ function monInitMap() {
     });
     monSvg.appendChild(legend);
 
-    monLoadOffsetFromFirestore().then(() => {
+    // ★ 讀取 Firestore 偏移量與模式
+    monLoadOffsetFromFirestore().then(async () => {
+        // ★ 從 Firestore 讀取模式
+        monCabinMode = await window.getGlobalModeFromFirestore();
+        localStorage.setItem('mapCabinMode', monCabinMode);
+
         monBuildCabins();
         if (_monOffsetUnsubscribe) _monOffsetUnsubscribe();
         _monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
@@ -236,6 +250,23 @@ function monInitMap() {
                 monCurrentOffset = newOffset;
                 monLayoutCabins();
                 console.log('Monitor 偏移量已同步:', newOffset);
+            }
+        });
+
+        // ★ 監聽雲端模式變化【新增】
+        if (_monModeUnsubscribe) _monModeUnsubscribe();
+        _monModeUnsubscribe = window.listenGlobalMode((newMode) => {
+            if (newMode !== monCabinMode) {
+                monCabinMode = newMode;
+                console.log('Monitor 模式已同步（來自雲端）:', newMode);
+                localStorage.setItem('mapCabinMode', newMode);
+                monBuildCabins();
+                monLayoutCabins();
+                monUpdateFromFirestore();
+                // 更新總車廂數
+                const totalEl = document.getElementById('monTotalCabins');
+                if (totalEl) totalEl.textContent = monMapCabins.length;
+                monUpdateSummary();
             }
         });
     });
@@ -610,7 +641,7 @@ async function monLoadAllData() {
         monUpdateAllDisplays();
         monUpdateTimestamp();
         monSyncOffsetAndLayout();
-        monCheckModeChange();
+        monCheckModeChange(false);
     } catch (e) {
         console.error('載入監控數據失敗:', e);
         if (typeof showMessage === 'function') showMessage('monMessage', '載入失敗: ' + e.message, 'error');
@@ -1057,7 +1088,8 @@ function monUpdateTimestamp() {
 
 function monManualRefresh() {
     console.log('🔄 手動刷新監控頁面');
-    monCheckModeChange();
+    // ★ 強制檢查模式（從 Firestore 讀取）
+    monCheckModeChange(true);
     monLoadAllData();
     setTimeout(() => { 
         monSyncOffsetAndLayout(); 
@@ -1105,7 +1137,7 @@ function monInit() {
         if (section && section.classList.contains('active')) {
             console.log('🔄 監控平台自動更新 (20秒)');
             monLoadAllData();
-            monCheckModeChange();
+            monCheckModeChange(false);
         }
     }, 20000);
 }
