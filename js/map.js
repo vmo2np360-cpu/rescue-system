@@ -372,6 +372,7 @@ async function mapInit() {
     // ★★★★★ 關鍵：載入車廂序號並更新狀態（含重試） ★★★★★
     try {
         await mapRestoreSequences(); // 內部會更新標籤並呼叫 mapUpdateFromFirestore()
+        console.log('✅ mapRestoreSequences 完成');
     } catch (e) {
         console.warn('車廂序號讀取失敗，將在 2 秒後重試', e);
         setTimeout(() => {
@@ -476,13 +477,18 @@ async function mapInit() {
         }
     });
 
-    // ★★★ 最終延遲更新，解決首次載入狀態標籤（摘要數字）為空的問題 ★★★
-    setTimeout(() => {
-        console.log('🔄 延遲更新摘要與表格 (確保 DOM 完全渲染)');
-        mapUpdateSummary();
-        mapLoadTables();
-        performAutoMatch();
-    }, 500);
+    // ★★★ 多重延遲更新，徹底解決首次載入標籤為空的問題 ★★★
+    const delayedUpdate = (delay) => {
+        setTimeout(() => {
+            console.log(`🔄 延遲更新摘要與表格 (${delay}ms)`);
+            mapUpdateSummary();
+            mapLoadTables();
+            performAutoMatch();
+        }, delay);
+    };
+    delayedUpdate(500);
+    delayedUpdate(1000);
+    delayedUpdate(2000);
 
     console.log('✅ 地圖初始化完成');
 }
@@ -513,6 +519,7 @@ function mapRestoreSequences(retryCount = 0) {
                         c.label.textContent = '';
                     }
                 });
+                // ★ 明確等待 mapUpdateFromFirestore 完成
                 mapUpdateFromFirestore().then(() => resolve()).catch(e => resolve());
             }).catch(err => {
                 console.warn(`讀取車廂序號失敗 (嘗試 ${retryCount+1}/${maxRetries})`, err);
@@ -659,6 +666,7 @@ function setupMoveMode() {
 // ★ 更新地圖 + 計算車廂綜合時間
 // ================================================================
 async function mapUpdateFromFirestore() {
+    console.log('🔄 mapUpdateFromFirestore 開始');
     try {
         const rescueSnap = await db.collection('rescue_records').get();
         const rescueRecords = [];
@@ -667,6 +675,8 @@ async function mapUpdateFromFirestore() {
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
+
+        console.log(`📊 讀取到 guests: ${guestRecords.length} 筆，rescue_records: ${rescueRecords.length} 筆`);
 
         const updates = {};
 
@@ -770,12 +780,13 @@ async function mapUpdateFromFirestore() {
 
         mapUpdateSummary();
         mapLoadTables();
+        console.log('✅ mapUpdateFromFirestore 完成');
     } catch(e) {
         console.error('地圖更新失敗:', e);
     }
 }
 
-// ---- 更新地圖摘要 ----
+// ---- 更新地圖摘要（含除錯日誌） ----
 function mapUpdateSummary() {
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
@@ -805,6 +816,8 @@ function mapUpdateSummary() {
             if (seq) dc.push(seq);
         }
     });
+
+    console.log(`📊 摘要統計: 等待=${waiting}, 救援中=${rescuing}, 已著陸=${landed}, 已離開=${departed}`);
 
     if (waitingSvg) waitingSvg.textContent = waiting;
     if (rescuingSvg) rescuingSvg.textContent = rescuing;
@@ -1784,4 +1797,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入（最終版，含延遲更新）');
+console.log('✅ map.js 已載入（最終版，含多重延遲更新與除錯日誌）');
