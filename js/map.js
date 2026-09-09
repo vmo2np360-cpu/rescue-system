@@ -521,32 +521,31 @@ function mapRestoreSequences(retryCount = 0) {
     });
 }
 
-// ---- 以下函數保持不變，但為完整起見保留 ----
+// ---- 核心函數：建立車廂（完全無 removeChild） ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
-    // ★ 安全移除所有現有的車廂元素（透過 class）
+    // ★ 安全移除所有現有車廂（使用 remove()，無 removeChild）
     svg.querySelectorAll('.cabin').forEach(el => el.remove());
-    // 清空陣列（避免舊引用）
-    mapCabins = [];
-    
+    mapCabins = []; // 清空陣列
+
     const total = mapCabinMode;
     const size = mapCabinMode === 109 ? 20 : 24;
     const fontSize = mapCabinMode === 109 ? 22 : 26;
     const ropeLen = mapLengthOf(mapRopePts);
-    for(let i=0; i<total; i++) {
-        const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    for (let i = 0; i < total; i++) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('class', 'cabin');
         const pts = [];
-        for(let j=0; j<6; j++) {
-            const a = Math.PI/3 * j;
-            pts.push((size*Math.cos(a)) + ',' + (size*Math.sin(a)));
+        for (let j = 0; j < 6; j++) {
+            const a = Math.PI / 3 * j;
+            pts.push((size * Math.cos(a)) + ',' + (size * Math.sin(a)));
         }
-        const hex = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+        const hex = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         hex.setAttribute('points', pts.join(' '));
         hex.setAttribute('fill', '#ffffff');
         hex.setAttribute('stroke', '#333');
         g.appendChild(hex);
-        const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         lbl.setAttribute('class', 'seq-label');
         lbl.setAttribute('y', '5');
         lbl.setAttribute('font-size', fontSize);
@@ -554,7 +553,7 @@ function mapBuildCabins() {
         lbl.setAttribute('dominant-baseline', 'middle');
         lbl.setAttribute('fill', '#111');
         g.appendChild(lbl);
-        const cabin = { id: 'cabin-'+i, fields: {}, el: g, shape: hex, label: lbl };
+        const cabin = { id: 'cabin-' + i, fields: {}, el: g, shape: hex, label: lbl };
         g.addEventListener('dblclick', () => mapOpenCabin(cabin));
         mapCabins.push(cabin);
         svg.appendChild(g);
@@ -1777,4 +1776,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入（修正 removeChild 錯誤）');
+console.log('✅ map.js 已載入（最終版，無 removeChild 錯誤）');
