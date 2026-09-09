@@ -1518,6 +1518,157 @@ function calcMatchScore(guest, record) {
     
     return totalWeight ? Math.round((score / totalWeight) * 100) : 0;
 }
+// ================================================================
+// ★ OCC 對比功能（獨立實現在 map 頁面，不依賴 occ.js）
+// ================================================================
+
+// ---- 顯示比對結果（使用 map 中已存在的 occComparisonResult 容器） ----
+function occDisplayComparison(results, record) {
+    let container = document.getElementById('occComparisonResult');
+    if (!container) {
+        console.warn('找不到 occComparisonResult 容器，請確認 mapInit 已建立');
+        // 嘗試動態建立
+        const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
+        if (occPanel) {
+            container = document.createElement('div');
+            container.id = 'occComparisonResult';
+            container.className = 'card';
+            container.style.marginTop = '12px';
+            container.style.marginBottom = '8px';
+            container.style.padding = '12px';
+            container.style.background = '#f8fafc';
+            container.style.borderRadius = '8px';
+            container.style.border = '1px solid #e2e8f0';
+            container.style.display = 'none';
+            const wrap = occPanel.querySelector('#mapOccTableWrap');
+            if (wrap) {
+                wrap.parentNode.insertBefore(container, wrap);
+            } else {
+                occPanel.appendChild(container);
+            }
+        } else {
+            alert('無法建立結果容器');
+            return;
+        }
+    }
+
+    if (results.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 12px; background: #dbeafe; border-radius: 8px; color: #1e40af; font-weight: 500;">
+                <i class="fas fa-info-circle"></i> 未找到匹配度 50% 以上的記錄
+            </div>
+        `;
+        container.style.display = 'block';
+        return;
+    }
+
+    let html = `<h4 style="color:#1e3a5f;">🔍 比對結果 (找到 ${results.length} 條匹配)</h4>
+                <p style="font-size:0.85rem; color:#64748b;">💡 點擊下方按鈕可將此求助記錄標記為「已處理」，不會影響被救者記錄 (guests)。</p>`;
+    results.forEach(g => {
+        const level = g.matchScore >= 80 ? '高' : (g.matchScore >= 50 ? '中' : '低');
+        html += `
+            <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin:8px 0; background:white;">
+                <div><strong>${g.guestName || '未提供'}</strong> (車廂 ${g.cabinNumber || '-'}) 匹配度: ${g.matchScore}% (${level})</div>
+                <div style="font-size:0.85rem; color:#475569;">
+                    聯絡: ${g.contactNumber || '-'} ｜ 健康: ${g.healthStatus || '-'} ｜ 組別: ${g.groupNumber ? '第' + g.groupNumber + '組' : '-'}
+                </div>
+                <button class="btn btn-success" style="padding:4px 12px;font-size:0.8rem;margin-top:6px;" 
+                        onclick="occMarkProcessed('${record.id}')">
+                    <i class="fas fa-check"></i> 求助個案已處理
+                </button>
+            </div>
+        `;
+    });
+    html += `
+        <div style="text-align:center; margin-top:12px;">
+            <button class="btn btn-secondary" onclick="occCloseComparison()" style="padding:6px 20px;">
+                <i class="fas fa-times"></i> 關閉比對結果
+            </button>
+        </div>
+    `;
+    container.innerHTML = html;
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---- 關閉比對結果 ----
+function occCloseComparison() {
+    const container = document.getElementById('occComparisonResult');
+    if (container) {
+        container.style.display = 'none';
+        // 可選擇移除內容或保留
+    }
+}
+
+// ---- 標記求助為已處理（簡化版，僅更新 rescue_records） ----
+async function occMarkProcessed(recordId) {
+    if (!confirm('確定標記此求助為已處理？')) return;
+    try {
+        showLoader();
+        await db.collection('rescue_records').doc(recordId).update({
+            processed: true,
+            processedAt: new Date()
+        });
+        showMessage('mapMessage', '✅ 求助記錄已標記為已處理', 'success');
+        // 重新載入表格與自動比對
+        await mapLoadTables();
+        await performAutoMatch();
+        // 關閉比對結果
+        occCloseComparison();
+    } catch (e) {
+        console.error('標記失敗:', e);
+        showMessage('mapMessage', '操作失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// ---- 對比功能主函數（供按鈕調用） ----
+window.occCompareRecord = async function(recordId) {
+    console.log('🔍 occCompareRecord 被呼叫，recordId:', recordId);
+    try {
+        showLoader();
+        // 1. 讀取該求助記錄
+        const doc = await db.collection('rescue_records').doc(recordId).get();
+        if (!doc.exists) {
+            showMessage('mapMessage', '找不到該求助記錄', 'error');
+            return;
+        }
+        const record = doc.data();
+        record.id = doc.id;
+
+        // 2. 讀取所有 guests
+        const snap = await db.collection('guests').get();
+        let results = [];
+        snap.forEach(d => {
+            const data = d.data();
+            // 比對條件（任一欄位相符即納入計算）
+            let match = false;
+            if (record.cabinNumber && data.cabinNumber === record.cabinNumber) match = true;
+            if (record.guestName && data.guestName === record.guestName) match = true;
+            if (record.contactNumber && data.contactNumber === record.contactNumber) match = true;
+            if (record.gender && data.gender === record.gender) match = true;
+            if (record.ageRange && data.ageRange === record.ageRange) match = true;
+            if (record.healthStatus && data.healthStatus === record.healthStatus) match = true;
+            if (match) {
+                const score = calcMatchScore(data, record); // 使用 map.js 既有的 calcMatchScore
+                results.push({ id: d.id, ...data, matchScore: score });
+            }
+        });
+
+        // 3. 排序並篩選 >= 50%
+        results.sort((a, b) => b.matchScore - a.matchScore);
+        results = results.filter(r => r.matchScore >= 50);
+
+        // 4. 顯示結果
+        occDisplayComparison(results, record);
+    } catch (e) {
+        console.error('比對失敗:', e);
+        showMessage('mapMessage', '比對失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+};
 
 // ================================================================
 // ★ 自動比對與提示功能
@@ -1818,5 +1969,9 @@ window.performAutoMatch = performAutoMatch;
 window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
+// 暴露輔助函數（必要時）
+window.occDisplayComparison = occDisplayComparison;
+window.occCloseComparison = occCloseComparison;
+window.occMarkProcessed = occMarkProcessed;
 
 console.log('✅ map.js 已載入（最終版，含強制重繪與多重延遲更新）');
