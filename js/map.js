@@ -276,7 +276,7 @@ async function mapInit() {
     
     // ★★★★★ 摘要區塊結束 ★★★★★
 
-    // ----- 建立車廂 -----
+    // ----- 建立車廂 (先建立形狀) -----
     mapBuildCabins();
     mapLayoutCabins();
 
@@ -284,7 +284,7 @@ async function mapInit() {
     setupMoveMode();
 
     // ----- 事件綁定 (使用 cloneNode 避免重複監聽) -----
-    // ★ 車廂模式切換按鈕（避免變數名衝突）
+    // ★ 車廂模式切換按鈕
     const mapToggleBtnElement = document.getElementById('mapToggleBtn');
     if (mapToggleBtnElement) {
         const newBtn = mapToggleBtnElement.cloneNode(true);
@@ -366,18 +366,33 @@ async function mapInit() {
         });
     }
 
-    // ★★★★★ 關鍵修改：等待車廂序號與狀態載入完成 ★★★★★
-    // 1. 讀取車廂序號並填充標籤 (等待完成)
-    await mapRestoreSequences();      // 內部會呼叫 mapUpdateFromFirestore()
+    // ★★★★★ 關鍵：載入車廂序號並更新狀態（含重試） ★★★★★
+    try {
+        await mapRestoreSequences(); // 內部會更新標籤並呼叫 mapUpdateFromFirestore()
+    } catch (e) {
+        console.warn('車廂序號讀取失敗，將在 2 秒後重試', e);
+        setTimeout(() => {
+            mapRestoreSequences().then(() => {
+                console.log('重試讀取車廂序號成功');
+                mapLoadTables();
+                performAutoMatch();
+            }).catch(err => console.error('重試仍失敗', err));
+        }, 2000);
+    }
 
-    // 2. 載入表格資料（此時車廂狀態已更新）
+    // ★ 即使第一次讀取成功，也額外在 3 秒後強制更新一次（確保最終顯示）
+    setTimeout(() => {
+        console.log('🔄 強制更新地圖（備援）');
+        mapUpdateFromFirestore();
+        mapLoadTables();
+        performAutoMatch();
+    }, 3000);
+
+    // ★ 載入表格資料（此時車廂標籤與顏色應已更新）
     await mapLoadTables();
-
-    // 3. 執行自動比對
     await performAutoMatch();
 
-    // ★★★★★ 新增：設定表格滾動與對比結果容器 ★★★★★
-    // 設定滾動
+    // ★★★★★ 設定表格滾動與對比結果容器 ★★★★★
     const rescueWrap = document.getElementById('mapRescueTableWrap');
     const occWrap = document.getElementById('mapOccTableWrap');
     if (rescueWrap) {
@@ -388,7 +403,6 @@ async function mapInit() {
         occWrap.style.maxHeight = '250px';
         occWrap.style.overflowY = 'auto';
     }
-    // 確保對比結果容器存在（放在 OCC 表格上方）
     if (!document.getElementById('occComparisonResult')) {
         const container = document.createElement('div');
         container.id = 'occComparisonResult';
@@ -399,7 +413,7 @@ async function mapInit() {
         container.style.background = '#f8fafc';
         container.style.borderRadius = '8px';
         container.style.border = '1px solid #e2e8f0';
-        container.style.display = 'none'; // 初始隱藏，由 occ.js 控制顯示
+        container.style.display = 'none';
         const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
         if (occPanel) {
             const wrap = occPanel.querySelector('#mapOccTableWrap');
@@ -409,9 +423,7 @@ async function mapInit() {
         }
     }
 
-    // ★★★★★ 至此，車廂標籤與顏色應該已完整顯示 ★★★★★
-
-    // ★ 定期刷新（作為監聽器的備援）
+    // ★ 定時刷新（備援）
     if (window._mapRefreshTimer) clearInterval(window._mapRefreshTimer);
     window._mapRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-map');
@@ -423,7 +435,7 @@ async function mapInit() {
         }
     }, 30000);
 
-    // ★ 監聽雲端偏移量變化
+    // ★ 監聽雲端偏移量與模式
     if (_mapOffsetUnsubscribe) _mapOffsetUnsubscribe();
     _mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mapGlobalOffset) > 0.001) {
@@ -433,7 +445,6 @@ async function mapInit() {
         }
     });
 
-    // ★ 監聽雲端模式變化
     if (_mapModeUnsubscribe) _mapModeUnsubscribe();
     _mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
         if (newMode !== mapCabinMode) {
@@ -450,7 +461,7 @@ async function mapInit() {
         }
     });
 
-    // ★ 監聽 guests 和 rescue_records 變更（用於即時更新表格）
+    // ★ 監聽 guests 和 rescue_records 變更（即時更新表格）
     db.collection('guests').onSnapshot(() => {
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
@@ -465,31 +476,49 @@ async function mapInit() {
     console.log('✅ 地圖初始化完成');
 }
 
-// ★ 改寫 mapRestoreSequences，使其回傳 Promise 並包含更新狀態
-function mapRestoreSequences() {
-    return realtimeDb.ref('cabins').once('value').then(snap => {
-        const data = snap.val();
-        if (!data) {
-            mapCabins.forEach(c => {
-                c.fields = {};
-                c.label.textContent = '';
+// ★ 重寫 mapRestoreSequences，加入重試邏輯
+function mapRestoreSequences(retryCount = 0) {
+    return new Promise((resolve, reject) => {
+        const maxRetries = 3;
+        const doFetch = () => {
+            realtimeDb.ref('cabins').once('value').then(snap => {
+                const data = snap.val();
+                if (!data) {
+                    // 無資料時清空所有標籤
+                    mapCabins.forEach(c => {
+                        c.fields = {};
+                        c.label.textContent = '';
+                    });
+                    // 即使無資料，仍嘗試更新顏色（可能從 guests 推斷）
+                    mapUpdateFromFirestore().then(() => resolve()).catch(e => resolve());
+                    return;
+                }
+                mapCabins.forEach(c => {
+                    if (data[c.id]) {
+                        c.fields = data[c.id];
+                        c.label.textContent = c.fields.sequence || '';
+                    } else {
+                        c.fields = {};
+                        c.label.textContent = '';
+                    }
+                });
+                mapUpdateFromFirestore().then(() => resolve()).catch(e => resolve());
+            }).catch(err => {
+                console.warn(`讀取車廂序號失敗 (嘗試 ${retryCount+1}/${maxRetries})`, err);
+                if (retryCount < maxRetries - 1) {
+                    setTimeout(() => {
+                        mapRestoreSequences(retryCount + 1).then(resolve).catch(reject);
+                    }, 500);
+                } else {
+                    reject(err);
+                }
             });
-            return mapUpdateFromFirestore();
-        }
-        mapCabins.forEach(c => {
-            if (data[c.id]) {
-                c.fields = data[c.id];
-                c.label.textContent = c.fields.sequence || '';
-            } else {
-                c.fields = {};
-                c.label.textContent = '';
-            }
-        });
-        return mapUpdateFromFirestore();
+        };
+        doFetch();
     });
 }
 
-// ---- 以下為原本就存在的函數（保持原樣） ----
+// ---- 以下函數保持不變，但為完整起見保留 ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
@@ -570,7 +599,7 @@ function mapRestoreState() {
     }
 }
 
-// ---- 移動模式設定 (修復游標與拖曳) ----
+// ---- 移動模式設定 ----
 function setupMoveMode() {
     if (!mapSvg || !mapRopeElement) {
         console.error('mapSvg 或 rope 未就緒');
@@ -733,7 +762,7 @@ async function mapUpdateFromFirestore() {
     }
 }
 
-// ---- 更新地圖摘要 (安全檢查，避免報錯) ----
+// ---- 更新地圖摘要 ----
 function mapUpdateSummary() {
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
@@ -896,7 +925,7 @@ function mapExportCSV() {
     });
 }
 
-// ---- 開啟車廂資訊 (顯示綜合時間，修正插入位置) ----
+// ---- 開啟車廂資訊 ----
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
     document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
@@ -1055,7 +1084,7 @@ function editGroup(docId) { loadGroupDetail(docId); }
 
 async function loadGroupDetail(docId) {
     try {
-        showLoader();  // 修正
+        showLoader();
         const doc = await db.collection('guests').doc(docId).get();
         if (doc.exists) {
             const guestData = doc.data();
@@ -1159,7 +1188,7 @@ async function saveGroupRecord() {
         return;
     }
     try {
-        showLoader();  // 修正
+        showLoader();
         const existingDoc = await db.collection('guests').doc(docId).get();
         const previousData = existingDoc.exists ? existingDoc.data() : null;
         await db.collection('guests').doc(docId).update(updateData);
@@ -1184,7 +1213,7 @@ async function deleteGroupRecord() {
     if (!docId) return;
     if (!confirm('確定刪除此組別記錄？')) return;
     try {
-        showLoader();  // 修正
+        showLoader();
         await db.collection('guests').doc(docId).delete();
         closeGroupModal();
 
@@ -1220,7 +1249,6 @@ async function deleteGroupRecord() {
 // ★ 地圖表格載入模組
 // ================================================================
 
-// ---- 載入兩個表格 ----
 async function mapLoadTables() {
     try {
         await Promise.all([
@@ -1233,7 +1261,6 @@ async function mapLoadTables() {
     }
 }
 
-// ---- 載入救援記錄（來自 guests） ----
 async function mapLoadRescueTable() {
     try {
         const snap = await db.collection('guests').get();
@@ -1249,7 +1276,6 @@ async function mapLoadRescueTable() {
     }
 }
 
-// ---- 渲染救援記錄表格 ----
 function mapRenderRescueTable() {
     const tbody = document.getElementById('mapRescueTableBody');
     if (!tbody) return;
@@ -1320,7 +1346,6 @@ function mapRenderRescueTable() {
     });
 }
 
-// ---- 載入 OCC 求助記錄（來自 rescue_records） ----
 async function mapLoadOccTable() {
     try {
         const snap = await db.collection('rescue_records').orderBy('createdAt', 'desc').get();
@@ -1336,7 +1361,6 @@ async function mapLoadOccTable() {
     }
 }
 
-// ---- 渲染 OCC 求助記錄表格（★ 新增對比按鈕）----
 function mapRenderOccTable() {
     const tbody = document.getElementById('mapOccTableBody');
     if (!tbody) return;
@@ -1390,17 +1414,14 @@ function mapRenderOccTable() {
     });
 }
 
-// ---- 過濾救援記錄 ----
 function mapFilterRescueTable() {
     mapRenderRescueTable();
 }
 
-// ---- 過濾 OCC 求助記錄 ----
 function mapFilterOccTable() {
     mapRenderOccTable();
 }
 
-// ---- 手動刷新表格 ----
 function mapRefreshTables() {
     console.log('🔄 手動刷新表格');
     mapLoadTables();
@@ -1417,7 +1438,7 @@ function mapRefreshTables() {
 }
 
 // ================================================================
-// ★ 加權比對函式（cabinNumber 權重 2 倍）
+// ★ 加權比對函式
 // ================================================================
 function calcMatchScore(guest, record) {
     let score = 0;
@@ -1451,10 +1472,9 @@ function calcMatchScore(guest, record) {
 }
 
 // ================================================================
-// ★ 自動比對與提示功能（僅在定時刷新時觸發）
+// ★ 自動比對與提示功能
 // ================================================================
 
-// ---- 執行自動比對 ----
 async function performAutoMatch() {
     try {
         const rescueSnap = await db.collection('rescue_records')
@@ -1530,7 +1550,6 @@ async function performAutoMatch() {
     }
 }
 
-// ---- 顯示匹配提示欄 ----
 function showMatchAlert(matches) {
     let container = document.getElementById('matchAlertContainer');
     if (!container) {
@@ -1637,7 +1656,6 @@ function showMatchAlert(matches) {
     container.style.display = 'block';
 }
 
-// ---- 隱藏提示欄 ----
 function hideMatchAlert() {
     const container = document.getElementById('matchAlertContainer');
     if (container) {
@@ -1645,11 +1663,10 @@ function hideMatchAlert() {
     }
 }
 
-// ---- 快速處理匹配（標記為已處理） ----
 async function quickHandleMatch(recordId) {
     if (!confirm('確定標記此求助為已處理？')) return;
     try {
-        showLoader();  // 修正
+        showLoader();
         await db.collection('rescue_records').doc(recordId).update({
             processed: true,
             processedAt: new Date()
@@ -1665,7 +1682,6 @@ async function quickHandleMatch(recordId) {
     }
 }
 
-// ---- 忽略匹配提示 ----
 function dismissMatch(recordId) {
     matchNotifiedIds.add(recordId);
     const container = document.getElementById('matchAlertContainer');
@@ -1680,14 +1696,22 @@ function dismissMatch(recordId) {
     }
 }
 
-// ---- 手動刷新地圖（★ 改良：重新載入所有資料） ----
+// ---- 手動刷新地圖（強化：強制重新載入所有資料） ----
 async function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
     const section = document.getElementById('section-map');
     if (section && section.classList.contains('active')) {
-        // 重新載入車廂序號（從 Realtime DB）
+        // 先清除舊車廂標籤（避免殘留）
+        mapCabins.forEach(c => {
+            c.fields = {};
+            c.label.textContent = '';
+            c.shape.setAttribute('fill', '#ffffff');
+            c.shape.setAttribute('stroke', '#333');
+            c.el.classList.remove("status-red", "status-yellow", "status-green", "status-departed");
+        });
+        // 重新讀取序號（含重試）
         await mapRestoreSequences();
-        // 再更新狀態（從 Firestore）
+        // 再更新狀態與表格
         await mapUpdateFromFirestore();
         await mapLoadTables();
         await performAutoMatch();
@@ -1707,7 +1731,7 @@ async function mapManualRefresh() {
     }
 }
 
-// ---- 初始化入口 (含重試) ----
+// ---- 初始化入口 ----
 function initMap() {
     console.log('🚀 初始化救援地圖');
     const mapEl = document.getElementById('map');
@@ -1747,4 +1771,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入');
+console.log('✅ map.js 已載入（含重試與備援機制）');
