@@ -480,15 +480,18 @@ async function mapInit() {
     // ★★★ 多重延遲更新，徹底解決首次載入標籤為空的問題 ★★★
     const delayedUpdate = (delay) => {
         setTimeout(() => {
-            console.log(`🔄 延遲更新摘要與表格 (${delay}ms)`);
+            console.log(`🔄 延遲更新摘要 (${delay}ms)`);
             mapUpdateSummary();
-            mapLoadTables();
-            performAutoMatch();
         }, delay);
     };
     delayedUpdate(500);
     delayedUpdate(1000);
     delayedUpdate(2000);
+    // 最終保險
+    setTimeout(() => {
+        console.log('🔄 最終保險更新摘要 (3000ms)');
+        mapUpdateSummary();
+    }, 3000);
 
     console.log('✅ 地圖初始化完成');
 }
@@ -786,8 +789,9 @@ async function mapUpdateFromFirestore() {
     }
 }
 
-// ---- 更新地圖摘要（含除錯日誌） ----
+// ---- 更新地圖摘要（強化版：元素檢查 + 強制重繪） ----
 function mapUpdateSummary() {
+    // 嘗試獲取所有摘要元素
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
     const landedSvg = document.getElementById('mapLandedSvg');
@@ -796,6 +800,13 @@ function mapUpdateSummary() {
     const rescuingCabinsSvg = document.getElementById('mapRescuingSvgCabins');
     const landedCabinsSvg = document.getElementById('mapLandedSvgCabins');
     const departedCabinsSvg = document.getElementById('mapDepartedSvgCabins');
+
+    // 如果任何元素為 null，可能是 DOM 尚未準備好，延遲重試
+    if (!waitingSvg || !rescuingSvg || !landedSvg || !departedSvg) {
+        console.warn('摘要元素尚未就緒，延遲 200ms 重試');
+        setTimeout(mapUpdateSummary, 200);
+        return;
+    }
 
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
@@ -819,11 +830,13 @@ function mapUpdateSummary() {
 
     console.log(`📊 摘要統計: 等待=${waiting}, 救援中=${rescuing}, 已著陸=${landed}, 已離開=${departed}`);
 
-    if (waitingSvg) waitingSvg.textContent = waiting;
-    if (rescuingSvg) rescuingSvg.textContent = rescuing;
-    if (landedSvg) landedSvg.textContent = landed;
-    if (departedSvg) departedSvg.textContent = departed;
+    // 更新數字
+    waitingSvg.textContent = waiting;
+    rescuingSvg.textContent = rescuing;
+    landedSvg.textContent = landed;
+    departedSvg.textContent = departed;
 
+    // 更新車廂列表
     const wcStr = wc.join(', ');
     const rcStr = rc.join(', ');
     const lcStr = lc.join(', ');
@@ -845,10 +858,19 @@ function mapUpdateSummary() {
         departedCabinsSvg.setAttribute('title', dcStr);
     }
 
+    // ★★★ 強制觸發瀏覽器重繪（讀取 offsetWidth 強制 reflow） ★★★
+    waitingSvg.offsetWidth;
+    rescuingSvg.offsetWidth;
+    landedSvg.offsetWidth;
+    departedSvg.offsetWidth;
+
+    // 同時更新頁面上的文字（非 SVG 元素）
     const waitingEl = document.getElementById('waitingText');
     const landedEl = document.getElementById('landedText');
     if (waitingEl) waitingEl.textContent = '等待: ' + waiting;
     if (landedEl) landedEl.textContent = '已著陸: ' + landed;
+
+    console.log('✅ 摘要更新完成，已強制重繪');
 }
 
 // ---- 套用車廂序號 ----
@@ -1797,4 +1819,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入（最終版，含多重延遲更新與除錯日誌）');
+console.log('✅ map.js 已載入（最終版，含強制重繪與多重延遲更新）');
