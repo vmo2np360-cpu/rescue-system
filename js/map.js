@@ -367,11 +367,14 @@ async function mapInit() {
     }
 
     // ★★★★★ 關鍵修改：等待車廂序號與狀態載入完成 ★★★★★
-    // 1. 讀取車廂序號並填充標籤
+    // 1. 讀取車廂序號並填充標籤 (等待完成)
     await mapRestoreSequences();      // 內部會呼叫 mapUpdateFromFirestore()
 
     // 2. 載入表格資料（此時車廂狀態已更新）
     await mapLoadTables();
+
+    // 3. 執行自動比對
+    await performAutoMatch();
 
     // ★★★★★ 新增：設定表格滾動與對比結果容器 ★★★★★
     // 設定滾動
@@ -1052,7 +1055,7 @@ function editGroup(docId) { loadGroupDetail(docId); }
 
 async function loadGroupDetail(docId) {
     try {
-        showLoader(true);
+        showLoader();  // 修正
         const doc = await db.collection('guests').doc(docId).get();
         if (doc.exists) {
             const guestData = doc.data();
@@ -1156,7 +1159,7 @@ async function saveGroupRecord() {
         return;
     }
     try {
-        showLoader(true);
+        showLoader();  // 修正
         const existingDoc = await db.collection('guests').doc(docId).get();
         const previousData = existingDoc.exists ? existingDoc.data() : null;
         await db.collection('guests').doc(docId).update(updateData);
@@ -1181,7 +1184,7 @@ async function deleteGroupRecord() {
     if (!docId) return;
     if (!confirm('確定刪除此組別記錄？')) return;
     try {
-        showLoader(true);
+        showLoader();  // 修正
         await db.collection('guests').doc(docId).delete();
         closeGroupModal();
 
@@ -1369,7 +1372,6 @@ function mapRenderOccTable() {
         const statusText = rec.processed ? '已處理' : '待處理';
         const badgeClass = rec.processed ? 'status-processed' : 'status-pending';
         
-        // ★★★ 增加「對比」按鈕，呼叫 occCompareRecord ★★★
         tr.innerHTML = `
             <td>${idx--}</td>
             <td>${rec.cabinNumber || '-'}</td>
@@ -1647,7 +1649,7 @@ function hideMatchAlert() {
 async function quickHandleMatch(recordId) {
     if (!confirm('確定標記此求助為已處理？')) return;
     try {
-        showLoader(true);
+        showLoader();  // 修正
         await db.collection('rescue_records').doc(recordId).update({
             processed: true,
             processedAt: new Date()
@@ -1678,14 +1680,18 @@ function dismissMatch(recordId) {
     }
 }
 
-// ---- 手動刷新地圖（僅限地圖頁面） ----
-function mapManualRefresh() {
+// ---- 手動刷新地圖（★ 改良：重新載入所有資料） ----
+async function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
     const section = document.getElementById('section-map');
     if (section && section.classList.contains('active')) {
-        mapUpdateFromFirestore();
-        mapLoadTables();
-        performAutoMatch();
+        // 重新載入車廂序號（從 Realtime DB）
+        await mapRestoreSequences();
+        // 再更新狀態（從 Firestore）
+        await mapUpdateFromFirestore();
+        await mapLoadTables();
+        await performAutoMatch();
+        // 按鈕回饋
         const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
         if (btn) {
             const originalHtml = btn.innerHTML;
