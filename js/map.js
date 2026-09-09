@@ -55,12 +55,15 @@ async function mapInit() {
 
     _mapInitRetryCount = 0;
 
-    // 清空 SVG（保留 defs）
+    // ★ 清空 SVG（保留 defs）
     const defs = mapSvg.querySelector('defs');
     while (mapSvg.firstChild) {
         mapSvg.removeChild(mapSvg.firstChild);
     }
     if (defs) mapSvg.appendChild(defs);
+
+    // ★ 清空車廂陣列（避免舊引用殘留）
+    mapCabins = [];
 
     // 設定 viewBox（固定）
     mapSvg.setAttribute('viewBox', '0 200 2800 500');
@@ -521,8 +524,11 @@ function mapRestoreSequences(retryCount = 0) {
 // ---- 以下函數保持不變，但為完整起見保留 ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
-    mapCabins.forEach(c => { if(c.el) svg.removeChild(c.el); });
+    // ★ 安全移除所有現有的車廂元素（透過 class）
+    svg.querySelectorAll('.cabin').forEach(el => el.remove());
+    // 清空陣列（避免舊引用）
     mapCabins = [];
+    
     const total = mapCabinMode;
     const size = mapCabinMode === 109 ? 20 : 24;
     const fontSize = mapCabinMode === 109 ? 22 : 26;
@@ -1771,4 +1777,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入（含重試與備援機制）');
+console.log('✅ map.js 已載入（修正 removeChild 錯誤）');
