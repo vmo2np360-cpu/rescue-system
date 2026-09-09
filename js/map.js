@@ -476,6 +476,14 @@ async function mapInit() {
         }
     });
 
+    // ★★★ 最終延遲更新，解決首次載入狀態標籤（摘要數字）為空的問題 ★★★
+    setTimeout(() => {
+        console.log('🔄 延遲更新摘要與表格 (確保 DOM 完全渲染)');
+        mapUpdateSummary();
+        mapLoadTables();
+        performAutoMatch();
+    }, 500);
+
     console.log('✅ 地圖初始化完成');
 }
 
@@ -526,7 +534,7 @@ function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
     // ★ 安全移除所有現有車廂（使用 remove()，無 removeChild）
     svg.querySelectorAll('.cabin').forEach(el => el.remove());
-    mapCabins = []; // 清空陣列
+    mapCabins = [];
 
     const total = mapCabinMode;
     const size = mapCabinMode === 109 ? 20 : 24;
@@ -1776,4 +1784,4 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-console.log('✅ map.js 已載入（最終版，無 removeChild 錯誤）');
+console.log('✅ map.js 已載入（最終版，含延遲更新）');
