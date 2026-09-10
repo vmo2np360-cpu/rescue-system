@@ -55,6 +55,24 @@ async function mapInit() {
 
     _mapInitRetryCount = 0;
 
+    // ★ 確保地圖頁面有訊息容器 #mapMessage
+    let mapMsg = document.getElementById('mapMessage');
+    if (!mapMsg) {
+        mapMsg = document.createElement('div');
+        mapMsg.id = 'mapMessage';
+        mapMsg.className = 'message';
+        const toolbar = document.querySelector('#section-map .map-toolbar');
+        if (toolbar) {
+            toolbar.after(mapMsg);
+        } else {
+            const section = document.getElementById('section-map');
+            if (section) {
+                section.prepend(mapMsg);
+            }
+        }
+        console.log('✅ 已建立 #mapMessage');
+    }
+
     // ★ 清空 SVG（保留 defs）
     const defs = mapSvg.querySelector('defs');
     while (mapSvg.firstChild) {
@@ -504,12 +522,10 @@ function mapRestoreSequences(retryCount = 0) {
             realtimeDb.ref('cabins').once('value').then(snap => {
                 const data = snap.val();
                 if (!data) {
-                    // 無資料時清空所有標籤
                     mapCabins.forEach(c => {
                         c.fields = {};
                         c.label.textContent = '';
                     });
-                    // 即使無資料，仍嘗試更新顏色（可能從 guests 推斷）
                     mapUpdateFromFirestore().then(() => resolve()).catch(e => resolve());
                     return;
                 }
@@ -522,7 +538,6 @@ function mapRestoreSequences(retryCount = 0) {
                         c.label.textContent = '';
                     }
                 });
-                // ★ 明確等待 mapUpdateFromFirestore 完成
                 mapUpdateFromFirestore().then(() => resolve()).catch(e => resolve());
             }).catch(err => {
                 console.warn(`讀取車廂序號失敗 (嘗試 ${retryCount+1}/${maxRetries})`, err);
@@ -542,7 +557,6 @@ function mapRestoreSequences(retryCount = 0) {
 // ---- 核心函數：建立車廂（完全無 removeChild） ----
 function mapBuildCabins() {
     const svg = mapSvg || document.getElementById('map');
-    // ★ 安全移除所有現有車廂（使用 remove()，無 removeChild）
     svg.querySelectorAll('.cabin').forEach(el => el.remove());
     mapCabins = [];
 
@@ -791,7 +805,6 @@ async function mapUpdateFromFirestore() {
 
 // ---- 更新地圖摘要（強化版：元素檢查 + 強制重繪） ----
 function mapUpdateSummary() {
-    // 嘗試獲取所有摘要元素
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
     const landedSvg = document.getElementById('mapLandedSvg');
@@ -801,7 +814,6 @@ function mapUpdateSummary() {
     const landedCabinsSvg = document.getElementById('mapLandedSvgCabins');
     const departedCabinsSvg = document.getElementById('mapDepartedSvgCabins');
 
-    // 如果任何元素為 null，可能是 DOM 尚未準備好，延遲重試
     if (!waitingSvg || !rescuingSvg || !landedSvg || !departedSvg) {
         console.warn('摘要元素尚未就緒，延遲 200ms 重試');
         setTimeout(mapUpdateSummary, 200);
@@ -830,13 +842,11 @@ function mapUpdateSummary() {
 
     console.log(`📊 摘要統計: 等待=${waiting}, 救援中=${rescuing}, 已著陸=${landed}, 已離開=${departed}`);
 
-    // 更新數字
     waitingSvg.textContent = waiting;
     rescuingSvg.textContent = rescuing;
     landedSvg.textContent = landed;
     departedSvg.textContent = departed;
 
-    // 更新車廂列表
     const wcStr = wc.join(', ');
     const rcStr = rc.join(', ');
     const lcStr = lc.join(', ');
@@ -858,13 +868,12 @@ function mapUpdateSummary() {
         departedCabinsSvg.setAttribute('title', dcStr);
     }
 
-    // ★★★ 強制觸發瀏覽器重繪（讀取 offsetWidth 強制 reflow） ★★★
+    // 強制觸發重繪
     waitingSvg.offsetWidth;
     rescuingSvg.offsetWidth;
     landedSvg.offsetWidth;
     departedSvg.offsetWidth;
 
-    // 同時更新頁面上的文字（非 SVG 元素）
     const waitingEl = document.getElementById('waitingText');
     const landedEl = document.getElementById('landedText');
     if (waitingEl) waitingEl.textContent = '等待: ' + waiting;
@@ -1451,11 +1460,11 @@ function mapRenderOccTable() {
             <td>${rec.healthStatus || '-'}</td>
             <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
             <td>
-                ${canEdit && !rec.processed ? `<button class="btn-sm btn-process" onclick="occMarkProcessed('${rec.id}')"><i class="fas fa-check"></i></button>` : ''}
-                <button class="btn-sm btn-secondary" onclick="occCompareRecord('${rec.id}')" title="對比">
+                ${canEdit && !rec.processed ? `<button class="btn-sm btn-process" onclick="mapOccMarkProcessed('${rec.id}')"><i class="fas fa-check"></i></button>` : ''}
+                <button class="btn-sm btn-secondary" onclick="mapOccCompareRecord('${rec.id}')" title="對比">
                     <i class="fas fa-search"></i>
                 </button>
-                ${window.currentRole === 'admin' ? `<button class="btn-sm btn-delete" onclick="occDeleteRecord('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
+                ${window.currentRole === 'admin' ? `<button class="btn-sm btn-delete" onclick="mapOccDeleteRecord('${rec.id}')"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -1518,16 +1527,16 @@ function calcMatchScore(guest, record) {
     
     return totalWeight ? Math.round((score / totalWeight) * 100) : 0;
 }
+
 // ================================================================
 // ★ OCC 對比功能（獨立實現在 map 頁面，不依賴 occ.js）
 // ================================================================
 
-// ---- 顯示比對結果（使用 map 中已存在的 occComparisonResult 容器） ----
-function occDisplayComparison(results, record) {
+// ---- 顯示比對結果 ----
+function mapOccDisplayComparison(results, record) {
     let container = document.getElementById('occComparisonResult');
     if (!container) {
-        console.warn('找不到 occComparisonResult 容器，請確認 mapInit 已建立');
-        // 嘗試動態建立
+        console.warn('找不到 occComparisonResult 容器，嘗試動態建立');
         const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
         if (occPanel) {
             container = document.createElement('div');
@@ -1547,7 +1556,7 @@ function occDisplayComparison(results, record) {
                 occPanel.appendChild(container);
             }
         } else {
-            alert('無法建立結果容器');
+            showMessage('mapMessage', '無法建立結果容器', 'error');
             return;
         }
     }
@@ -1559,6 +1568,7 @@ function occDisplayComparison(results, record) {
             </div>
         `;
         container.style.display = 'block';
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
     }
 
@@ -1573,7 +1583,7 @@ function occDisplayComparison(results, record) {
                     聯絡: ${g.contactNumber || '-'} ｜ 健康: ${g.healthStatus || '-'} ｜ 組別: ${g.groupNumber ? '第' + g.groupNumber + '組' : '-'}
                 </div>
                 <button class="btn btn-success" style="padding:4px 12px;font-size:0.8rem;margin-top:6px;" 
-                        onclick="occMarkProcessed('${record.id}')">
+                        onclick="mapOccMarkProcessed('${record.id}')">
                     <i class="fas fa-check"></i> 求助個案已處理
                 </button>
             </div>
@@ -1581,7 +1591,7 @@ function occDisplayComparison(results, record) {
     });
     html += `
         <div style="text-align:center; margin-top:12px;">
-            <button class="btn btn-secondary" onclick="occCloseComparison()" style="padding:6px 20px;">
+            <button class="btn btn-secondary" onclick="mapOccCloseComparison()" style="padding:6px 20px;">
                 <i class="fas fa-times"></i> 關閉比對結果
             </button>
         </div>
@@ -1592,16 +1602,15 @@ function occDisplayComparison(results, record) {
 }
 
 // ---- 關閉比對結果 ----
-function occCloseComparison() {
+function mapOccCloseComparison() {
     const container = document.getElementById('occComparisonResult');
     if (container) {
         container.style.display = 'none';
-        // 可選擇移除內容或保留
     }
 }
 
-// ---- 標記求助為已處理（簡化版，僅更新 rescue_records） ----
-async function occMarkProcessed(recordId) {
+// ---- 標記求助為已處理 ----
+async function mapOccMarkProcessed(recordId) {
     if (!confirm('確定標記此求助為已處理？')) return;
     try {
         showLoader();
@@ -1610,11 +1619,9 @@ async function occMarkProcessed(recordId) {
             processedAt: new Date()
         });
         showMessage('mapMessage', '✅ 求助記錄已標記為已處理', 'success');
-        // 重新載入表格與自動比對
         await mapLoadTables();
         await performAutoMatch();
-        // 關閉比對結果
-        occCloseComparison();
+        mapOccCloseComparison();
     } catch (e) {
         console.error('標記失敗:', e);
         showMessage('mapMessage', '操作失敗: ' + e.message, 'error');
@@ -1623,12 +1630,28 @@ async function occMarkProcessed(recordId) {
     }
 }
 
-// ---- 對比功能主函數（供按鈕調用） ----
-window.occCompareRecord = async function(recordId) {
-    console.log('🔍 occCompareRecord 被呼叫，recordId:', recordId);
+// ---- 刪除求助記錄 ----
+async function mapOccDeleteRecord(recordId) {
+    if (!confirm('確定刪除此求助記錄？')) return;
     try {
         showLoader();
-        // 1. 讀取該求助記錄
+        await db.collection('rescue_records').doc(recordId).delete();
+        showMessage('mapMessage', '✅ 已刪除', 'success');
+        await mapLoadTables();
+        await performAutoMatch();
+    } catch (e) {
+        console.error('刪除失敗:', e);
+        showMessage('mapMessage', '刪除失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// ---- 對比主函數 ----
+async function mapOccCompareRecord(recordId) {
+    console.log('🔍 mapOccCompareRecord 被呼叫，recordId:', recordId);
+    try {
+        showLoader();
         const doc = await db.collection('rescue_records').doc(recordId).get();
         if (!doc.exists) {
             showMessage('mapMessage', '找不到該求助記錄', 'error');
@@ -1637,12 +1660,10 @@ window.occCompareRecord = async function(recordId) {
         const record = doc.data();
         record.id = doc.id;
 
-        // 2. 讀取所有 guests
         const snap = await db.collection('guests').get();
         let results = [];
         snap.forEach(d => {
             const data = d.data();
-            // 比對條件（任一欄位相符即納入計算）
             let match = false;
             if (record.cabinNumber && data.cabinNumber === record.cabinNumber) match = true;
             if (record.guestName && data.guestName === record.guestName) match = true;
@@ -1651,24 +1672,22 @@ window.occCompareRecord = async function(recordId) {
             if (record.ageRange && data.ageRange === record.ageRange) match = true;
             if (record.healthStatus && data.healthStatus === record.healthStatus) match = true;
             if (match) {
-                const score = calcMatchScore(data, record); // 使用 map.js 既有的 calcMatchScore
+                const score = calcMatchScore(data, record);
                 results.push({ id: d.id, ...data, matchScore: score });
             }
         });
 
-        // 3. 排序並篩選 >= 50%
         results.sort((a, b) => b.matchScore - a.matchScore);
         results = results.filter(r => r.matchScore >= 50);
 
-        // 4. 顯示結果
-        occDisplayComparison(results, record);
+        mapOccDisplayComparison(results, record);
     } catch (e) {
         console.error('比對失敗:', e);
         showMessage('mapMessage', '比對失敗: ' + e.message, 'error');
     } finally {
         hideLoader();
     }
-};
+}
 
 // ================================================================
 // ★ 自動比對與提示功能
@@ -1895,12 +1914,11 @@ function dismissMatch(recordId) {
     }
 }
 
-// ---- 手動刷新地圖（強化：強制重新載入所有資料） ----
+// ---- 手動刷新地圖 ----
 async function mapManualRefresh() {
     console.log('🔄 手動刷新地圖');
     const section = document.getElementById('section-map');
     if (section && section.classList.contains('active')) {
-        // 先清除舊車廂標籤（避免殘留）
         mapCabins.forEach(c => {
             c.fields = {};
             c.label.textContent = '';
@@ -1908,13 +1926,10 @@ async function mapManualRefresh() {
             c.shape.setAttribute('stroke', '#333');
             c.el.classList.remove("status-red", "status-yellow", "status-green", "status-departed");
         });
-        // 重新讀取序號（含重試）
         await mapRestoreSequences();
-        // 再更新狀態與表格
         await mapUpdateFromFirestore();
         await mapLoadTables();
         await performAutoMatch();
-        // 按鈕回饋
         const btn = document.querySelector('#section-map .map-toolbar button[onclick="mapManualRefresh()"]');
         if (btn) {
             const originalHtml = btn.innerHTML;
@@ -1969,9 +1984,19 @@ window.performAutoMatch = performAutoMatch;
 window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
-// 暴露輔助函數（必要時）
-window.occDisplayComparison = occDisplayComparison;
-window.occCloseComparison = occCloseComparison;
-window.occMarkProcessed = occMarkProcessed;
 
-console.log('✅ map.js 已載入（最終版，含強制重繪與多重延遲更新）');
+// ★ 地圖專用 OCC 對比功能暴露
+window.mapOccCompareRecord = mapOccCompareRecord;
+window.mapOccMarkProcessed = mapOccMarkProcessed;
+window.mapOccDeleteRecord = mapOccDeleteRecord;
+window.mapOccCloseComparison = mapOccCloseComparison;
+window.mapOccDisplayComparison = mapOccDisplayComparison;
+
+// ★ 兼容舊名稱（若其他頁面有引用）
+window.occCompareRecord = mapOccCompareRecord;
+window.occMarkProcessed = mapOccMarkProcessed;
+window.occDeleteRecord = mapOccDeleteRecord;
+window.occCloseComparison = mapOccCloseComparison;
+window.occDisplayComparison = mapOccDisplayComparison;
+
+console.log('✅ map.js 已載入（最終版，含 #mapMessage 建立、獨立對比功能、刪除功能）');
