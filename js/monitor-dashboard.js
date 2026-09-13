@@ -316,7 +316,7 @@ async function mdInitMap() {
 
     mdBuildCabins();
 
-    // ★ 防重複註冊偏移量監聽
+    // ★ 防重複註冊偏移量監聽（Firestore onSnapshot 回傳 unsubscribe，可直接呼叫）
     if (_mdOffsetUnsub) _mdOffsetUnsub();
     _mdOffsetUnsub = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mdCurrentOffset) > 0.001) {
@@ -338,7 +338,15 @@ async function mdInitMap() {
     });
 
     // ★ 防重複註冊 Realtime DB 車廂監聽
-    if (_mdCabinsUnsub) _mdCabinsUnsub();
+    // 注意：Realtime DB 的 .on() 回傳的是 callback 本身，不是 unsubscribe 函數
+    if (_mdCabinsUnsub) {
+        try {
+            realtimeDb.ref('cabins').off('value', _mdCabinsUnsub);
+        } catch (e) {
+            console.warn('移除舊 cabins 監聽失敗:', e);
+        }
+        _mdCabinsUnsub = null;
+    }
     _mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         mdMapCabins.forEach(c => {
@@ -353,12 +361,13 @@ async function mdInitMap() {
         mdUpdateFromFirestore();
     });
 
-    // ★ 防重複註冊 Firestore 監聽
+    // ★ 防重複註冊 Firestore guests 監聽（onSnapshot 回傳 unsubscribe，可直接呼叫）
     if (_mdGuestsUnsub) _mdGuestsUnsub();
     _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdUpdateFromFirestore();
     });
 
+    // ★ 防重複註冊 Firestore rescue_records 監聽
     if (_mdRescueUnsub) _mdRescueUnsub();
     _mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdUpdateFromFirestore();
