@@ -2,7 +2,61 @@
 <div id="mapMessage" class="message"></div>
 
 <!-- ★ 置頂標籤已刪除，地圖向上移動 -->
+<!-- ===== Incident 事件資訊 ===== -->
+<div class="incident-toolbar">
+    <div class="incident-row">
 
+        <span class="incident-label">
+            <i class="fas fa-exclamation-triangle" style="color:#dc2626;"></i>
+            Incident
+        </span>
+
+        <input type="datetime-local" id="incidentDateTime" class="incident-input"
+               title="事件日期時間">
+
+        <select id="incidentType" class="incident-input" title="事件類型">
+            <option value="">請選擇類型</option>
+            <option value="Technical Fault-TCT">Technical Fault-TCT</option>
+            <option value="Technical Fault-AIAS">Technical Fault-AIAS</option>
+            <option value="Technical Fault-NLS">Technical Fault-NLS</option>
+            <option value="Technical Fault-NPT">Technical Fault-NPT</option>
+            <option value="Technical Fault-T1">Technical Fault-T1</option>
+            <option value="Technical Fault-T2">Technical Fault-T2</option>
+            <option value="Technical Fault-T3">Technical Fault-T3</option>
+            <option value="Technical Fault-T4">Technical Fault-T4</option>
+            <option value="Technical Fault-T5">Technical Fault-T5</option>
+            <option value="Technical Fault-T6">Technical Fault-T6</option>
+            <option value="Technical Fault-T7">Technical Fault-T7</option>
+            <option value="other">Other</option>
+        </select>
+
+        <input type="text" id="incidentTypeOther" class="incident-input"
+               placeholder="請輸入類型" style="display:none;">
+
+        <button onclick="incidentCreate()" class="incident-btn incident-btn-primary">
+            <i class="fas fa-plus"></i> 新增事件
+        </button>
+        <button onclick="incidentUpdateCurrent()" class="incident-btn">
+            <i class="fas fa-sync-alt"></i> 更新目前事件
+        </button>
+        <button onclick="incidentClose()" class="incident-btn incident-btn-danger">
+            <i class="fas fa-check"></i> 關閉目前事件
+        </button>
+
+        <span class="incident-sep">|</span>
+
+        <span class="incident-label">
+            <i class="fas fa-users" style="color:#2563eb;"></i>
+            Guests online
+        </span>
+        <input type="number" id="guestsOnlineInput" class="incident-input incident-input-num"
+               placeholder="0" min="0">
+        <button onclick="saveGuestsOnline()" class="incident-btn">
+            <i class="fas fa-save"></i> 儲存
+        </button>
+
+    </div>
+</div>
 <div class="map-toolbar">
     <textarea id="seqInput" placeholder="輸入車廂號碼 (逗號或空格分隔)"></textarea>
     <button onclick="mapApplySequences()" style="background:#2563eb;color:white;">套用</button>
