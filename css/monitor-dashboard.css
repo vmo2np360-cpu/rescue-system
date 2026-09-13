@@ -71,31 +71,6 @@
     white-space: nowrap;
 }
 
-.md-status-active {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #22c55e !important;
-}
-
-.md-status-active .md-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 10px #22c55e;
-    animation: mdPulse 1.5s ease-in-out infinite;
-}
-
-.md-status-closed {
-    color: #94a3b8 !important;
-}
-
-.md-status-closed .md-dot {
-    background: #94a3b8;
-    box-shadow: none;
-    animation: none;
-}
-
 @keyframes mdPulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(1.15); }
@@ -454,7 +429,39 @@
     .md-radar-tabs button { font-size: 0.55rem; padding: 2px 6px; }
     .md-radar-title { font-size: 0.7rem; }
 }
+/* ===== Incident Status 燈號 ===== */
+.md-status-alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ef4444 !important;
+}
 
+.md-status-alert .md-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+    animation: mdPulse 1.5s ease-in-out infinite;
+}
+
+.md-status-closed {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #22c55e !important;
+}
+
+.md-status-closed .md-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+    /* 無動畫 */
+    animation: none;
+}
 /* ===== 全屏按鈕 ===== */
 .md-fullscreen-btn {
     background: rgba(0, 243, 255, 0.15);
