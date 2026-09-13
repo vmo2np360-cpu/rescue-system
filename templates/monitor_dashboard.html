@@ -1,0 +1,156 @@
+<div id="md-app">
+
+    <!-- ===== Header ===== -->
+    <header id="md-header">
+        <div class="md-header-left">
+            <h1>NP360 Emergency Management</h1>
+        </div>
+
+        <div class="md-header-center">
+            <div class="md-header-item">
+                <span class="md-label">Date</span>
+                <span class="md-value" id="md-date">—</span>
+            </div>
+            <div class="md-header-item">
+                <span class="md-label">Incident Status</span>
+                <span class="md-value md-status-active" id="md-incident-status">
+                    <span class="md-dot"></span>
+                    <span id="md-incident-status-text">—</span>
+                </span>
+            </div>
+            <div class="md-header-item">
+                <span class="md-label">Incident Type</span>
+                <span class="md-value" id="md-incident-type">—</span>
+            </div>
+        </div>
+
+        <div class="md-header-right">
+            <div class="md-weather">
+                <img id="md-weather-icon" src="assets/weather-icons/pic50.png" alt=""
+                     class="md-weather-icon"
+                     onerror="this.style.display='none'">
+                <div class="md-weather-text">
+                    <div class="md-weather-temp"><span id="md-temp">—</span>°C</div>
+                    <div class="md-weather-humidity">濕度 <span id="md-humidity">—</span>%</div>
+                </div>
+            </div>
+            <div class="md-warning-icons" id="md-warning-icons"></div>
+        </div>
+    </header>
+
+    <!-- ===== Main ===== -->
+    <main id="md-main">
+
+        <section id="md-map-area">
+            <div class="md-card md-map-card">
+                <svg id="md-map" viewBox="0 200 2800 500"
+                     preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+        </section>
+
+        <aside id="md-side-panel">
+
+            <div class="md-card" id="md-incident-info">
+                <h3 class="md-card-title">
+                    <i class="fas fa-info-circle"></i> Incident Information
+                </h3>
+                <div class="md-info-row">
+                    <span class="md-info-label">Current Time</span>
+                    <span class="md-info-value" id="md-current-time">—</span>
+                </div>
+                <div class="md-info-row">
+                    <span class="md-info-label">Incident Time</span>
+                    <span class="md-info-value" id="md-incident-time">—</span>
+                </div>
+                <div class="md-info-row">
+                    <span class="md-info-label">Duration</span>
+                    <span class="md-info-value md-duration" id="md-duration">—</span>
+                </div>
+            </div>
+
+            <div class="md-card" id="md-operational-impact">
+                <h3 class="md-card-title">
+                    <i class="fas fa-chart-line"></i> Operational Impact
+                </h3>
+                <div class="md-impact-grid">
+                    <div class="md-impact-item">
+                        <span class="md-impact-label">Guests online</span>
+                        <span class="md-impact-value" id="md-guests-online">—</span>
+                    </div>
+                    <div class="md-impact-item">
+                        <span class="md-impact-label">Cabins online</span>
+                        <span class="md-impact-value" id="md-cabins-online">—</span>
+                    </div>
+                    <div class="md-impact-item">
+                        <span class="md-impact-label">Cases Received</span>
+                        <span class="md-impact-value" id="md-cases-received">—</span>
+                    </div>
+                    <div class="md-impact-item">
+                        <span class="md-impact-label">Guests Affected</span>
+                        <span class="md-impact-value" id="md-guests-affected">—</span>
+                    </div>
+                </div>
+
+                <div class="md-progress">
+                    <div class="md-progress-header">
+                        <span>Rescue Progress</span>
+                        <span id="md-progress-pct">0%</span>
+                    </div>
+                    <div class="md-progress-bar">
+                        <div class="md-progress-fill" id="md-progress-fill" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <div class="md-last-updated">
+                    Last Updated: <span id="md-last-updated">—</span>
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- ===== 底部四卡 ===== -->
+    <footer id="md-status-cards">
+        <div class="md-status-card md-awaiting">
+            <div class="md-status-label">Awaiting Rescue</div>
+            <div class="md-status-number" id="md-awaiting">0</div>
+        </div>
+        <div class="md-status-card md-in-progress">
+            <div class="md-status-label">Rescue in Progress</div>
+            <div class="md-status-number" id="md-in-progress">0</div>
+        </div>
+        <div class="md-status-card md-rescued">
+            <div class="md-status-label">Rescued</div>
+            <div class="md-status-number" id="md-rescued">0</div>
+        </div>
+        <div class="md-status-card md-closed">
+            <div class="md-status-label">Case Closed</div>
+            <div class="md-status-number" id="md-closed">0</div>
+        </div>
+    </footer>
+
+    <!-- ===== 右下角雷達圖 ===== -->
+    <div id="md-radar">
+        <div class="md-radar-header">
+            <span class="md-radar-title">
+                <i class="fas fa-satellite-dish"></i> 天氣雷達
+            </span>
+            <div class="md-radar-tabs">
+                <button data-range="64" class="active">64km</button>
+                <button data-range="128">128km</button>
+                <button data-range="256">256km</button>
+            </div>
+            <button class="md-radar-toggle" id="md-radar-toggle" title="收起">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="md-radar-body">
+            <img id="md-radar-img" src="" alt="Weather Radar">
+            <div class="md-radar-footer">
+                <span id="md-radar-time">—</span>
+                <span id="md-radar-range">64 km</span>
+            </div>
+        </div>
+    </div>
+
+</div>
