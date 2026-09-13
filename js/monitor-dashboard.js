@@ -771,14 +771,14 @@ function mdRenderIncident(incident) {
     const status = (incident.status || '').toUpperCase();
     if (statusTextEl) statusTextEl.textContent = status || '—';
     if (statusEl) {
-        statusEl.classList.remove('md-status-active', 'md-status-closed');
-        if (status === 'ACTIVE') statusEl.classList.add('md-status-active');
+        statusEl.classList.remove('md-status-alert', 'md-status-closed');
+        if (status === 'ACTIVE') statusEl.classList.add('md-status-alert');
         else statusEl.classList.add('md-status-closed');
     }
 
     if (incTimeEl) {
         if (incident.incidentTime) {
-            incTimeEl.textContent = mdFormatDateTime(incident.incidentTime);
+            incTimeEl.textContent = mdFormatIncidentTime(incident.incidentTime);
         } else {
             incTimeEl.textContent = '—';
         }
@@ -842,14 +842,34 @@ function mdUpdateCurrentTime() {
     else incTime = new Date(it);
     if (isNaN(incTime.getTime())) { durEl.textContent = '—'; return; }
 
-    const diffMs = now - incTime;
+    // 判斷結束時間
+    let endTime = now;
+    const status = (mdCurrentIncident.status || '').toUpperCase();
+    if (status === 'CLOSED' && mdCurrentIncident.closedTime) {
+        const ct = mdCurrentIncident.closedTime;
+        let closedDate;
+        if (ct.toDate) closedDate = ct.toDate();
+        else if (ct.seconds) closedDate = new Date(ct.seconds * 1000);
+        else closedDate = new Date(ct);
+        if (!isNaN(closedDate.getTime())) endTime = closedDate;
+    }
+
+    const diffMs = endTime - incTime;
     if (diffMs < 0) { durEl.textContent = '—'; return; }
 
     const totalMin = Math.floor(diffMs / 60000);
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
-    if (h > 0) durEl.textContent = `${h}h ${m}m`;
-    else durEl.textContent = `${m}m`;
+
+    if (h >= 24) {
+        const days = Math.floor(h / 24);
+        const remainingH = h % 24;
+        durEl.textContent = `${days}d ${remainingH}h ${m}m`;
+    } else if (h > 0) {
+        durEl.textContent = `${h}h ${m}m`;
+    } else {
+        durEl.textContent = `${m}m`;
+    }
 }
 
 // ================================================================
