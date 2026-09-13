@@ -119,8 +119,10 @@
 }
 
 .md-weather-icon {
-    width: 40px; height: 40px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
+    /* 不加 background */
 }
 
 .md-weather-text {
@@ -148,8 +150,19 @@
 }
 
 .md-warning-icons img {
-    width: 36px; height: 36px;
+    width: 38px;
+    height: 38px;
     object-fit: contain;
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease;
+}
+
+.md-warning-icons img:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 /* ===== Main ===== */
