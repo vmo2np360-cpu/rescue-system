@@ -24,7 +24,6 @@ let _mdAutoRefreshTimer = null;
 let _mdRadarTimer = null;
 let _mdWeatherTimer = null;
 
-// ---------- 天氣警告圖示映射（請自行下載對應 PNG 到 assets/weather-icons/）----------
 // ================================================================
 // 香港天文台天氣警告圖示映射
 // 檔案：assets/weather-icons/1.png ~ 21.png
@@ -57,11 +56,11 @@ function mdGetWarningIcon(item) {
             if (code === 'WRAINB') return '11.png';
             return null;
 
-        case 'WTS':     return '12.png';  // 雷暴
-        case 'WFNTR':   return '13.png';  // 新界北部水浸
-        case 'WL':      return '14.png';  // 山泥傾瀉
-        case 'WMSGNL':  return '15.png';  // 強烈季候風
-        case 'WFROST':  return '16.png';  // 霜凍
+        case 'WTS':     return '12.png';
+        case 'WFNTR':   return '13.png';
+        case 'WL':      return '14.png';
+        case 'WMSGNL':  return '15.png';
+        case 'WFROST':  return '16.png';
 
         case 'WFIRE':
         case 'WFIREY':
@@ -70,14 +69,13 @@ function mdGetWarningIcon(item) {
             if (type.includes('紅') || type.includes('红') || code === 'WFIRER') return '18.png';
             return null;
 
-        case 'WCOLD':   return '19.png';  // 寒冷
-        case 'WHOY':    return '20.png';  // 酷熱
-        case 'WTMW':    return '21.png';  // 海嘯
+        case 'WCOLD':   return '19.png';
+        case 'WHOY':    return '20.png';
+        case 'WTMW':    return '21.png';
         default:        return null;
     }
 }
 
-// ---------- 天氣狀況圖示（天文台 forecastIcon 對應）----------
 function mdWeatherIconUrl(code) {
     const c = String(code).padStart(2, '0');
     return `assets/weather-icons/pic${c}.png`;
@@ -87,67 +85,86 @@ function mdWeatherIconUrl(code) {
 // 初始化入口
 // ================================================================
 async function mdInit() {
-    if (!document.getElementById('md-map')) {
+    const mapEl = document.getElementById('md-map');
+    if (!mapEl) {
         console.warn('mdInit: 尚未載入 #md-map，300ms 後重試');
         setTimeout(mdInit, 300);
         return;
     }
-    if (window._mdInitialized) {
+
+    // 若已初始化且 SVG 有內容 → 真正跳過
+    if (window._mdInitialized && mapEl.childElementCount > 0) {
         console.log('Monitor Dashboard 已初始化，跳過');
         return;
     }
-    window._mdInitialized = true;
 
+    // 若標記為已初始化，但 SVG 是空的 → 視為需要重新初始化
+    if (window._mdInitialized && mapEl.childElementCount === 0) {
+        console.log('⚠️ 偵測到空白地圖，強制重新初始化');
+        window._mdInitialized = false;
+    }
+
+    window._mdInitialized = true;
     console.log('🚀 Monitor Dashboard 初始化中...');
 
-    await mdInitMap();
-    await mdLoadAllData();
+    try {
+        await mdInitMap();
+        await mdLoadAllData();
 
-    mdListenIncident();
-    mdListenOperationalImpact();
-    mdUpdateCurrentTime();
+        mdListenIncident();
+        mdListenOperationalImpact();
+        mdUpdateCurrentTime();
 
-    if (_mdTimeTimer) clearInterval(_mdTimeTimer);
-    _mdTimeTimer = setInterval(mdUpdateCurrentTime, 1000);
+        if (_mdTimeTimer) clearInterval(_mdTimeTimer);
+        _mdTimeTimer = setInterval(mdUpdateCurrentTime, 1000);
 
-    if (_mdAutoRefreshTimer) clearInterval(_mdAutoRefreshTimer);
-    _mdAutoRefreshTimer = setInterval(() => {
-        const sec = document.getElementById('section-monitor-dashboard');
-        if (sec && sec.classList.contains('active')) {
-            console.log('🔄 Monitor Dashboard 自動更新 (20秒)');
-            mdLoadAllData();
-        }
-    }, 20000);
+        if (_mdAutoRefreshTimer) clearInterval(_mdAutoRefreshTimer);
+        _mdAutoRefreshTimer = setInterval(() => {
+            const sec = document.getElementById('section-monitor-dashboard');
+            if (sec && sec.classList.contains('active')) {
+                console.log('🔄 Monitor Dashboard 自動更新 (20秒)');
+                mdLoadAllData();
+            }
+        }, 20000);
 
-    // 天氣：每 10 分鐘
-    mdFetchWeather();
-    mdFetchWarnings();
-    if (_mdWeatherTimer) clearInterval(_mdWeatherTimer);
-    _mdWeatherTimer = setInterval(() => {
+        // 天氣：每 10 分鐘
         mdFetchWeather();
         mdFetchWarnings();
-    }, 10 * 60 * 1000);
+        if (_mdWeatherTimer) clearInterval(_mdWeatherTimer);
+        _mdWeatherTimer = setInterval(() => {
+            mdFetchWeather();
+            mdFetchWarnings();
+        }, 10 * 60 * 1000);
 
-    // 雷達圖：每 5 分鐘
-    mdUpdateRadar();
-    if (_mdRadarTimer) clearInterval(_mdRadarTimer);
-    _mdRadarTimer = setInterval(mdUpdateRadar, 5 * 60 * 1000);
+        // 雷達圖：每 5 分鐘
+        mdUpdateRadar();
+        if (_mdRadarTimer) clearInterval(_mdRadarTimer);
+        _mdRadarTimer = setInterval(mdUpdateRadar, 5 * 60 * 1000);
 
-    mdBindRadarControls();
+        mdBindRadarControls();
 
-    console.log('✅ Monitor Dashboard 初始化完成');
+        console.log('✅ Monitor Dashboard 初始化完成');
+    } catch (e) {
+        console.error('❌ Monitor Dashboard 初始化失敗:', e);
+    }
 }
+
+// ★ 強制重新初始化（可從 Console 呼叫）
+window.mdForceReinit = function () {
+    console.log('🔄 強制重新初始化 Monitor Dashboard');
+    window._mdInitialized = false;
+    if (typeof mdInit === 'function') mdInit();
+};
 
 // ================================================================
 // 地圖初始化
 // ================================================================
 async function mdInitMap() {
-    mdSvg = mdMapSvg = document.getElementById('md-map');
-    if (!mdSvg) return;
+    mdMapSvg = document.getElementById('md-map');
+    if (!mdMapSvg) return;
 
-    while (mdSvg.firstChild) mdSvg.removeChild(mdSvg.firstChild);
+    while (mdMapSvg.firstChild) mdMapSvg.removeChild(mdMapSvg.firstChild);
 
-    // defs
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     defs.innerHTML = `
         <linearGradient id="mdGradMountain" x1="0" y1="1" x2="0" y2="0">
@@ -179,13 +196,13 @@ async function mdInitMap() {
             <circle cx="0" cy="-100" r="6" fill="#616161" stroke="#222"/>
         </g>
     `;
-    mdSvg.appendChild(defs);
+    mdMapSvg.appendChild(defs);
 
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
     bg.setAttribute('width', '2800'); bg.setAttribute('height', '700');
     bg.setAttribute('fill', '#f0f4f8');
-    mdSvg.appendChild(bg);
+    mdMapSvg.appendChild(bg);
 
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
@@ -196,12 +213,12 @@ async function mdInitMap() {
     for (let i = 0; i < slots.length; i++) { x += slots[i] * unit; xCoords.push(x); }
     const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    const addRect = (x, y, w, h, fillColor) => {
+    const addRect = (rx, ry, rw, rh, fillColor) => {
         const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        r.setAttribute('x', x); r.setAttribute('y', y);
-        r.setAttribute('width', w); r.setAttribute('height', h);
+        r.setAttribute('x', rx); r.setAttribute('y', ry);
+        r.setAttribute('width', rw); r.setAttribute('height', rh);
         r.setAttribute('fill', fillColor);
-        mdSvg.appendChild(r);
+        mdMapSvg.appendChild(r);
     };
     addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, '#d4d4d4');
     addRect(t2bX, baseY, t3X - t2bX, 100, '#81D4FA');
@@ -209,7 +226,7 @@ async function mdInitMap() {
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
     mountain.setAttribute('fill', 'url(#mdGradMountain)');
-    mdSvg.appendChild(mountain);
+    mdMapSvg.appendChild(mountain);
 
     const groundPts = [];
     segments.forEach((s, i) => {
@@ -223,7 +240,7 @@ async function mdInitMap() {
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#mdStationSymbol' : '#mdTowerSymbol');
         use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
-        mdSvg.appendChild(use);
+        mdMapSvg.appendChild(use);
 
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
@@ -232,7 +249,7 @@ async function mdInitMap() {
         txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '22');
-        mdSvg.appendChild(txt);
+        mdMapSvg.appendChild(txt);
     });
 
     const up = groundPts.map(p => [p[0], p[1] - 70]);
@@ -244,9 +261,9 @@ async function mdInitMap() {
     rope.setAttribute('fill', 'none');
     rope.setAttribute('stroke', '#444');
     rope.setAttribute('stroke-width', '4');
-    mdSvg.appendChild(rope);
+    mdMapSvg.appendChild(rope);
 
-    // 圖例（左下）
+    // 圖例
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1600, 460)');
     legend.innerHTML = `
@@ -273,16 +290,14 @@ async function mdInitMap() {
             <text x="40" y="19" font-size="24">無組別記錄</text>
         </g>
     `;
-    mdSvg.appendChild(legend);
+    mdMapSvg.appendChild(legend);
 
-    // 載入偏移量與模式
     mdCurrentOffset = await window.getGlobalOffsetFromFirestore();
     mdCabinMode = await window.getGlobalModeFromFirestore();
     localStorage.setItem('mapCabinMode', mdCabinMode);
 
     mdBuildCabins();
 
-    // 註冊監聽
     if (_mdOffsetUnsub) _mdOffsetUnsub();
     _mdOffsetUnsub = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mdCurrentOffset) > 0.001) {
@@ -302,7 +317,6 @@ async function mdInitMap() {
         }
     });
 
-    // realtime cabins 監聽
     realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         mdMapCabins.forEach(c => {
@@ -317,7 +331,6 @@ async function mdInitMap() {
         mdUpdateFromFirestore();
     });
 
-    // Firestore 監聽
     db.collection('guests').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdUpdateFromFirestore();
     });
@@ -330,7 +343,7 @@ async function mdInitMap() {
 // 車廂
 // ================================================================
 function mdBuildCabins() {
-    if (!mdSvg) return;
+    if (!mdMapSvg) return;
     mdMapCabins.forEach(c => { if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el); });
     mdMapCabins = [];
 
@@ -364,7 +377,7 @@ function mdBuildCabins() {
 
         const cabin = { id: 'cabin-' + i, fields: {}, el: g, shape: hex, label: lbl };
         mdMapCabins.push(cabin);
-        mdSvg.appendChild(g);
+        mdMapSvg.appendChild(g);
     }
 
     mdLayoutCabins();
@@ -425,7 +438,6 @@ async function mdLoadAllData() {
 }
 
 async function mdUpdateFromFirestore() {
-    // 只讀：不寫回 realtimeDb
     mdMapCabins.forEach(cabin => {
         const seq = cabin.fields.sequence;
         cabin.el.classList.remove('status-red', 'status-yellow', 'status-green', 'status-departed', 'status-empty');
@@ -502,7 +514,6 @@ function mdUpdateSummary() {
     if (c) c.textContent = landed;
     if (d) d.textContent = departed;
 
-    // Rescue Progress = landed / cabins online
     const total = mdCabinMode;
     const pct = total > 0 ? Math.round((landed / total) * 100) : 0;
     const pctEl = document.getElementById('md-progress-pct');
@@ -518,9 +529,8 @@ function mdUpdateOperationalImpact() {
 
     if (cabinsEl) cabinsEl.textContent = mdCabinMode;
     if (casesEl) casesEl.textContent = mdRescueRecords.length;
-    if (affectedEl) affectedEl.textContent = mdRescueRecords.length; // 暫定 = OCC 求助記錄
+    if (affectedEl) affectedEl.textContent = mdRescueRecords.length;
 
-    // Guests online 由 config/operationalImpact 更新，此處只保留接口
     const guestsEl = document.getElementById('md-guests-online');
     if (guestsEl && mdGuestsOnline === null) guestsEl.textContent = '—';
 }
@@ -569,7 +579,6 @@ function mdRenderIncident(incident) {
         return;
     }
 
-    // Date: 10 Sept 2026
     if (dateEl) dateEl.textContent = mdFormatIncidentDate(incident.date);
     if (typeEl) typeEl.textContent = incident.type || '—';
 
@@ -581,7 +590,6 @@ function mdRenderIncident(incident) {
         else statusEl.classList.add('md-status-closed');
     }
 
-    // Incident Time
     if (incTimeEl) {
         if (incident.incidentTime) {
             incTimeEl.textContent = mdFormatDateTime(incident.incidentTime);
@@ -668,7 +676,6 @@ async function mdFetchWeather() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
 
-        // 溫度：優先香港天文台
         let temp = null, humidity = null;
         if (data.temperature && Array.isArray(data.temperature.data)) {
             const hk = data.temperature.data.find(d => d.place === '香港天文台')
@@ -685,7 +692,6 @@ async function mdFetchWeather() {
         if (tempEl) tempEl.textContent = temp ?? '—';
         if (humEl) humEl.textContent = humidity ?? '—';
 
-        // 天氣狀況圖示
         if (Array.isArray(data.icon) && data.icon.length > 0) {
             const iconImg = document.getElementById('md-weather-icon');
             if (iconImg) {
@@ -778,22 +784,22 @@ function mdLoadRadarImage() {
     tester.src = url;
 }
 
+function mdBindRadarControls() {
+    // 範圍切換
+    document.querySelectorAll('.md-radar-tabs button').forEach(btn => {
+        // 避免重複綁定：先移除舊 listener 的做法無法簡單達成，改用 dataset 標記
+        if (btn.dataset.mdBound === 'true') return;
+        btn.dataset.mdBound = 'true';
 
-
-    // 收起 / 展開
-    const toggleBtn = document.getElementById('md-radar-toggle');
-    const radar = document.getElementById('md-radar');
-    if (toggleBtn && radar) {
-        toggleBtn.addEventListener('click', () => {
-            radar.classList.toggle('collapsed');
-            const icon = toggleBtn.querySelector('i');
-            if (icon) {
-                icon.className = radar.classList.contains('collapsed')
-                    ? 'fas fa-chevron-up'
-                    : 'fas fa-chevron-down';
-            }
+        btn.addEventListener('click', () => {
+            const range = parseInt(btn.dataset.range, 10);
+            if (range === mdRadarRange) return;
+            mdRadarRange = range;
+            document.querySelectorAll('.md-radar-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            mdUpdateRadar();
         });
-    }
+    });
 }
 
 // ================================================================
@@ -817,6 +823,7 @@ function mdListenOperationalImpact() {
             console.warn('監聽 operationalImpact 失敗:', err);
         });
 }
+
 // ================================================================
 // 全屏功能
 // ================================================================
@@ -855,12 +862,12 @@ function mdOnFullscreenChange() {
 document.addEventListener('fullscreenchange', mdOnFullscreenChange);
 document.addEventListener('webkitfullscreenchange', mdOnFullscreenChange);
 
-window.mdToggleFullscreen = mdToggleFullscreen;
 // ================================================================
 // 全域暴露
 // ================================================================
 window.mdInit = mdInit;
 window.mdLoadAllData = mdLoadAllData;
 window.mdUpdateFromFirestore = mdUpdateFromFirestore;
+window.mdToggleFullscreen = mdToggleFullscreen;
 
 console.log('✅ monitor-dashboard.js 已載入');
