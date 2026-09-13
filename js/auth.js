@@ -18,7 +18,7 @@ const SECTIONS = [
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
     { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' },
-     { id: 'section-monitor-dashboard', key: 'monitor_dashboard', label: '新版監控', icon: 'fa-tv', pageKey: 'monitor_dashboard', template: 'templates/monitor_dashboard.html', init: 'mdInit' },   // ★ 新增
+    { id: 'section-monitor-dashboard', key: 'monitor_dashboard', label: '新版監控', icon: 'fa-tv', pageKey: 'monitor_dashboard', template: 'templates/monitor_dashboard.html', init: 'mdInit' },
     { id: 'section-audit', key: 'audit', label: '操作日誌', icon: 'fa-history', pageKey: 'audit', template: 'templates/audit.html', init: 'initAudit' }
 ];
 
@@ -140,6 +140,15 @@ async function loadSection(sectionId) {
 }
 
 function switchSection(sectionId) {
+    // ★ 若切離新版監控頁且仍在全屏，先退出全屏
+    if (sectionId !== 'section-monitor-dashboard') {
+        const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        if (isFullscreen) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+    }
+
     // 隱藏所有區塊
     document.querySelectorAll('.section-container').forEach(el => {
         el.classList.remove('active');
@@ -150,10 +159,20 @@ function switchSection(sectionId) {
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
-         // ★ 支援 flex 全屏 section
-    const flexSections = ['section-monitor', 'section-monitor-dashboard'];
+        // ★ 支援 flex 全屏 section
+        const flexSections = ['section-monitor', 'section-monitor-dashboard'];
         target.style.display = flexSections.includes(sectionId) ? 'flex' : 'block';
         loadSection(sectionId);
+
+        // ★ 切到新版監控頁時，主動呼叫 mdInit()
+        if (sectionId === 'section-monitor-dashboard') {
+            setTimeout(() => {
+                if (typeof window.mdInit === 'function') {
+                    window._mdInitialized = false;   // 強制讓 mdInit 檢查一次
+                    window.mdInit();
+                }
+            }, 250);
+        }
     }
 
     // 更新導航按鈕樣式
