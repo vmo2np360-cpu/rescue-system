@@ -755,3 +755,91 @@ textarea#occNotes:focus {
         min-width: unset;
     }
 }
+/* ================================================================
+   Incident Toolbar
+   ================================================================ */
+.incident-toolbar {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 0 0 12px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    overflow-x: auto;
+}
+
+.incident-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.incident-label {
+    font-weight: 600;
+    color: #1e3a5f;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.incident-input {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: white;
+    color: #1e293b;
+    min-width: 120px;
+}
+
+.incident-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.incident-input-num {
+    width: 100px;
+    min-width: 80px;
+}
+
+.incident-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: #e2e8f0;
+    color: #1e293b;
+    transition: 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.incident-btn:hover { background: #cbd5e1; }
+
+.incident-btn-primary {
+    background: #2563eb;
+    color: white;
+}
+
+.incident-btn-primary:hover { background: #1d4ed8; }
+
+.incident-btn-danger {
+    background: #dc2626;
+    color: white;
+}
+
+.incident-btn-danger:hover { background: #b91c1c; }
+
+.incident-sep {
+    color: #cbd5e1;
+    margin: 0 4px;
+    font-weight: 300;
+}
