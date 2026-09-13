@@ -828,7 +828,45 @@ function mdListenOperationalImpact() {
             console.warn('監聽 operationalImpact 失敗:', err);
         });
 }
+// ================================================================
+// 全屏功能
+// ================================================================
+function mdToggleFullscreen() {
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    if (isFullscreen) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+        const el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+}
 
+function mdOnFullscreenChange() {
+    const btn = document.getElementById('md-fullscreen-btn');
+    const navbar = document.getElementById('navbar');
+    const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+
+    if (isFullscreen) {
+        if (navbar) navbar.style.display = 'none';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-compress"></i>';
+            btn.title = '退出全屏';
+        }
+    } else {
+        if (navbar) navbar.style.display = 'flex';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-expand"></i>';
+            btn.title = '全屏';
+        }
+    }
+}
+
+document.addEventListener('fullscreenchange', mdOnFullscreenChange);
+document.addEventListener('webkitfullscreenchange', mdOnFullscreenChange);
+
+window.mdToggleFullscreen = mdToggleFullscreen;
 // ================================================================
 // 全域暴露
 // ================================================================
