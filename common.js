@@ -29,6 +29,7 @@ const PERMISSIONS = {
         'index_rescue_map': ['admin', 'occ'],
         'recourse': ['admin', 'occ', 'gr'],
         'monitor': ['admin', 'occ', 're'],
+        'monitor_dashboard': ['admin', 'occ', 're'],   // ★ 新增
         'audit': ['admin', 'occ'],
     },
     collections: {
