@@ -778,18 +778,7 @@ function mdLoadRadarImage() {
     tester.src = url;
 }
 
-function mdBindRadarControls() {
-    // 範圍切換
-    document.querySelectorAll('.md-radar-tabs button').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const range = parseInt(btn.dataset.range, 10);
-            if (range === mdRadarRange) return;
-            mdRadarRange = range;
-            document.querySelectorAll('.md-radar-tabs button').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            mdUpdateRadar();
-        });
-    });
+
 
     // 收起 / 展開
     const toggleBtn = document.getElementById('md-radar-toggle');
