@@ -150,8 +150,9 @@ function switchSection(sectionId) {
     const target = document.getElementById(sectionId);
     if (target) {
         target.classList.add('active');
-        // ★ 為總監控平台使用 flex，其餘使用 block
-        target.style.display = (sectionId === 'section-monitor') ? 'flex' : 'block';
+         // ★ 支援 flex 全屏 section
+    const flexSections = ['section-monitor', 'section-monitor-dashboard'];
+        target.style.display = flexSections.includes(sectionId) ? 'flex' : 'block';
         loadSection(sectionId);
     }
 
