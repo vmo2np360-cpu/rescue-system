@@ -411,13 +411,160 @@ function mdBuildCabins() {
         g.appendChild(lbl);
 
         const cabin = { id: 'cabin-' + i, fields: {}, el: g, shape: hex, label: lbl };
+
+        // ★ 雙擊開啟唯讀詳情
+        g.style.cursor = 'pointer';
+        g.addEventListener('dblclick', () => mdOpenCabinReadonly(cabin));
+
         mdMapCabins.push(cabin);
         mdMapSvg.appendChild(g);
     }
 
     mdLayoutCabins();
 }
+// ================================================================
+// 車廂唯讀詳情（雙擊車廂開啟）
+// ================================================================
+function mdOpenCabinReadonly(cabin) {
+    const seq = cabin.fields.sequence || '';
 
+    if (!seq) {
+        mdShowToast('此車廂尚未設定號碼');
+        return;
+    }
+
+    db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
+        // 從查詢結果計算綜合時間（唯讀，不依賴 cabin.fields）
+        const records = [];
+        snap.forEach(d => records.push({ id: d.id, ...d.data() }));
+
+        let overallStart = null;
+        let overallEnd = null;
+
+        if (records.length > 0) {
+            const startTimes = records.map(g => g.timeReachedTop).filter(t => t);
+            if (startTimes.length > 0) {
+                overallStart = startTimes.reduce((a, b) => {
+                    const da = new Date(a), db = new Date(b);
+                    return da < db ? a : b;
+                });
+                if (overallStart) overallStart = new Date(overallStart).toISOString();
+            }
+
+            const allCompleted = records.every(g => {
+                const status = window.getGroupStatus ? window.getGroupStatus(g) : 'waiting';
+                return status === 'landed' || status === 'departed';
+            });
+
+            if (allCompleted) {
+                const endTimes = records.map(g => g.timeLanded).filter(t => t);
+                if (endTimes.length > 0) {
+                    overallEnd = endTimes.reduce((a, b) => {
+                        const da = new Date(a), db = new Date(b);
+                        return da > db ? a : b;
+                    });
+                    if (overallEnd) overallEnd = new Date(overallEnd).toISOString();
+                }
+            }
+        }
+
+        let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0;">`;
+        html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
+        html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
+
+        html += `<div style="background:#1a3a5f; padding:10px 14px; border-radius:6px; margin-bottom:12px; border:1px solid #2a5a8f;">`;
+        html += `<div style="display:flex; flex-wrap:wrap; gap:16px; color:#cde;">`;
+        html += `<div><strong>📊 綜合開始救援：</strong> ${overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—'}</div>`;
+        if (overallEnd) {
+            html += `<div><strong>📊 綜合完成救援：</strong> ${window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd}</div>`;
+        } else if (overallStart) {
+            html += `<div><strong>📊 綜合完成救援：</strong> ⏳ 進行中</div>`;
+        } else {
+            html += `<div><strong>📊 綜合完成救援：</strong> —</div>`;
+        }
+        html += `</div><div style="font-size:0.7rem; color:#8ab; margin-top:4px;">💡 自動計算，僅供參考</div></div>`;
+
+        if (snap.empty) {
+            html += `<p style="color:#94a3b8;">此車廂暫無組別記錄</p>`;
+        } else {
+            html += `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">`;
+            html += `<tr style="border-bottom:1px solid #444;">
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">組別</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">姓名</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">開始救援</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">完成救援</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">救護車車牌</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">醫院名稱</th>
+                <th style="text-align:left; padding:6px 4px; color:#aaa;">狀態</th>
+            </tr>`;
+            snap.forEach(doc => {
+                const data = doc.data();
+                const status = window.getGroupStatus ? window.getGroupStatus(data) : 'waiting';
+                const statusMap = { 'departed': '🔵 已離開', 'landed': '✅ 已著陸', 'rescuing': '🔄 救援中', 'waiting': '⏳ 等待救援' };
+                const startTime = window.extractDateTime ? window.extractDateTime(data.timeReachedTop) : (data.timeReachedTop || '-');
+                const endTime = window.extractDateTime ? window.extractDateTime(data.timeLanded) : (data.timeLanded || '-');
+                const plate = data.ambulancePlate || '-';
+                const hospital = data.hospital || '-';
+                html += `<tr style="border-bottom:1px solid #3d3d3d;">`;
+                html += `<td style="padding:6px 4px;">第${data.groupNumber||'?'}組</td>`;
+                html += `<td style="padding:6px 4px;">${data.guestName||'-'}</td>`;
+                html += `<td style="padding:6px 4px;">${startTime}</td>`;
+                html += `<td style="padding:6px 4px;">${endTime}</td>`;
+                html += `<td style="padding:6px 4px;">${plate}</td>`;
+                html += `<td style="padding:6px 4px;">${hospital}</td>`;
+                html += `<td style="padding:6px 4px;">${statusMap[status]||status}</td>`;
+                html += `</tr>`;
+            });
+            html += `</table>`;
+        }
+
+        html += `<div style="margin-top:16px; text-align:center;">`;
+        html += `<button class="md-modal-close-btn" style="padding:8px 24px; background:#4285F4; border:none; border-radius:4px; color:#fff; cursor:pointer;">關閉</button>`;
+        html += `</div></div>`;
+
+        const modal = document.createElement('div');
+        modal.className = 'md-cabin-modal';
+        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:9999;';
+
+        const content = document.createElement('div');
+        content.className = 'md-cabin-modal-content';
+        content.style.cssText = 'background:#1a1a1a; border-radius:12px; padding:20px; max-width:700px; width:95%; max-height:80vh; overflow-y:auto;';
+        content.innerHTML = html;
+
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // 關閉按鈕
+        content.querySelector('.md-modal-close-btn').addEventListener('click', () => modal.remove());
+
+        // 點擊背景關閉
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+
+        // ESC 關閉
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+    }).catch(err => {
+        console.error('載入車廂資料失敗:', err);
+        mdShowToast('載入失敗: ' + err.message);
+    });
+}
+
+// ---- 簡易 toast ----
+function mdShowToast(msg) {
+    const toast = document.createElement('div');
+    toast.textContent = msg;
+    toast.style.cssText = 'position:fixed; bottom:40px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); color:#fff; padding:10px 20px; border-radius:6px; z-index:10000; font-size:0.9rem; pointer-events:none;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
 function mdLayoutCabins() {
     if (!mdMapRopePts || mdMapRopePts.length === 0) return;
     const ropeLen = mdLengthOf(mdMapRopePts);
@@ -903,6 +1050,7 @@ document.addEventListener('webkitfullscreenchange', mdOnFullscreenChange);
 // 全域暴露
 // ================================================================
 window.mdInit = mdInit;
+window.mdOpenCabinReadonly = mdOpenCabinReadonly;
 window.mdLoadAllData = mdLoadAllData;
 window.mdUpdateFromFirestore = mdUpdateFromFirestore;
 window.mdToggleFullscreen = mdToggleFullscreen;
