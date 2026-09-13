@@ -18,6 +18,7 @@ const SECTIONS = [
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
     { id: 'section-monitor', key: 'monitor', label: '總監控平台', icon: 'fa-tv', pageKey: 'monitor', template: 'templates/monitor.html', init: 'monInit' },
+     { id: 'section-monitor-dashboard', key: 'monitor_dashboard', label: '新版監控', icon: 'fa-tv', pageKey: 'monitor_dashboard', template: 'templates/monitor_dashboard.html', init: 'mdInit' },   // ★ 新增
     { id: 'section-audit', key: 'audit', label: '操作日誌', icon: 'fa-history', pageKey: 'audit', template: 'templates/audit.html', init: 'initAudit' }
 ];
 
