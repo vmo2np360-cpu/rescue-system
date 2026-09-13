@@ -25,18 +25,57 @@ let _mdRadarTimer = null;
 let _mdWeatherTimer = null;
 
 // ---------- 天氣警告圖示映射（請自行下載對應 PNG 到 assets/weather-icons/）----------
-const MD_WARNING_ICON_MAP = {
-    'WRAIN': 'warn-rain.png',
-    'WTCSGNL': 'warn-typhoon.png',
-    'WTS': 'warn-thunderstorm.png',
-    'WFIRE': 'warn-fire.png',
-    'WFROST': 'warn-frost.png',
-    'WCOLD': 'warn-cold.png',
-    'WHOY': 'warn-veryhot.png',
-    'WMSGNL': 'warn-monsoon.png',
-    'WL': 'warn-landslip.png',
-    'WTMW': 'warn-tsunami.png'
-};
+// ================================================================
+// 香港天文台天氣警告圖示映射
+// 檔案：assets/weather-icons/1.png ~ 21.png
+// ================================================================
+function mdGetWarningIcon(item) {
+    const code = (item.code || '').toUpperCase();
+    const type = item.type || '';
+
+    switch (code) {
+        case 'WTCSGNL':
+            if (type.includes('一號') || type.includes('1號')) return '1.png';
+            if (type.includes('三號') || type.includes('3號')) return '2.png';
+            if (type.includes('東北')) return '3.png';
+            if (type.includes('西北')) return '4.png';
+            if (type.includes('東南')) return '5.png';
+            if (type.includes('西南')) return '6.png';
+            if (type.includes('九號') || type.includes('9號')) return '7.png';
+            if (type.includes('十號') || type.includes('10號')) return '8.png';
+            return null;
+
+        case 'WRAIN':
+        case 'WRAINA':
+        case 'WRAINR':
+        case 'WRAINB':
+            if (type.includes('黃') || type.includes('黄')) return '9.png';
+            if (type.includes('紅') || type.includes('红')) return '10.png';
+            if (type.includes('黑')) return '11.png';
+            if (code === 'WRAINA') return '9.png';
+            if (code === 'WRAINR') return '10.png';
+            if (code === 'WRAINB') return '11.png';
+            return null;
+
+        case 'WTS':     return '12.png';  // 雷暴
+        case 'WFNTR':   return '13.png';  // 新界北部水浸
+        case 'WL':      return '14.png';  // 山泥傾瀉
+        case 'WMSGNL':  return '15.png';  // 強烈季候風
+        case 'WFROST':  return '16.png';  // 霜凍
+
+        case 'WFIRE':
+        case 'WFIREY':
+        case 'WFIRER':
+            if (type.includes('黃') || type.includes('黄') || code === 'WFIREY') return '17.png';
+            if (type.includes('紅') || type.includes('红') || code === 'WFIRER') return '18.png';
+            return null;
+
+        case 'WCOLD':   return '19.png';  // 寒冷
+        case 'WHOY':    return '20.png';  // 酷熱
+        case 'WTMW':    return '21.png';  // 海嘯
+        default:        return null;
+    }
+}
 
 // ---------- 天氣狀況圖示（天文台 forecastIcon 對應）----------
 function mdWeatherIconUrl(code) {
@@ -673,15 +712,15 @@ async function mdFetchWarnings() {
         Object.keys(data).forEach(key => {
             if (key === 'updateTime') return;
             const item = data[key];
-            const code = Array.isArray(item) ? item[0]?.code : item?.code;
-            if (!code) return;
-            const iconFile = MD_WARNING_ICON_MAP[code];
+            if (!item || typeof item !== 'object') return;
+
+            const iconFile = mdGetWarningIcon(item);
             if (!iconFile) return;
 
             const img = document.createElement('img');
             img.src = `assets/weather-icons/${iconFile}`;
-            img.alt = item.name || code;
-            img.title = `${item.name || code}${item.type ? ' - ' + item.type : ''}`;
+            img.alt = item.name || key;
+            img.title = `${item.name || key}${item.type ? ' - ' + item.type : ''}`;
             img.onerror = () => { img.style.display = 'none'; };
             container.appendChild(img);
         });
