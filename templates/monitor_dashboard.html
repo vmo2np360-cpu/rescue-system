@@ -105,8 +105,30 @@
                     Last Updated: <span id="md-last-updated">—</span>
                 </div>
             </div>
+   <div class="md-card" id="md-radar">
+        <div class="md-radar-header">
+            <span class="md-radar-title">
+                <i class="fas fa-satellite-dish"></i> 天氣雷達
+            </span>
+            <div class="md-radar-tabs">
+                <button data-range="64" class="active">64km</button>
+                <button data-range="128">128km</button>
+                <button data-range="256">256km</button>
+            </div>
+            <button class="md-radar-toggle" id="md-radar-toggle" title="收起">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="md-radar-body">
+            <img id="md-radar-img" src="" alt="Weather Radar">
+            <div class="md-radar-footer">
+                <span id="md-radar-time">—</span>
+                <span id="md-radar-range">64 km</span>
+            </div>
+        </div>
+    </div>
 
-        </aside>
+</aside>
     </main>
 
     <!-- ===== 底部四卡 ===== -->
@@ -129,28 +151,6 @@
         </div>
     </footer>
 
-    <!-- ===== 右下角雷達圖 ===== -->
-    <div id="md-radar">
-        <div class="md-radar-header">
-            <span class="md-radar-title">
-                <i class="fas fa-satellite-dish"></i> 天氣雷達
-            </span>
-            <div class="md-radar-tabs">
-                <button data-range="64" class="active">64km</button>
-                <button data-range="128">128km</button>
-                <button data-range="256">256km</button>
-            </div>
-            <button class="md-radar-toggle" id="md-radar-toggle" title="收起">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        <div class="md-radar-body">
-            <img id="md-radar-img" src="" alt="Weather Radar">
-            <div class="md-radar-footer">
-                <span id="md-radar-time">—</span>
-                <span id="md-radar-range">64 km</span>
-            </div>
-        </div>
-    </div>
+
 
 </div>
