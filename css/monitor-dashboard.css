@@ -430,3 +430,25 @@
     .md-radar-tabs button { font-size: 0.55rem; padding: 2px 6px; }
     .md-radar-title { font-size: 0.7rem; }
 }
+
+/* ===== 全屏按鈕 ===== */
+.md-fullscreen-btn {
+    background: rgba(0, 243, 255, 0.15);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    color: #00f3ff;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.md-fullscreen-btn:hover {
+    background: rgba(0, 243, 255, 0.3);
+    box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+}
