@@ -19,10 +19,16 @@ let _mdOffsetUnsub = null;
 let _mdModeUnsub = null;
 let _mdIncidentUnsub = null;
 let _mdImpactUnsub = null;
+let _mdCabinsUnsub = null;
+let _mdGuestsUnsub = null;
+let _mdRescueUnsub = null;
 let _mdTimeTimer = null;
 let _mdAutoRefreshTimer = null;
 let _mdRadarTimer = null;
 let _mdWeatherTimer = null;
+
+let _mdInitRetryCount = 0;
+const MD_INIT_MAX_RETRIES = 20;   // 20 × 300ms = 6 秒
 
 // ================================================================
 // 香港天文台天氣警告圖示映射
@@ -86,11 +92,20 @@ function mdWeatherIconUrl(code) {
 // ================================================================
 async function mdInit() {
     const mapEl = document.getElementById('md-map');
+
     if (!mapEl) {
-        console.warn('mdInit: 尚未載入 #md-map，300ms 後重試');
+        _mdInitRetryCount++;
+        if (_mdInitRetryCount > MD_INIT_MAX_RETRIES) {
+            console.error('❌ mdInit: 超過最大重試次數，放棄');
+            _mdInitRetryCount = 0;
+            return;
+        }
+        console.warn(`mdInit: 尚未載入 #md-map，300ms 後重試 (${_mdInitRetryCount}/${MD_INIT_MAX_RETRIES})`);
         setTimeout(mdInit, 300);
         return;
     }
+
+    _mdInitRetryCount = 0;
 
     // 若已初始化且 SVG 有內容 → 真正跳過
     if (window._mdInitialized && mapEl.childElementCount > 0) {
@@ -146,6 +161,8 @@ async function mdInit() {
         console.log('✅ Monitor Dashboard 初始化完成');
     } catch (e) {
         console.error('❌ Monitor Dashboard 初始化失敗:', e);
+        // 失敗時允許下次重試
+        window._mdInitialized = false;
     }
 }
 
@@ -153,6 +170,7 @@ async function mdInit() {
 window.mdForceReinit = function () {
     console.log('🔄 強制重新初始化 Monitor Dashboard');
     window._mdInitialized = false;
+    _mdInitRetryCount = 0;
     if (typeof mdInit === 'function') mdInit();
 };
 
@@ -298,6 +316,7 @@ async function mdInitMap() {
 
     mdBuildCabins();
 
+    // ★ 防重複註冊偏移量監聽
     if (_mdOffsetUnsub) _mdOffsetUnsub();
     _mdOffsetUnsub = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mdCurrentOffset) > 0.001) {
@@ -306,6 +325,7 @@ async function mdInitMap() {
         }
     });
 
+    // ★ 防重複註冊模式監聽
     if (_mdModeUnsub) _mdModeUnsub();
     _mdModeUnsub = window.listenGlobalMode((newMode) => {
         if (newMode !== mdCabinMode) {
@@ -317,7 +337,9 @@ async function mdInitMap() {
         }
     });
 
-    realtimeDb.ref('cabins').on('value', (snap) => {
+    // ★ 防重複註冊 Realtime DB 車廂監聽
+    if (_mdCabinsUnsub) _mdCabinsUnsub();
+    _mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         mdMapCabins.forEach(c => {
             if (data && data[c.id]) {
@@ -331,10 +353,14 @@ async function mdInitMap() {
         mdUpdateFromFirestore();
     });
 
-    db.collection('guests').onSnapshot(() => {
+    // ★ 防重複註冊 Firestore 監聽
+    if (_mdGuestsUnsub) _mdGuestsUnsub();
+    _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdUpdateFromFirestore();
     });
-    db.collection('rescue_records').onSnapshot(() => {
+
+    if (_mdRescueUnsub) _mdRescueUnsub();
+    _mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdUpdateFromFirestore();
     });
 }
@@ -497,22 +523,26 @@ async function mdUpdateFromFirestore() {
 }
 
 function mdUpdateSummary() {
-    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
-    mdMapCabins.forEach(c => {
-        if (c.el.classList.contains('status-red')) waiting++;
-        else if (c.el.classList.contains('status-yellow')) rescuing++;
-        else if (c.el.classList.contains('status-green')) landed++;
-        else if (c.el.classList.contains('status-departed')) departed++;
-    });
-
     const a = document.getElementById('md-awaiting');
     const b = document.getElementById('md-in-progress');
     const c = document.getElementById('md-rescued');
     const d = document.getElementById('md-closed');
-    if (a) a.textContent = waiting;
-    if (b) b.textContent = rescuing;
-    if (c) c.textContent = landed;
-    if (d) d.textContent = departed;
+
+    // 元素還沒就緒時不拋錯
+    if (!a || !b || !c || !d) return;
+
+    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
+    mdMapCabins.forEach(cab => {
+        if (cab.el.classList.contains('status-red')) waiting++;
+        else if (cab.el.classList.contains('status-yellow')) rescuing++;
+        else if (cab.el.classList.contains('status-green')) landed++;
+        else if (cab.el.classList.contains('status-departed')) departed++;
+    });
+
+    a.textContent = waiting;
+    b.textContent = rescuing;
+    c.textContent = landed;
+    d.textContent = departed;
 
     const total = mdCabinMode;
     const pct = total > 0 ? Math.round((landed / total) * 100) : 0;
@@ -785,9 +815,7 @@ function mdLoadRadarImage() {
 }
 
 function mdBindRadarControls() {
-    // 範圍切換
     document.querySelectorAll('.md-radar-tabs button').forEach(btn => {
-        // 避免重複綁定：先移除舊 listener 的做法無法簡單達成，改用 dataset 標記
         if (btn.dataset.mdBound === 'true') return;
         btn.dataset.mdBound = 'true';
 
