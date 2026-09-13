@@ -1998,5 +1998,295 @@ window.occMarkProcessed = mapOccMarkProcessed;
 window.occDeleteRecord = mapOccDeleteRecord;
 window.occCloseComparison = mapOccCloseComparison;
 window.occDisplayComparison = mapOccDisplayComparison;
+// ================================================================
+// Incident 事件管理
+// ================================================================
 
+let _incidentLatest = null;
+let _incidentLatestUnsub = null;
+
+function initIncidentToolbar() {
+    // Type 下拉切換 Other
+    const typeSelect = document.getElementById('incidentType');
+    const typeOther = document.getElementById('incidentTypeOther');
+    if (typeSelect && typeOther) {
+        typeSelect.addEventListener('change', () => {
+            typeOther.style.display = (typeSelect.value === 'other') ? 'inline-block' : 'none';
+            if (typeSelect.value !== 'other') typeOther.value = '';
+        });
+    }
+
+    // 監聽最新事件
+    incidentListenLatest();
+
+    // 載入目前的 Guests online
+    db.collection('config').doc('operationalImpact').get()
+        .then(doc => {
+            if (doc.exists && doc.data().guestsOnline !== undefined) {
+                const input = document.getElementById('guestsOnlineInput');
+                if (input) input.value = doc.data().guestsOnline;
+            }
+        })
+        .catch(() => {});
+}
+
+function incidentListenLatest() {
+    if (_incidentLatestUnsub) _incidentLatestUnsub();
+    _incidentLatestUnsub = db.collection('incidents')
+        .orderBy('incidentTime', 'desc')
+        .limit(1)
+        .onSnapshot((snap) => {
+            if (snap.empty) {
+                _incidentLatest = null;
+                incidentClearForm();
+                return;
+            }
+            const doc = snap.docs[0];
+            const data = doc.data();
+            _incidentLatest = { id: doc.id, ...data };
+
+            // 若已 CLOSED 且超過 30 天 → 表單空白
+            if (data.status === 'CLOSED' && data.closedTime) {
+                let closedDate;
+                const ct = data.closedTime;
+                if (ct.toDate) closedDate = ct.toDate();
+                else if (ct.seconds) closedDate = new Date(ct.seconds * 1000);
+                else closedDate = new Date(ct);
+
+                if (!isNaN(closedDate.getTime())) {
+                    const daysDiff = (Date.now() - closedDate.getTime()) / (1000 * 60 * 60 * 24);
+                    if (daysDiff > 30) {
+                        incidentClearForm();
+                        return;
+                    }
+                }
+            }
+
+            incidentFillForm(data);
+        }, (err) => {
+            console.warn('監聽 incidents 失敗:', err);
+        });
+}
+
+function incidentFillForm(data) {
+    // 日期時間
+    const dtInput = document.getElementById('incidentDateTime');
+    if (dtInput && data.incidentTime) {
+        let d;
+        const it = data.incidentTime;
+        if (it.toDate) d = it.toDate();
+        else if (it.seconds) d = new Date(it.seconds * 1000);
+        else d = new Date(it);
+
+        if (!isNaN(d.getTime())) {
+            const pad = (n) => String(n).padStart(2, '0');
+            dtInput.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+    }
+
+    // 類型
+    const typeSelect = document.getElementById('incidentType');
+    const typeOther = document.getElementById('incidentTypeOther');
+    if (typeSelect && data.type) {
+        const knownTypes = [
+            'Technical Fault-TCT', 'Technical Fault-AIAS', 'Technical Fault-NLS',
+            'Technical Fault-NPT', 'Technical Fault-T1', 'Technical Fault-T2',
+            'Technical Fault-T3', 'Technical Fault-T4', 'Technical Fault-T5',
+            'Technical Fault-T6', 'Technical Fault-T7'
+        ];
+        if (knownTypes.includes(data.type)) {
+            typeSelect.value = data.type;
+            if (typeOther) {
+                typeOther.style.display = 'none';
+                typeOther.value = '';
+            }
+        } else {
+            typeSelect.value = 'other';
+            if (typeOther) {
+                typeOther.style.display = 'inline-block';
+                typeOther.value = data.type;
+            }
+        }
+    }
+}
+
+function incidentClearForm() {
+    const dtInput = document.getElementById('incidentDateTime');
+    const typeSelect = document.getElementById('incidentType');
+    const typeOther = document.getElementById('incidentTypeOther');
+    if (dtInput) dtInput.value = '';
+    if (typeSelect) typeSelect.value = '';
+    if (typeOther) {
+        typeOther.value = '';
+        typeOther.style.display = 'none';
+    }
+}
+
+function incidentGetFormValues() {
+    const dtInput = document.getElementById('incidentDateTime');
+    const typeSelect = document.getElementById('incidentType');
+    const typeOther = document.getElementById('incidentTypeOther');
+
+    const dtValue = dtInput ? dtInput.value : '';
+    let typeValue = typeSelect ? typeSelect.value : '';
+    if (typeValue === 'other') {
+        typeValue = typeOther ? typeOther.value.trim() : '';
+    }
+
+    return { dtValue, typeValue };
+}
+
+async function incidentCreate() {
+    const { dtValue, typeValue } = incidentGetFormValues();
+
+    if (!dtValue) {
+        showMessage('mapMessage', '請選擇事件日期時間', 'error');
+        return;
+    }
+    if (!typeValue) {
+        showMessage('mapMessage', '請選擇或輸入事件類型', 'error');
+        return;
+    }
+
+    if (_incidentLatest && _incidentLatest.status === 'ACTIVE') {
+        if (!confirm('目前已有一個 ACTIVE 事件，確定要新增嗎？')) return;
+    }
+
+    try {
+        showLoader();
+        const dt = new Date(dtValue);
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+
+        await db.collection('incidents').add({
+            date: dateStr,
+            incidentTime: firebase.firestore.Timestamp.fromDate(dt),
+            type: typeValue,
+            status: 'ACTIVE',
+            closedTime: null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+        });
+
+        showMessage('mapMessage', '✅ 已新增事件', 'success');
+    } catch (e) {
+        console.error('新增事件失敗:', e);
+        showMessage('mapMessage', '新增失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+async function incidentUpdateCurrent() {
+    if (!_incidentLatest || _incidentLatest.status !== 'ACTIVE') {
+        showMessage('mapMessage', '請新建記錄才可更新', 'error');
+        return;
+    }
+
+    const { dtValue, typeValue } = incidentGetFormValues();
+
+    if (!dtValue) {
+        showMessage('mapMessage', '請選擇事件日期時間', 'error');
+        return;
+    }
+    if (!typeValue) {
+        showMessage('mapMessage', '請選擇或輸入事件類型', 'error');
+        return;
+    }
+
+    try {
+        showLoader();
+        const dt = new Date(dtValue);
+        const pad = (n) => String(n).padStart(2, '0');
+        const dateStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+
+        await db.collection('incidents').doc(_incidentLatest.id).update({
+            date: dateStr,
+            incidentTime: firebase.firestore.Timestamp.fromDate(dt),
+            type: typeValue,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+        });
+
+        showMessage('mapMessage', '✅ 已更新事件', 'success');
+    } catch (e) {
+        console.error('更新事件失敗:', e);
+        showMessage('mapMessage', '更新失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+async function incidentClose() {
+    if (!_incidentLatest) {
+        showMessage('mapMessage', '沒有事件', 'error');
+        return;
+    }
+    if (_incidentLatest.status !== 'ACTIVE') {
+        showMessage('mapMessage', '目前沒有進行中的事件', 'error');
+        return;
+    }
+
+    if (!confirm('確定關閉目前事件？')) return;
+
+    try {
+        showLoader();
+        await db.collection('incidents').doc(_incidentLatest.id).update({
+            status: 'CLOSED',
+            closedTime: firebase.firestore.Timestamp.fromDate(new Date()),
+            closedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+        });
+
+        showMessage('mapMessage', '✅ 事件已關閉', 'success');
+    } catch (e) {
+        console.error('關閉事件失敗:', e);
+        showMessage('mapMessage', '關閉失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// ================================================================
+// Guests online
+// ================================================================
+async function saveGuestsOnline() {
+    const input = document.getElementById('guestsOnlineInput');
+    if (!input) return;
+
+    const val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 0) {
+        showMessage('mapMessage', '請輸入有效的 Guests online 數值', 'error');
+        return;
+    }
+
+    try {
+        showLoader();
+
+        // 更新目前值（供 monitor_dashboard 讀取）
+        await db.collection('config').doc('operationalImpact').set({
+            guestsOnline: val,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // 新增歷史記錄
+        await db.collection('operationalImpactHistory').add({
+            guestsOnline: val,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
+        });
+
+        showMessage('mapMessage', '✅ 已儲存 Guests online', 'success');
+    } catch (e) {
+        console.error('儲存 Guests online 失敗:', e);
+        showMessage('mapMessage', '儲存失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
+// ★ 暴露全域
+window.incidentCreate = incidentCreate;
+window.incidentUpdateCurrent = incidentUpdateCurrent;
+window.incidentClose = incidentClose;
+window.saveGuestsOnline = saveGuestsOnline;
 console.log('✅ map.js 已載入（最終版，含 #mapMessage 建立、獨立對比功能、刪除功能）');
