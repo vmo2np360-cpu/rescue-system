@@ -510,7 +510,10 @@ async function mapInit() {
         console.log('🔄 最終保險更新摘要 (3000ms)');
         mapUpdateSummary();
     }, 3000);
-
+    // ★ 初始化 Incident Toolbar
+    setTimeout(() => {
+        if (typeof initIncidentToolbar === 'function') initIncidentToolbar();
+    }, 300);
     console.log('✅ 地圖初始化完成');
 }
 
