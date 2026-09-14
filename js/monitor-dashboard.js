@@ -328,6 +328,7 @@ async function mdInitMap() {
 
     // 圖例
        const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    legend.setAttribute('id', 'md-legend');   // ★ 加這行
     legend.setAttribute('transform', 'translate(1720, 700)');
     legend.innerHTML = `
         <rect x="0" y="0" width="400" height="280" fill="white" stroke="#333" rx="8"/>
