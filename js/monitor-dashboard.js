@@ -225,16 +225,26 @@ async function mdInitMap() {
     mdMapSvg.appendChild(bg);
     */
 
-    // ★ 地形圖片（方案 C：寬度鋪滿 2800，高度 1334.4，Y 偏移 -167）
+        // ★ 地形圖片（方案 C：寬度鋪滿 2800，高度 1334.4，Y 偏移 -167）
     const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     terrainImg.setAttribute('id', 'md-terrain-img');
-    terrainImg.setAttribute('href', 'assets/map-terrain.jpg');
+    // ★ 同時設定 href 與 xlink:href，確保所有瀏覽器都能載入
+    terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
+    terrainImg.setAttribute('href', 'assets/map-terrain.png');
     terrainImg.setAttribute('preserveAspectRatio', 'none');
     terrainImg.setAttribute('x', '0');
     terrainImg.setAttribute('y', '-167');
     terrainImg.setAttribute('width', '2800');
     terrainImg.setAttribute('height', '1334.4');
     mdMapSvg.appendChild(terrainImg);
+
+    // ★ 監聽圖片載入狀態（診斷用）
+    terrainImg.addEventListener('load', () => {
+        console.log('✅ 地形圖片載入成功');
+    });
+    terrainImg.addEventListener('error', () => {
+        console.error('❌ 地形圖片載入失敗，請檢查路徑：assets/map-terrain.png');
+    });
 
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
