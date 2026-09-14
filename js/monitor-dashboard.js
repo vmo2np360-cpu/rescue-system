@@ -3,6 +3,23 @@
 // ================================================================
 
 let mdMapCabins = [];
+// ================================================================
+// 站點 Y 座標（可透過 Console 即時調整）
+// ================================================================
+window.mdStationY = {
+    'TC':   720,
+    'T1':   720,
+    'T2A':  720,
+    'AIAS': 720,
+    'T2B':  720,
+    'T3':   600,
+    'T4':   450,
+    'T5':   325,
+    'NLS':  300,
+    'T6':   306,
+    'T7':   400,
+    'NP':   340
+};
 let mdMapRopePts = [];
 let mdMapSvg = null;
 let mdCurrentOffset = 0;
@@ -276,30 +293,24 @@ async function mdInitMap() {
     mdMapSvg.appendChild(mountain);
     */
 
+        // ★ 站點 Y 從 window.mdStationY 讀取（可即時調整）
     const groundPts = [];
     segments.forEach((s, i) => {
-        let gx = xCoords[i], gy = baseY;
-        if (s === 'NLS') gy = topY;
-        else if (s === 'NP') gy = npY;
-        else if (s === 'T3' || (i > 5 && i < segments.indexOf('NLS'))) gy = baseY - (baseY - topY) * ((gx - t3X) / (nlsX - t3X));
-        else if (i > segments.indexOf('NLS')) gy = topY + (npY - topY) * ((gx - nlsX) / (npX - nlsX));
+        const gx = xCoords[i];
+        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s]
+            : baseY;
         groundPts.push([gx, gy]);
-
-         // ★ 舊站點符號（保留備份，暫不啟用）
-        /*
-        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-        use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#mdStationSymbol' : '#mdTowerSymbol');
-        use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
-        mdMapSvg.appendChild(use);
-        */
 
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
-        txt.setAttribute('x', gx); txt.setAttribute('y', gy + 25);
+        txt.setAttribute('x', gx);
+        txt.setAttribute('y', gy + 25);
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '22');
+        txt.setAttribute('data-station', s);       // ★ 加標記
         mdMapSvg.appendChild(txt);
     });
 
@@ -308,6 +319,7 @@ async function mdInitMap() {
     mdMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
 
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    rope.setAttribute('id', 'md-rope');            // ★ 加 id
     rope.setAttribute('points', mdMapRopePts.map(p => p.join(',')).join(' '));
     rope.setAttribute('fill', 'none');
     rope.setAttribute('stroke', '#444');
@@ -1159,6 +1171,87 @@ window.mdSetTerrain = function (opts) {
         height: img.getAttribute('height')
     });
 };
+// ================================================================
+// 站點 Y 座標即時調整工具
+// ================================================================
+window.mdSetStationY = function (station, y) {
+    if (!window.mdStationY) window.mdStationY = {};
+    window.mdStationY[station] = y;
+    mdRebuildRopeAndLayout();
+    console.log(`✅ ${station} Y = ${y}`);
+};
+
+window.mdSetStationYMultiple = function (obj) {
+    if (!window.mdStationY) window.mdStationY = {};
+    Object.assign(window.mdStationY, obj);
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已更新:', obj);
+};
+
+window.mdResetStationY = function () {
+    window.mdStationY = {
+        'TC':   720,
+        'T1':   720,
+        'T2A':  720,
+        'AIAS': 720,
+        'T2B':  720,
+        'T3':   600,
+        'T4':   450,
+        'T5':   325,
+        'NLS':  300,
+        'T6':   306,
+        'T7':   400,
+        'NP':   340
+    };
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已重置為預設值');
+};
+
+function mdRebuildRopeAndLayout() {
+    if (!mdMapSvg) return;
+
+    const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
+    const slots = [2,2,2,2,10,6,5,1,2,7,3];
+    const startX = 50, endX = 2750, unit = (endX - startX) / 42;
+    let x = startX;
+    const xCoords = [x];
+    for (let i = 0; i < slots.length; i++) { x += slots[i] * unit; xCoords.push(x); }
+
+    // 重建 groundPts
+    const groundPts = segments.map((s, i) => {
+        const gx = xCoords[i];
+        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s]
+            : 600;
+        return [gx, gy];
+    });
+
+    // 更新文字標籤
+    mdMapSvg.querySelectorAll('text[data-station]').forEach(txt => {
+        const station = txt.getAttribute('data-station');
+        const idx = segments.indexOf(station);
+        if (idx >= 0) {
+            const pt = groundPts[idx];
+            txt.setAttribute('x', pt[0]);
+            txt.setAttribute('y', pt[1] + 25);
+        }
+    });
+
+    // 更新索道
+    const up = groundPts.map(p => [p[0], p[1] - 70]);
+    const down = groundPts.map(p => [p[0], p[1] + 70]).reverse();
+    mdMapRopePts = [...up, ...down, [up[0][0], up[0][1]]];
+
+    const rope = document.getElementById('md-rope');
+    if (rope) {
+        rope.setAttribute('points', mdMapRopePts.map(p => p.join(',')).join(' '));
+    }
+
+    // 車廂重新佈局
+    mdLayoutCabins();
+
+    console.log('✅ 站點、索道、車廂已更新');
+}
 // ================================================================
 // 全域暴露
 // ================================================================
