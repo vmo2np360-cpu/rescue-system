@@ -216,11 +216,25 @@ async function mdInitMap() {
     `;
     mdMapSvg.appendChild(defs);
 
-        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+       // ★ 舊背景 rect（保留備份，暫不啟用）
+    /*
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
     bg.setAttribute('width', '2800'); bg.setAttribute('height', '1000');
     bg.setAttribute('fill', '#f0f4f8');
     mdMapSvg.appendChild(bg);
+    */
+
+    // ★ 地形圖片（方案 C：寬度鋪滿 2800，高度 1334.4，Y 偏移 -167）
+    const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    terrainImg.setAttribute('id', 'md-terrain-img');
+    terrainImg.setAttribute('href', 'assets/map-terrain.jpg');
+    terrainImg.setAttribute('preserveAspectRatio', 'none');
+    terrainImg.setAttribute('x', '0');
+    terrainImg.setAttribute('y', '-167');
+    terrainImg.setAttribute('width', '2800');
+    terrainImg.setAttribute('height', '1334.4');
+    mdMapSvg.appendChild(terrainImg);
 
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
@@ -238,13 +252,19 @@ async function mdInitMap() {
         r.setAttribute('fill', fillColor);
         mdMapSvg.appendChild(r);
     };
-        addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#d4d4d4');
+    // ★ 舊城市 / 海灣矩形（保留備份，暫不啟用）
+    /*
+    addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#d4d4d4');
     addRect(t2bX, baseY, t3X - t2bX, 180, '#81D4FA');
+    */
 
+     // ★ 舊山體 path（保留備份，暫不啟用）
+    /*
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
+    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
     mountain.setAttribute('fill', 'url(#mdGradMountain)');
     mdMapSvg.appendChild(mountain);
+    */
 
     const groundPts = [];
     segments.forEach((s, i) => {
@@ -255,10 +275,13 @@ async function mdInitMap() {
         else if (i > segments.indexOf('NLS')) gy = topY + (npY - topY) * ((gx - nlsX) / (npX - nlsX));
         groundPts.push([gx, gy]);
 
+         // ★ 舊站點符號（保留備份，暫不啟用）
+        /*
         const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
         use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#mdStationSymbol' : '#mdTowerSymbol');
         use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
         mdMapSvg.appendChild(use);
+        */
 
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
@@ -1101,6 +1124,30 @@ window.mdDiagnoseIncident = async function () {
     } catch (e) {
         console.error('診斷失敗:', e);
     }
+};
+// ================================================================
+// 地形圖片即時調整工具
+// 用法：
+//   mdSetTerrain({ y: -250 })          // 只調 Y
+//   mdSetTerrain({ x: 50, width: 2700, height: 1286.7 })  // 縮小
+//   mdSetTerrain({ x: -50, width: 2900, height: 1382 })   // 放大
+// ================================================================
+window.mdSetTerrain = function (opts) {
+    const img = document.getElementById('md-terrain-img');
+    if (!img) {
+        console.warn('找不到地形圖片（#md-terrain-img），請先確認 mdInitMap 已執行');
+        return;
+    }
+    if (opts.x !== undefined) img.setAttribute('x', opts.x);
+    if (opts.y !== undefined) img.setAttribute('y', opts.y);
+    if (opts.width !== undefined) img.setAttribute('width', opts.width);
+    if (opts.height !== undefined) img.setAttribute('height', opts.height);
+    console.log('✅ 地形圖片參數已更新:', {
+        x: img.getAttribute('x'),
+        y: img.getAttribute('y'),
+        width: img.getAttribute('width'),
+        height: img.getAttribute('height')
+    });
 };
 // ================================================================
 // 全域暴露
