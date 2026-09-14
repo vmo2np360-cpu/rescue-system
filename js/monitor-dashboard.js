@@ -216,9 +216,9 @@ async function mdInitMap() {
     `;
     mdMapSvg.appendChild(defs);
 
-    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-    bg.setAttribute('width', '2800'); bg.setAttribute('height', '700');
+    bg.setAttribute('width', '2800'); bg.setAttribute('height', '1000');
     bg.setAttribute('fill', '#f0f4f8');
     mdMapSvg.appendChild(bg);
 
@@ -238,11 +238,11 @@ async function mdInitMap() {
         r.setAttribute('fill', fillColor);
         mdMapSvg.appendChild(r);
     };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, '#d4d4d4');
-    addRect(t2bX, baseY, t3X - t2bX, 100, '#81D4FA');
+        addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#d4d4d4');
+    addRect(t2bX, baseY, t3X - t2bX, 180, '#81D4FA');
 
     const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
+        mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
     mountain.setAttribute('fill', 'url(#mdGradMountain)');
     mdMapSvg.appendChild(mountain);
 
@@ -282,30 +282,26 @@ async function mdInitMap() {
     mdMapSvg.appendChild(rope);
 
     // 圖例
-    const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    legend.setAttribute('transform', 'translate(1600, 460)');
+       const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    legend.setAttribute('transform', 'translate(1720, 700)');
     legend.innerHTML = `
-        <rect x="0" y="0" width="320" height="280" fill="white" stroke="#333" rx="8"/>
-        <text x="160" y="40" font-size="30" font-weight="bold" text-anchor="middle">車廂狀態</text>
-        <g transform="translate(25,60)">
-            <rect width="26" height="26" fill="#22c55e" stroke="#333"/>
-            <text x="40" y="19" font-size="24">已著陸</text>
+        <rect x="0" y="0" width="400" height="280" fill="white" stroke="#333" rx="8"/>
+        <text x="200" y="44" font-size="34" font-weight="bold" text-anchor="middle">車廂狀態</text>
+        <g transform="translate(32,84)">
+            <rect width="32" height="32" fill="#22c55e" stroke="#333" rx="4"/>
+            <text x="48" y="24" font-size="24">已著陸</text>
         </g>
-        <g transform="translate(25,100)">
-            <rect width="26" height="26" fill="#3b82f6" stroke="#333"/>
-            <text x="40" y="19" font-size="24">已離開</text>
+        <g transform="translate(32,136)">
+            <rect width="32" height="32" fill="#3b82f6" stroke="#333" rx="4"/>
+            <text x="48" y="24" font-size="24">已離開</text>
         </g>
-        <g transform="translate(25,140)">
-            <rect width="26" height="26" fill="#eab308" stroke="#333"/>
-            <text x="40" y="19" font-size="24">救援中</text>
+        <g transform="translate(32,188)">
+            <rect width="32" height="32" fill="#eab308" stroke="#333" rx="4"/>
+            <text x="48" y="24" font-size="24">救援中</text>
         </g>
-        <g transform="translate(25,180)">
-            <rect width="26" height="26" fill="#dc2626" stroke="#333"/>
-            <text x="40" y="19" font-size="24">等待救援</text>
-        </g>
-        <g transform="translate(25,220)">
-            <rect width="26" height="26" fill="#e2e8f0" stroke="#333"/>
-            <text x="40" y="19" font-size="24">無組別記錄</text>
+        <g transform="translate(32,240)">
+            <rect width="32" height="32" fill="#dc2626" stroke="#333" rx="4"/>
+            <text x="48" y="24" font-size="24">等待救援</text>
         </g>
     `;
     mdMapSvg.appendChild(legend);
