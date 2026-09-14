@@ -7,18 +7,18 @@ let mdMapCabins = [];
 // 站點 Y 座標（可透過 Console 即時調整）
 // ================================================================
 window.mdStationY = {
-    'TC':   720,
-    'T1':   720,
-    'T2A':  720,
-    'AIAS': 720,
-    'T2B':  720,
-    'T3':   600,
-    'T4':   450,
-    'T5':   325,
-    'NLS':  300,
-    'T6':   306,
-    'T7':   400,
-    'NP':   340
+    'TC':   650,
+    'T1':   650,
+    'T2A':  650,
+    'AIAS': 650,
+    'T2B':  650,
+    'T3':   380,
+    'T4':   180,
+    'T5':   20,
+    'NLS':  10,
+    'T6':   20,
+    'T7':   220,
+    'NP':   200
 };
 let mdMapRopePts = [];
 let mdMapSvg = null;
@@ -250,7 +250,7 @@ async function mdInitMap() {
     terrainImg.setAttribute('href', 'assets/map-terrain.png');
     terrainImg.setAttribute('preserveAspectRatio', 'none');
     terrainImg.setAttribute('x', '0');
-    terrainImg.setAttribute('y', '-167');
+    terrainImg.setAttribute('y', '-500');
     terrainImg.setAttribute('width', '2800');
     terrainImg.setAttribute('height', '1334.4');
     mdMapSvg.appendChild(terrainImg);
@@ -327,9 +327,9 @@ async function mdInitMap() {
     mdMapSvg.appendChild(rope);
 
     // 圖例
-       const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    legend.setAttribute('id', 'md-legend');   // ★ 加這行
-    legend.setAttribute('transform', 'translate(1720, 700)');
+const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    legend.setAttribute('id', 'md-legend');
+    legend.setAttribute('transform', 'translate(1800, 350)');
     legend.innerHTML = `
         <rect x="0" y="0" width="400" height="280" fill="white" stroke="#333" rx="8"/>
         <text x="200" y="44" font-size="34" font-weight="bold" text-anchor="middle">車廂狀態</text>
@@ -1190,20 +1190,20 @@ window.mdSetStationYMultiple = function (obj) {
 };
 
 window.mdResetStationY = function () {
-    window.mdStationY = {
-        'TC':   720,
-        'T1':   720,
-        'T2A':  720,
-        'AIAS': 720,
-        'T2B':  720,
-        'T3':   600,
-        'T4':   450,
-        'T5':   325,
-        'NLS':  300,
-        'T6':   306,
-        'T7':   400,
-        'NP':   340
-    };
+  window.mdStationY = {
+    'TC':   650,
+    'T1':   650,
+    'T2A':  650,
+    'AIAS': 650,
+    'T2B':  650,
+    'T3':   380,
+    'T4':   180,
+    'T5':   20,
+    'NLS':  10,
+    'T6':   20,
+    'T7':   220,
+    'NP':   200
+};
     mdRebuildRopeAndLayout();
     console.log('✅ 已重置為預設值');
 };
