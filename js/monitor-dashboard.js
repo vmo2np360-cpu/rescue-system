@@ -1253,6 +1253,21 @@ function mdRebuildRopeAndLayout() {
     console.log('✅ 站點、索道、車廂已更新');
 }
 // ================================================================
+// 圖例位置即時調整工具
+// ================================================================
+window.mdSetLegend = function (x, y) {
+    const legend = mdMapSvg ? mdMapSvg.querySelector('g[transform^="translate"]') : null;
+    // 更精準：用 id 抓
+    const target = document.getElementById('md-legend');
+    const el = target || legend;
+    if (!el) {
+        console.warn('找不到圖例，請確認已呼叫 mdInitMap()');
+        return;
+    }
+    el.setAttribute('transform', `translate(${x}, ${y})`);
+    console.log(`✅ 圖例位置: x=${x}, y=${y}`);
+};
+// ================================================================
 // 全域暴露
 // ================================================================
 window.mdInit = mdInit;
