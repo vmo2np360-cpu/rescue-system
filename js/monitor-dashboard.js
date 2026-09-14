@@ -757,7 +757,8 @@ function mdUpdateOperationalImpact() {
 
     if (cabinsEl) cabinsEl.textContent = mdCabinMode;
     if (casesEl) casesEl.textContent = mdRescueRecords.length;
-    if (affectedEl) affectedEl.textContent = mdRescueRecords.length;
+    // ★ Guests Affected = 所有車廂組別數（guests collection 總數）
+    if (affectedEl) affectedEl.textContent = mdGuestRecords.length;
 
     const guestsEl = document.getElementById('md-guests-online');
     if (guestsEl && mdGuestsOnline === null) guestsEl.textContent = '—';
