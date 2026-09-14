@@ -786,7 +786,17 @@ function mdRenderIncident(incident) {
 
     mdUpdateCurrentTime();
 }
-
+function mdFormatIncidentTime(input) {
+    if (!input) return '—';
+    let d;
+    if (input.toDate) d = input.toDate();
+    else if (input.seconds) d = new Date(input.seconds * 1000);
+    else if (typeof input === 'string') d = new Date(input);
+    else d = new Date(input);
+    if (isNaN(d.getTime())) return '—';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
 function mdFormatIncidentDate(input) {
     if (!input) return '—';
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sept','Oct','Nov','Dec'];
@@ -1065,7 +1075,37 @@ function mdOnFullscreenChange() {
 
 document.addEventListener('fullscreenchange', mdOnFullscreenChange);
 document.addEventListener('webkitfullscreenchange', mdOnFullscreenChange);
+// ★ 診斷函數（可在 Console 呼叫）
+window.mdDiagnoseIncident = async function () {
+    console.log('=== Monitor Dashboard Incident 診斷 ===');
+    try {
+        const snap = await db.collection('incidents')
+            .orderBy('incidentTime', 'desc')
+            .limit(3)
+            .get();
 
+        if (snap.empty) {
+            console.log('❌ incidents 是空的');
+            return;
+        }
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            console.log({
+                id: doc.id,
+                status: d.status,
+                incidentTime: d.incidentTime,
+                hasToDate: d.incidentTime && typeof d.incidentTime.toDate === 'function',
+                display: d.incidentTime ? mdFormatIncidentTime(d.incidentTime) : '(空)'
+            });
+        });
+
+        console.log('mdCurrentIncident:', mdCurrentIncident);
+        console.log('mdFormatIncidentTime 存在:', typeof mdFormatIncidentTime);
+    } catch (e) {
+        console.error('診斷失敗:', e);
+    }
+};
 // ================================================================
 // 全域暴露
 // ================================================================
