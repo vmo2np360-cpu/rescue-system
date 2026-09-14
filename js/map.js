@@ -2178,29 +2178,46 @@ async function incidentCreate() {
 }
 
 async function incidentUpdateCurrent() {
-    if (!_incidentLatest || _incidentLatest.status !== 'ACTIVE') {
-        showMessage('mapMessage', '請新建記錄才可更新', 'error');
-        return;
-    }
-
-    const { dtValue, typeValue } = incidentGetFormValues();
-
-    if (!dtValue) {
-        showMessage('mapMessage', '請選擇事件日期時間', 'error');
-        return;
-    }
-    if (!typeValue) {
-        showMessage('mapMessage', '請選擇或輸入事件類型', 'error');
-        return;
-    }
-
     try {
         showLoader();
+        // ★ 直接查最新一筆，不依賴 _incidentLatest
+        const snap = await db.collection('incidents')
+            .orderBy('incidentTime', 'desc')
+            .limit(1)
+            .get();
+
+        if (snap.empty) {
+            hideLoader();
+            showMessage('mapMessage', '請新建記錄才可更新', 'error');
+            return;
+        }
+
+        const latestDoc = snap.docs[0];
+        const latest = latestDoc.data();
+
+        if (latest.status !== 'ACTIVE') {
+            hideLoader();
+            showMessage('mapMessage', '目前沒有進行中的事件', 'error');
+            return;
+        }
+
+        const { dtValue, typeValue } = incidentGetFormValues();
+        if (!dtValue) {
+            hideLoader();
+            showMessage('mapMessage', '請選擇事件日期時間', 'error');
+            return;
+        }
+        if (!typeValue) {
+            hideLoader();
+            showMessage('mapMessage', '請選擇或輸入事件類型', 'error');
+            return;
+        }
+
         const dt = new Date(dtValue);
         const pad = (n) => String(n).padStart(2, '0');
         const dateStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
 
-        await db.collection('incidents').doc(_incidentLatest.id).update({
+        await db.collection('incidents').doc(latestDoc.id).update({
             date: dateStr,
             incidentTime: firebase.firestore.Timestamp.fromDate(dt),
             type: typeValue,
@@ -2218,20 +2235,34 @@ async function incidentUpdateCurrent() {
 }
 
 async function incidentClose() {
-    if (!_incidentLatest) {
-        showMessage('mapMessage', '沒有事件', 'error');
-        return;
-    }
-    if (_incidentLatest.status !== 'ACTIVE') {
-        showMessage('mapMessage', '目前沒有進行中的事件', 'error');
-        return;
-    }
-
-    if (!confirm('確定關閉目前事件？')) return;
-
     try {
         showLoader();
-        await db.collection('incidents').doc(_incidentLatest.id).update({
+        // ★ 直接查最新一筆
+        const snap = await db.collection('incidents')
+            .orderBy('incidentTime', 'desc')
+            .limit(1)
+            .get();
+
+        if (snap.empty) {
+            hideLoader();
+            showMessage('mapMessage', '沒有事件', 'error');
+            return;
+        }
+
+        const latestDoc = snap.docs[0];
+        const latest = latestDoc.data();
+
+        if (latest.status !== 'ACTIVE') {
+            hideLoader();
+            showMessage('mapMessage', '目前沒有進行中的事件', 'error');
+            return;
+        }
+
+        hideLoader();
+        if (!confirm('確定關閉目前事件？')) return;
+        showLoader();
+
+        await db.collection('incidents').doc(latestDoc.id).update({
             status: 'CLOSED',
             closedTime: firebase.firestore.Timestamp.fromDate(new Date()),
             closedBy: auth.currentUser ? auth.currentUser.email : 'unknown'
@@ -2283,7 +2314,43 @@ async function saveGuestsOnline() {
         hideLoader();
     }
 }
+// ★ 診斷函數（可在 Console 呼叫）
+window.incidentDiagnose = async function () {
+    console.log('=== Incident 診斷 ===');
+    try {
+        const snap = await db.collection('incidents')
+            .orderBy('incidentTime', 'desc')
+            .limit(5)
+            .get();
 
+        if (snap.empty) {
+            console.log('❌ incidents collection 是空的');
+            return;
+        }
+
+        console.log(`📊 共查詢到 ${snap.size} 筆：`);
+        snap.forEach(doc => {
+            const d = doc.data();
+            console.log({
+                id: doc.id,
+                status: d.status,
+                type: d.type,
+                date: d.date,
+                incidentTime: d.incidentTime,
+                incidentTimeType: typeof d.incidentTime,
+                hasToDate: d.incidentTime && typeof d.incidentTime.toDate === 'function',
+                closedTime: d.closedTime
+            });
+        });
+
+        console.log('---');
+        console.log('_incidentLatest:', _incidentLatest);
+    } catch (e) {
+        console.error('❌ 診斷失敗:', e);
+        console.error('錯誤碼:', e.code);
+        console.error('錯誤訊息:', e.message);
+    }
+};
 // ★ 暴露全域
 window.incidentCreate = incidentCreate;
 window.incidentUpdateCurrent = incidentUpdateCurrent;
