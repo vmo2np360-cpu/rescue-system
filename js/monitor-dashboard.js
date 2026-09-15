@@ -319,17 +319,17 @@ async function mdInitMap() {
             : baseY;
         groundPts.push([gx, gy]);
 
-        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+             const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
-        txt.setAttribute('x', gx);
-        txt.setAttribute('y', gy + 25);
+        const offset = (window.mdLabelOffset && window.mdLabelOffset[s]) || { dx: 0, dy: 25 };
+        txt.setAttribute('x', gx + (offset.dx || 0));
+        txt.setAttribute('y', gy + (offset.dy !== undefined ? offset.dy : 25));
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '22');
         txt.setAttribute('data-station', s);
         mdMapSvg.appendChild(txt);
-    });
 
     const up = groundPts.map(p => [p[0], p[1] - 70]);
     const down = groundPts.map(p => [p[0], p[1] + 70]).reverse();
@@ -1248,13 +1248,15 @@ function mdRebuildRopeAndLayout() {
     });
 
     // 更新文字標籤
+      // 更新文字標籤（含偏移）
     mdMapSvg.querySelectorAll('text[data-station]').forEach(txt => {
         const station = txt.getAttribute('data-station');
         const idx = segments.indexOf(station);
         if (idx >= 0) {
             const pt = groundPts[idx];
-            txt.setAttribute('x', pt[0]);
-            txt.setAttribute('y', pt[1] + 25);
+            const offset = (window.mdLabelOffset && window.mdLabelOffset[station]) || { dx: 0, dy: 25 };
+            txt.setAttribute('x', pt[0] + (offset.dx || 0));
+            txt.setAttribute('y', pt[1] + (offset.dy !== undefined ? offset.dy : 25));
         }
     });
 
@@ -1320,6 +1322,30 @@ window.mdResetStationX = function () {
     };
     mdRebuildRopeAndLayout();
     console.log('✅ 已重置 X 為預設值');
+};
+    // ================================================================
+// 文字標籤偏移調整工具（不影響索道 / 車廂）
+// ================================================================
+window.mdSetLabelOffset = function (station, dx, dy) {
+    if (!window.mdLabelOffset) window.mdLabelOffset = {};
+    window.mdLabelOffset[station] = { dx: dx, dy: dy };
+    mdRebuildRopeAndLayout();
+    console.log(`✅ ${station} 文字偏移: dx=${dx}, dy=${dy}`);
+};
+
+window.mdSetLabelOffsetMultiple = function (obj) {
+    if (!window.mdLabelOffset) window.mdLabelOffset = {};
+    Object.keys(obj).forEach(station => {
+        window.mdLabelOffset[station] = obj[station];
+    });
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已更新文字偏移:', obj);
+};
+
+window.mdResetLabelOffset = function () {
+    window.mdLabelOffset = {};
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已重置所有文字偏移');
 };
 // ================================================================
 // 全域暴露
