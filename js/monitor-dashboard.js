@@ -294,9 +294,26 @@ async function mdInitMap() {
     */
 
         // ★ 站點 Y 從 window.mdStationY 讀取（可即時調整）
+    window.mdStationX = {
+    'TC':   50,
+    'T1':   178.57,
+    'T2A':  307.14,
+    'AIAS': 435.71,
+    'T2B':  564.29,
+    'T3':   1207.14,
+    'T4':   1592.86,
+    'T5':   1914.29,
+    'NLS':  1978.57,
+    'T6':   2107.14,
+    'T7':   2557.14,
+    'NP':   2750
+};
+     // ★ 站點 X / Y 從 window.mdStationX / mdStationY 讀取（可即時調整）
     const groundPts = [];
     segments.forEach((s, i) => {
-        const gx = xCoords[i];
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s]
+            : xCoords[i];
         const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s]
             : baseY;
@@ -310,7 +327,7 @@ async function mdInitMap() {
         txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '22');
-        txt.setAttribute('data-station', s);       // ★ 加標記
+        txt.setAttribute('data-station', s);
         mdMapSvg.appendChild(txt);
     });
 
@@ -1208,7 +1225,38 @@ window.mdResetStationY = function () {
     mdRebuildRopeAndLayout();
     console.log('✅ 已重置為預設值');
 };
+window.mdSetStationX = function (station, x) {
+    if (!window.mdStationX) window.mdStationX = {};
+    window.mdStationX[station] = x;
+    mdRebuildRopeAndLayout();
+    console.log(`✅ ${station} X = ${x}`);
+};
 
+window.mdSetStationXMultiple = function (obj) {
+    if (!window.mdStationX) window.mdStationX = {};
+    Object.assign(window.mdStationX, obj);
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已更新 X:', obj);
+};
+
+window.mdResetStationX = function () {
+    window.mdStationX = {
+        'TC':   50,
+        'T1':   178.57,
+        'T2A':  307.14,
+        'AIAS': 435.71,
+        'T2B':  564.29,
+        'T3':   1207.14,
+        'T4':   1592.86,
+        'T5':   1914.29,
+        'NLS':  1978.57,
+        'T6':   2107.14,
+        'T7':   2557.14,
+        'NP':   2750
+    };
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已重置 X 為預設值');
+};
 function mdRebuildRopeAndLayout() {
     if (!mdMapSvg) return;
 
@@ -1221,7 +1269,9 @@ function mdRebuildRopeAndLayout() {
 
     // 重建 groundPts
     const groundPts = segments.map((s, i) => {
-        const gx = xCoords[i];
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s]
+            : xCoords[i];
         const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s]
             : 600;
