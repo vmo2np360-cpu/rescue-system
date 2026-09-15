@@ -1225,38 +1225,7 @@ window.mdResetStationY = function () {
     mdRebuildRopeAndLayout();
     console.log('✅ 已重置為預設值');
 };
-window.mdSetStationX = function (station, x) {
-    if (!window.mdStationX) window.mdStationX = {};
-    window.mdStationX[station] = x;
-    mdRebuildRopeAndLayout();
-    console.log(`✅ ${station} X = ${x}`);
-};
 
-window.mdSetStationXMultiple = function (obj) {
-    if (!window.mdStationX) window.mdStationX = {};
-    Object.assign(window.mdStationX, obj);
-    mdRebuildRopeAndLayout();
-    console.log('✅ 已更新 X:', obj);
-};
-
-window.mdResetStationX = function () {
-    window.mdStationX = {
-        'TC':   50,
-        'T1':   178.57,
-        'T2A':  307.14,
-        'AIAS': 435.71,
-        'T2B':  564.29,
-        'T3':   1207.14,
-        'T4':   1592.86,
-        'T5':   1914.29,
-        'NLS':  1978.57,
-        'T6':   2107.14,
-        'T7':   2557.14,
-        'NP':   2750
-    };
-    mdRebuildRopeAndLayout();
-    console.log('✅ 已重置 X 為預設值');
-};
 function mdRebuildRopeAndLayout() {
     if (!mdMapSvg) return;
 
@@ -1318,6 +1287,39 @@ window.mdSetLegend = function (x, y) {
     }
     el.setAttribute('transform', `translate(${x}, ${y})`);
     console.log(`✅ 圖例位置: x=${x}, y=${y}`);
+};
+
+window.mdSetStationX = function (station, x) {
+    if (!window.mdStationX) window.mdStationX = {};
+    window.mdStationX[station] = x;
+    mdRebuildRopeAndLayout();
+    console.log(`✅ ${station} X = ${x}`);
+};
+
+window.mdSetStationXMultiple = function (obj) {
+    if (!window.mdStationX) window.mdStationX = {};
+    Object.assign(window.mdStationX, obj);
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已更新 X:', obj);
+};
+
+window.mdResetStationX = function () {
+    window.mdStationX = {
+        'TC':   50,
+        'T1':   178.57,
+        'T2A':  307.14,
+        'AIAS': 435.71,
+        'T2B':  564.29,
+        'T3':   1207.14,
+        'T4':   1592.86,
+        'T5':   1914.29,
+        'NLS':  1978.57,
+        'T6':   2107.14,
+        'T7':   2557.14,
+        'NP':   2750
+    };
+    mdRebuildRopeAndLayout();
+    console.log('✅ 已重置 X 為預設值');
 };
 // ================================================================
 // 全域暴露
