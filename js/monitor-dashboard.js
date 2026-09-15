@@ -20,6 +20,29 @@ window.mdStationY = {
     'T7':   220,
     'NP':   200
 };
+
+// ================================================================
+// 站點 X 座標（可透過 Console 即時調整）
+// ================================================================
+window.mdStationX = {
+    'TC':   50,
+    'T1':   178.57,
+    'T2A':  307.14,
+    'AIAS': 435.71,
+    'T2B':  564.29,
+    'T3':   1207.14,
+    'T4':   1592.86,
+    'T5':   1914.29,
+    'NLS':  1978.57,
+    'T6':   2107.14,
+    'T7':   2557.14,
+    'NP':   2750
+};
+
+// ================================================================
+// 站點文字標籤偏移量（僅影響文字，不影響索道 / 車廂）
+// ================================================================
+window.mdLabelOffset = {};
 let mdMapRopePts = [];
 let mdMapSvg = null;
 let mdCurrentOffset = 0;
@@ -293,21 +316,6 @@ async function mdInitMap() {
     mdMapSvg.appendChild(mountain);
     */
 
-        // ★ 站點 Y 從 window.mdStationY 讀取（可即時調整）
-    window.mdStationX = {
-    'TC':   50,
-    'T1':   178.57,
-    'T2A':  307.14,
-    'AIAS': 435.71,
-    'T2B':  564.29,
-    'T3':   1207.14,
-    'T4':   1592.86,
-    'T5':   1914.29,
-    'NLS':  1978.57,
-    'T6':   2107.14,
-    'T7':   2557.14,
-    'NP':   2750
-};
      // ★ 站點 X / Y 從 window.mdStationX / mdStationY 讀取（可即時調整）
     const groundPts = [];
     segments.forEach((s, i) => {
@@ -328,8 +336,11 @@ async function mdInitMap() {
         txt.setAttribute('fill', '#000');
         txt.setAttribute('font-weight', 'bold');
         txt.setAttribute('font-size', '22');
-        txt.setAttribute('data-station', s);
+         txt.setAttribute('data-station', s);
         mdMapSvg.appendChild(txt);
+    });                                              // ★ 補回這一行
+
+    const up = groundPts.map(p => [p[0], p[1] - 70]);
 
     const up = groundPts.map(p => [p[0], p[1] - 70]);
     const down = groundPts.map(p => [p[0], p[1] + 70]).reverse();
