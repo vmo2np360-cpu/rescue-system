@@ -241,20 +241,45 @@ function gsGenerateQR(docId, health) {
 
 function gsSavePDF() {
     if (!window.gsQrInstance) return alert('請先建立 QR 碼');
+
     const canvas = document.getElementById('gsQrCode').querySelector('canvas');
     if (!canvas) return alert('無法取得 QR 碼');
+
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pw = pdf.internal.pageSize.getWidth();
-    pdf.setFontSize(24); pdf.text('Guest QR Code Certificate', pw/2, 25, { align: 'center' });
+
+    pdf.setFontSize(24);
+    pdf.text('Guest QR Code Certificate', pw / 2, 25, { align: 'center' });
+
     const img = canvas.toDataURL('image/png');
-    pdf.addImage(img, 'PNG', (pw-100)/2, 40, 100, 100);
+    pdf.addImage(img, 'PNG', (pw - 100) / 2, 40, 100, 100);
+
     const cabin = document.getElementById('gsPrintCabin').textContent;
-    const group = document.getElementById('gsPrintGroup').textContent;
+
+    // 原本是「第1組」，這裡去掉「第」「組」以及大括號，只留下 1
+    const groupRaw = document.getElementById('gsPrintGroup').textContent || '';
+    const group = groupRaw.replace(/第|組|\{|\}/g, '').trim();
+
     pdf.setFontSize(14);
     pdf.text(`Cabin: ${cabin}`, 30, 160);
     pdf.text(`Group: ${group}`, 30, 175);
-    pdf.save(`QR_${cabin}_${group.replace('第','').replace('組','')}.pdf`);
+
+    // 直接列印：不呼叫 pdf.save()
+    pdf.autoPrint();
+    const blobUrl = pdf.output('bloburl');
+    const printWindow = window.open(blobUrl, '_blank');
+
+    if (!printWindow) {
+        alert('請允許彈出視窗，才能直接列印 PDF');
+        return;
+    }
+
+    // 部分瀏覽器需要等 PDF 載入後再觸發列印
+    printWindow.onload = function () {
+        printWindow.focus();
+        printWindow.print();
+    };
 }
 
 // ---- 初始化函數 ----
