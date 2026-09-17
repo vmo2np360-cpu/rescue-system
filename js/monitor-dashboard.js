@@ -769,8 +769,15 @@ function mdUpdateSummary() {
     c.textContent = landed;
     d.textContent = departed;
 
-    const total = mdCabinMode;
-    const pct = total > 0 ? Math.round((landed / total) * 100) : 0;
+    // ★ 方案 A：Rescue Progress
+    //   分子 = Case Closed (departed)
+    //   分母 = Rescue in Progress (rescuing) + Rescued (landed) + Case Closed (departed)
+    //   Awaiting (waiting) 為排隊中的個案，不計入分母
+    const progressDenominator = rescuing + landed + departed;
+    const pct = progressDenominator > 0
+        ? Math.round((departed / progressDenominator) * 100)
+        : 0;
+
     const pctEl = document.getElementById('md-progress-pct');
     const fillEl = document.getElementById('md-progress-fill');
     if (pctEl) pctEl.textContent = pct + '%';
