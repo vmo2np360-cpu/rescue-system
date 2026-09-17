@@ -42,7 +42,23 @@ window.mdStationX = {
 // ================================================================
 // 站點文字標籤偏移量（僅影響文字，不影響索道 / 車廂）
 // ================================================================
-window.mdLabelOffset = {};
+// ================================================================
+// 站點文字標籤偏移量（僅影響文字，不影響索道 / 車廂）
+// ================================================================
+window.mdLabelOffset = {
+    'TC':   { dx: 40,   dy: -20 },
+    'T1':   { dx: 35,   dy: -20 },
+    'T2A':  { dx: 80,   dy: 45  },
+    'AIAS': { dx: 45,   dy: 45  },
+    'T2B':  { dx: -5,   dy: 45  },
+    'T3':   { dx: 50,   dy: -10 },
+    'T4':   { dx: 50,   dy: -10 },
+    'T5':   { dx: -50,  dy: 5   },
+    'NLS':  { dx: 20,   dy: 30  },
+    'T6':   { dx: 20,   dy: -15 },
+    'T7':   { dx: -10,  dy: -15 },
+    'NP':   { dx: -120, dy: -5  }
+};
 let mdMapRopePts = [];
 let mdMapSvg = null;
 let mdCurrentOffset = 0;
@@ -1360,9 +1376,22 @@ window.mdSetLabelOffsetMultiple = function (obj) {
 };
 
 window.mdResetLabelOffset = function () {
-    window.mdLabelOffset = {};
+    window.mdLabelOffset = {
+        'TC':   { dx: 40,   dy: -20 },
+        'T1':   { dx: 35,   dy: -20 },
+        'T2A':  { dx: 80,   dy: 45  },
+        'AIAS': { dx: 45,   dy: 45  },
+        'T2B':  { dx: -5,   dy: 45  },
+        'T3':   { dx: 50,   dy: -10 },
+        'T4':   { dx: 50,   dy: -10 },
+        'T5':   { dx: -50,  dy: 5   },
+        'NLS':  { dx: 20,   dy: 30  },
+        'T6':   { dx: 20,   dy: -15 },
+        'T7':   { dx: -10,  dy: -15 },
+        'NP':   { dx: -120, dy: -5  }
+    };
     mdRebuildRopeAndLayout();
-    console.log('✅ 已重置所有文字偏移');
+    console.log('✅ 已重置文字偏移為預設值');
 };
 // ================================================================
 // 全域暴露
