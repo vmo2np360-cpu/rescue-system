@@ -340,7 +340,6 @@ async function mdInitMap() {
         mdMapSvg.appendChild(txt);
     });                                              // ★ 補回這一行
 
-    const up = groundPts.map(p => [p[0], p[1] - 70]);
 
     const up = groundPts.map(p => [p[0], p[1] - 70]);
     const down = groundPts.map(p => [p[0], p[1] + 70]).reverse();
