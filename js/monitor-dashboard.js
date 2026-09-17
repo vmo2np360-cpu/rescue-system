@@ -378,19 +378,19 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         <text x="200" y="44" font-size="34" font-weight="bold" text-anchor="middle">車廂狀態</text>
         <g transform="translate(32,84)">
             <rect width="32" height="32" fill="#22c55e" stroke="#333" rx="4"/>
-            <text x="48" y="24" font-size="24">已著陸</text>
+            <text x="48" y="24" font-size="30">已著陸</text>
         </g>
         <g transform="translate(32,136)">
             <rect width="32" height="32" fill="#3b82f6" stroke="#333" rx="4"/>
-            <text x="48" y="24" font-size="24">已離開</text>
+            <text x="48" y="24" font-size="30">已離開</text>
         </g>
         <g transform="translate(32,188)">
             <rect width="32" height="32" fill="#eab308" stroke="#333" rx="4"/>
-            <text x="48" y="24" font-size="24">救援中</text>
+            <text x="48" y="24" font-size="30">救援中</text>
         </g>
         <g transform="translate(32,240)">
             <rect width="32" height="32" fill="#dc2626" stroke="#333" rx="4"/>
-            <text x="48" y="24" font-size="24">等待救援</text>
+            <text x="48" y="24" font-size="30">等待救援</text>
         </g>
     `;
     mdMapSvg.appendChild(legend);
