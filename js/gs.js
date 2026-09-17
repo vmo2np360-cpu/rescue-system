@@ -239,25 +239,25 @@ function gsGenerateQR(docId, health) {
     window.gsQrInstance = qr;
 }
 
-function gsSavePDF() {
+async function gsSavePDF() {
+    // 1. 前置檢查
     if (!window.gsQrInstance) return alert('請先建立 QR 碼');
 
     const canvas = document.getElementById('gsQrCode').querySelector('canvas');
     if (!canvas) return alert('無法取得 QR 碼');
 
+    // 2. 產生 PDF（內容與原本一致）
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pw = pdf.internal.pageSize.getWidth();
 
     pdf.setFontSize(24);
     pdf.text('Guest QR Code Certificate', pw / 2, 25, { align: 'center' });
-
-    const img = canvas.toDataURL('image/png');
-    pdf.addImage(img, 'PNG', (pw - 100) / 2, 40, 100, 100);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pw - 100) / 2, 40, 100, 100);
 
     const cabin = document.getElementById('gsPrintCabin').textContent;
 
-    // 原本是「第1組」，這裡去掉「第」「組」以及大括號，只留下 1
+    // Group 只保留數字，避免中文字在 jsPDF 預設字體下變 { }
     const groupRaw = document.getElementById('gsPrintGroup').textContent || '';
     const group = groupRaw.replace(/第|組|\{|\}/g, '').trim();
 
@@ -265,21 +265,32 @@ function gsSavePDF() {
     pdf.text(`Cabin: ${cabin}`, 30, 160);
     pdf.text(`Group: ${group}`, 30, 175);
 
-    // 直接列印：不呼叫 pdf.save()
-    pdf.autoPrint();
-    const blobUrl = pdf.output('bloburl');
-    const printWindow = window.open(blobUrl, '_blank');
+    // 3. 轉成 File 物件
+    const blob = pdf.output('blob');
+    const fileName = `QR_${cabin}_${group}.pdf`;
+    const file = new File([blob], fileName, { type: 'application/pdf' });
 
-    if (!printWindow) {
-        alert('請允許彈出視窗，才能直接列印 PDF');
-        return;
+    // 4. 判斷是否支援系統分享（Android Chrome / iOS Safari 皆支援）
+    const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (canShareFiles) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: 'Guest QR Code',
+                text: `Cabin ${cabin} / Group ${group}`
+            });
+            return; // 成功分享即結束
+        } catch (err) {
+            // AbortError = 使用者主動取消，不用跳出錯誤
+            if (err && err.name === 'AbortError') return;
+            // 其他錯誤則往下走，退回下載
+            console.warn('分享失敗，改為下載：', err);
+        }
     }
 
-    // 部分瀏覽器需要等 PDF 載入後再觸發列印
-    printWindow.onload = function () {
-        printWindow.focus();
-        printWindow.print();
-    };
+    // 5. 退回：直接下載 PDF（桌機或未支援分享的瀏覽器）
+    pdf.save(fileName);
 }
 
 // ---- 初始化函數 ----
