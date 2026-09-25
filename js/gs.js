@@ -302,6 +302,13 @@ function gsSwitchMode(mode) {
 
     gsCurrentMode = mode;
 
+    // ★ 切換模式時清空 QR 結果
+    const qrEl = document.getElementById('gsQrResult');
+    if (qrEl) qrEl.style.display = 'none';
+    const qrCodeEl = document.getElementById('gsQrCode');
+    if (qrCodeEl) qrCodeEl.innerHTML = '';
+    window.gsQrInstance = null;
+
     document.querySelectorAll('.gs-mode-btn').forEach(btn => btn.classList.remove('active'));
     const btnId = { start: 'gsModeStart', complete: 'gsModeComplete', full: 'gsModeFull' }[mode];
     document.getElementById(btnId)?.classList.add('active');
@@ -343,6 +350,13 @@ function gsSubmit() {
 // ★ 開始救援
 // ================================================================
 async function gsStartRescue() {
+    // ★ 清空上一次的 QR
+    const qrEl = document.getElementById('gsQrResult');
+    if (qrEl) qrEl.style.display = 'none';
+    const qrCodeEl = document.getElementById('gsQrCode');
+    if (qrCodeEl) qrCodeEl.innerHTML = '';
+    window.gsQrInstance = null;
+
     const cabin = document.getElementById('gsCabinNumber').value.trim();
     const group = document.getElementById('gsGroupNumber').value;
 
@@ -447,6 +461,13 @@ async function gsSaveStartRescue(cabin, group, docId) {
 // ★ 完成救援
 // ================================================================
 async function gsCompleteRescue() {
+    // ★ 清空上一次的 QR
+    const qrEl = document.getElementById('gsQrResult');
+    if (qrEl) qrEl.style.display = 'none';
+    const qrCodeEl = document.getElementById('gsQrCode');
+    if (qrCodeEl) qrCodeEl.innerHTML = '';
+    window.gsQrInstance = null;
+
     const cabin = document.getElementById('gsCabinNumber').value.trim();
     const group = document.getElementById('gsGroupNumber').value;
     const timeLanded = document.getElementById('gsTimeLanded').value;
@@ -547,7 +568,13 @@ function gsCollectCompleteFields() {
         remarks: document.getElementById('gsRemarks').value.trim()
     };
 }
-
+function gsClearQrResult() {
+    const qrEl = document.getElementById('gsQrResult');
+    if (qrEl) qrEl.style.display = 'none';
+    const qrCodeEl = document.getElementById('gsQrCode');
+    if (qrCodeEl) qrCodeEl.innerHTML = '';
+    window.gsQrInstance = null;
+}
 async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, manualTimeReachedTop) {
     const now = new Date();
     const formData = gsCollectCompleteFields();
@@ -1016,6 +1043,13 @@ function gsOpenCompleteFromBanner(docId) {
     db.collection('guests').doc(docId).get().then(doc => {
         if (!doc.exists) return;
         const data = doc.data();
+
+        // ★ 清空上一次的 QR 結果
+        const qrEl = document.getElementById('gsQrResult');
+        if (qrEl) qrEl.style.display = 'none';
+        const qrCodeEl = document.getElementById('gsQrCode');
+        if (qrCodeEl) qrCodeEl.innerHTML = '';
+        window.gsQrInstance = null;
 
         gsSwitchMode('complete');
 
