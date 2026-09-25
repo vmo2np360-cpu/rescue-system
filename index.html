@@ -267,7 +267,39 @@
 <script>
      document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
+<script>
+// ===== 全域 ESC 關閉抽屜 / Lightbox =====
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
 
+    // 側邊抽屜（依序嘗試三個平台）
+    if (typeof closeCabinDrawer === 'function') {
+        const d = document.getElementById('cabinDrawer');
+        if (d && d.classList.contains('open')) closeCabinDrawer();
+    }
+    if (typeof mdCloseDrawer === 'function') {
+        const d = document.getElementById('mdCabinDrawer');
+        if (d && d.classList.contains('open')) mdCloseDrawer();
+    }
+    if (typeof monCloseDrawer === 'function') {
+        const d = document.getElementById('monCabinDrawer');
+        if (d && d.classList.contains('open')) monCloseDrawer();
+    }
+
+    // Lightbox
+    ['cabinLightbox', 'mdCabinLightbox', 'monCabinLightbox'].forEach(id => {
+        const lb = document.getElementById(id);
+        if (lb && lb.style.display === 'flex') lb.style.display = 'none';
+    });
+
+    // cabin-photos 頁面的圖片放大 modal
+    const cpModal = document.getElementById('cpImageModal');
+    if (cpModal && cpModal.style.display === 'flex') {
+        cpModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+});
+</script>
         // ============================================================
         // ★ 在此加入地圖初始化邏輯（確保地圖區塊顯示時自動載入）
         // ============================================================
