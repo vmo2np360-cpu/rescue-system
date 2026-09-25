@@ -31,6 +31,8 @@ const PERMISSIONS = {
         'monitor': ['admin', 'occ', 're'],
         'monitor_dashboard': ['admin', 'occ', 're'],   // ★ 新增這行
         'audit': ['admin', 'occ'],
+        'index_cabin_photos': ['admin', 'occ'],
+
     },
     collections: {
         'guests': {
