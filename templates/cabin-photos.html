@@ -116,7 +116,30 @@
             💡 左側數字為地圖上的排列位置
         </span>
     </div>
-
+    <!-- ===== CSV 輸入區 ===== -->
+    <div style="background:#f8fafc; padding:14px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+            <label style="font-weight:600; font-size:0.9rem;">
+                📋 CSV 快速輸入（每行一個或逗號分隔）
+            </label>
+            <div style="display:flex; gap:8px;">
+                <button onclick="cpParseCsvToInputs()"
+                        style="background:#2563eb; color:white; padding:6px 16px; border:none; border-radius:6px; cursor:pointer; font-weight:500; font-size:0.85rem;">
+                    ↓ 解析並填入
+                </button>
+                <button onclick="document.getElementById('cp-csv-input').value=''"
+                        style="background:#e2e8f0; color:#1e293b; padding:6px 16px; border:none; border-radius:6px; cursor:pointer; font-weight:500; font-size:0.85rem;">
+                    清空文字
+                </button>
+            </div>
+        </div>
+        <textarea id="cp-csv-input"
+                  placeholder="例如：&#10;A01&#10;A02&#10;A03&#10;...&#10;&#10;或一行：A01,A02,A03,..."
+                  style="width:100%; min-height:100px; padding:10px; border:1px solid #e2e8f0; border-radius:6px; font-family:monospace; font-size:0.85rem; resize:vertical;"></textarea>
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+            💡 支援格式：每行一個、逗號分隔、或混合（Tab 鍵分隔也支援）
+        </div>
+    </div>
     <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
         <button onclick="cpImportOrderFromMap()"
                 style="background:#dbeafe; color:#1e40af; padding:8px 16px; border:none; border-radius:8px; font-weight:500; cursor:pointer;">
