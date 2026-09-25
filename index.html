@@ -100,9 +100,39 @@
 <!-- ===== 全局模態框 ===== -->
 
 <!-- 車廂資訊模態框 -->
-<div id="cabinModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header"><span class="modal-title">車廂資訊</span><button class="modal-close" onclick="closeCabinModal()">&times;</button></div>
+<!-- ===== 車廂側邊抽屜 ===== -->
+<div id="cabinDrawerOverlay" class="cabin-drawer-overlay" onclick="closeCabinDrawer()"></div>
+<div id="cabinDrawer" class="cabin-drawer">
+    <div class="cabin-drawer-header">
+        <h3><i class="fas fa-cable-car"></i> 車廂 <span id="cabinDrawerSeq">—</span></h3>
+        <button onclick="closeCabinDrawer()" title="關閉">✕</button>
+    </div>
+    <div class="cabin-drawer-body">
+
+        <!-- 圖片區 -->
+        <div class="cabin-drawer-image">
+            <div class="placeholder" id="cabinDrawerPlaceholder">尚無現場照片</div>
+            <img id="cabinDrawerImg" style="display:none;" alt="車廂照片"
+                 onclick="openCabinLightbox(this.src)">
+        </div>
+
+        <!-- 多張縮圖列 -->
+        <div class="cabin-drawer-thumbs" id="cabinDrawerThumbs" style="display:none;"></div>
+
+        <!-- 圖片資訊 -->
+        <div class="cabin-image-meta" id="cabinImageMeta" style="display:none;"></div>
+
+        <!-- 前往管理頁面 -->
+        <div style="text-align:center; margin: 8px 0 16px;">
+            <a href="javascript:void(0)" onclick="goToCabinPhotos()"
+               style="color:#2563eb; text-decoration:underline; font-size:0.9rem;">
+                📷 前往管理頁面上傳/編輯照片
+            </a>
+        </div>
+
+        <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <!-- 原本 cabinForm 欄位整段保留（ID 完全一致） -->
         <form id="cabinForm">
             <div class="form-group"><label>車廂號碼</label><input name="sequence" id="cabinSeq" required></div>
             <div class="form-group"><label>開始救援時間</label><input type="datetime-local" name="timeReachedTop" id="cabinTimeReachedTop"></div>
@@ -110,7 +140,7 @@
             <div class="form-group"><label>備註</label><textarea name="remarks" id="cabinRemarks"></textarea></div>
             <div class="modal-actions">
                 <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> 儲存</button>
-                <button type="button" class="btn btn-secondary" onclick="closeCabinModal()">取消</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCabinDrawer()">取消</button>
             </div>
         </form>
     </div>
