@@ -305,10 +305,83 @@ function cpSetOrderMode(mode) {
     cpCabinOrderMode = mode;
     cpLoadCabinOrder();
 }
+// ---- CSV 解析並填入 ----
+function cpParseCsvToInputs() {
+    const csvText = (document.getElementById('cp-csv-input').value || '').trim();
+    if (!csvText) {
+        alert('請先貼上 CSV 資料');
+        return;
+    }
 
-function cpClearOrderInputs() {
-    if (!confirm('確定清空所有輸入框？')) return;
-    document.querySelectorAll('#cp-order-inputs input').forEach(inp => inp.value = '');
+    // 支援：換行、逗號、Tab、空白、中文逗號
+    const seqs = csvText
+        .split(/[\r\n,\t，\s]+/)
+        .map(s => s.trim())
+        .filter(s => s);
+
+    if (seqs.length === 0) {
+        alert('沒有解析到有效的車廂號碼');
+        return;
+    }
+
+    const inputs = document.querySelectorAll('#cp-order-inputs input');
+    if (inputs.length === 0) {
+        alert('順序輸入框尚未載入，請稍候');
+        return;
+    }
+
+    if (seqs.length > inputs.length) {
+        if (!confirm(`CSV 有 ${seqs.length} 個號碼，但 ${cpCabinOrderMode} 模式下只有 ${inputs.length} 個位置。\n多的會被忽略，要繼續嗎？`)) return;
+    }
+
+    // 檢查格式
+    const invalid = seqs.slice(0, inputs.length).filter(s => !window.cabinValidateSeq(s));
+    if (invalid.length > 0) {
+        const preview = invalid.slice(0, 5).join(', ') + (invalid.length > 5 ? ' ...' : '');
+        if (!confirm(`⚠️ 有 ${invalid.length} 個號碼格式可能不正確：\n${preview}\n\n仍要填入嗎？（套用時也會再檢查一次）`)) return;
+    }
+
+    let filled = 0;
+    inputs.forEach((inp, i) => {
+        inp.value = seqs[i] || '';
+        if (seqs[i]) filled++;
+    });
+
+    alert(`✅ 已解析 ${seqs.length} 個號碼，填入 ${filled} 個位置\n\n記得點「✅ 套用到地圖」才會生效`);
+}
+async function cpClearOrderInputs() {
+    const inputs = document.querySelectorAll('#cp-order-inputs input');
+    if (inputs.length === 0) return;
+
+    const hasValue = Array.from(inputs).some(inp => inp.value.trim() !== '');
+    if (!hasValue) {
+        alert('目前沒有資料可清空');
+        return;
+    }
+
+    if (!confirm(`確定清空這 ${cpCabinOrderMode} 個車廂號碼嗎？\n\n⚠️ 這會同步清空雲端資料，地圖與監控頁的車廂號碼都會立即變空白。`)) return;
+
+    // 1) 清 UI
+    inputs.forEach(inp => inp.value = '');
+
+    // 2) 清 Firebase
+    try {
+        if (typeof showLoader === 'function') showLoader();
+        const updates = {};
+        for (let i = 0; i < cpCabinOrderMode; i++) {
+            updates[`cabin-${i}/sequence`] = '';
+        }
+        await window.realtimeDb.ref('cabins').update(updates);
+        if (typeof showMessage === 'function') {
+            showMessage('mapMessage', '✅ 已清空所有車廂號碼（雲端已同步）', 'success');
+        }
+        alert('✅ 已清空所有車廂號碼（雲端已同步）');
+    } catch (e) {
+        console.error('清空失敗:', e);
+        alert('清空失敗: ' + e.message);
+    } finally {
+        if (typeof hideLoader === 'function') hideLoader();
+    }
 }
 
 async function cpImportOrderFromMap() {
@@ -373,5 +446,7 @@ window.cpSetOrderMode = cpSetOrderMode;
 window.cpClearOrderInputs = cpClearOrderInputs;
 window.cpImportOrderFromMap = cpImportOrderFromMap;
 window.cpApplyCabinOrder = cpApplyCabinOrder;
+window.cpParseCsvToInputs = cpParseCsvToInputs;
+
 
 console.log('✅ cabin-photos.js 已載入');
