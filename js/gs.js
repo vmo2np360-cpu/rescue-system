@@ -8,15 +8,14 @@ let gsCurrentDocId = null;
 let gsPendingData = null;
 let gsDuplicateDocId = null;
 
-// ★ 新增全域狀態
-let gsCurrentMode = 'start';        // 'start' | 'complete' | 'full'
+let gsCurrentMode = 'start';
 let gsModifyMode = false;
 let gsModifyDocId = null;
 let gsOverwritePendingDocId = null;
 let _gsOngoingUnsub = null;
 
 // ================================================================
-// 聯絡方式輔助（原有，不動）
+// 聯絡方式輔助
 // ================================================================
 function setGsContact(type) {
     document.getElementById('gsContactNumber').value = type;
@@ -43,8 +42,17 @@ function toggleGsSmsSuffix() {
     }
 }
 
+function toggleGsOtherRescuer() {
+    const v = document.getElementById('gsRescuedBy').value;
+    const c = document.getElementById('gsOtherRescuerContainer');
+    c.style.display = (v === '其他') ? 'block' : 'none';
+    if (v !== '其他') {
+        document.getElementById('gsOtherRescuerInput').value = '';
+    }
+}
+
 // ================================================================
-// 原有：gsCreateRecord()（完整表單模式使用，不動）
+// 原有：gsCreateRecord()（完整表單模式，保留原邏輯）
 // ================================================================
 async function gsCreateRecord() {
     gsDuplicateDocId = null;
@@ -65,6 +73,13 @@ async function gsCreateRecord() {
     if (other) contact = other;
     if (!contact) contact = '未提供';
 
+    // 救援者處理
+    let rescuedBy = document.getElementById('gsRescuedBy').value;
+    if (rescuedBy === '其他') {
+        rescuedBy = document.getElementById('gsOtherRescuerInput').value.trim();
+    }
+    if (!rescuedBy) rescuedBy = '';
+
     const data = {
         cabinNumber: cabin,
         groupNumber: group,
@@ -73,6 +88,8 @@ async function gsCreateRecord() {
         gender: document.getElementById('gsGender').value,
         ageRange: document.getElementById('gsAgeRange').value,
         healthStatus: health,
+        rescuedBy: rescuedBy,
+        remarks: document.getElementById('gsRemarks').value.trim(),
         status: 'rescuing',
         updatedAt: new Date()
     };
@@ -220,7 +237,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
 }
 
 // ================================================================
-// QR Code（原有，不動）
+// QR / PDF（原有）
 // ================================================================
 function gsGenerateQR(docId, health) {
     const container = document.getElementById('gsQrCode');
@@ -238,7 +255,6 @@ function gsGenerateQR(docId, health) {
 
 async function gsSavePDF() {
     if (!window.gsQrInstance) return alert('請先建立 QR 碼');
-
     const canvas = document.getElementById('gsQrCode').querySelector('canvas');
     if (!canvas) return alert('無法取得 QR 碼');
 
@@ -280,13 +296,10 @@ async function gsSavePDF() {
 }
 
 // ================================================================
-// ★ 新模式：模式切換
+// ★ 模式切換
 // ================================================================
 function gsSwitchMode(mode) {
-    if (gsModifyMode && mode !== 'complete') {
-        // 修改模式下，只能待在完成模式
-        return;
-    }
+    if (gsModifyMode && mode !== 'complete') return;
 
     gsCurrentMode = mode;
 
@@ -295,31 +308,25 @@ function gsSwitchMode(mode) {
     document.getElementById(btnId)?.classList.add('active');
 
     const completeFields = document.querySelectorAll('.gs-complete-only');
-    const fullFields = document.querySelectorAll('.gs-full-only');
     const submitBtn = document.getElementById('gsSubmitBtn');
     const banner = document.getElementById('gsModifyBanner');
 
     if (mode === 'start') {
         completeFields.forEach(el => el.style.display = 'none');
-        fullFields.forEach(el => el.style.display = 'none');
-        if (submitBtn) submitBtn.textContent = '開始救援';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-plus-circle"></i> 開始救援';
         if (banner) banner.style.display = 'none';
-        // 清空 timeLanded（避免殘留）
         const t = document.getElementById('gsTimeLanded');
         if (t) t.value = '';
     } else if (mode === 'complete') {
         completeFields.forEach(el => el.style.display = 'block');
-        fullFields.forEach(el => el.style.display = 'none');
-        if (submitBtn) submitBtn.textContent = '完成救援';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-flag-checkered"></i> 完成救援';
         if (banner && gsModifyMode) banner.style.display = 'flex';
     } else {
         completeFields.forEach(el => el.style.display = 'block');
-        fullFields.forEach(el => el.style.display = 'block');
-        if (submitBtn) submitBtn.textContent = '建立/修改記錄';
+        if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> 建立/更新記錄';
         if (banner) banner.style.display = 'none';
     }
 
-    // 修改模式下禁用「開始救援」與「完整表單」
     const startBtn = document.getElementById('gsModeStart');
     const fullBtn = document.getElementById('gsModeFull');
     if (startBtn) startBtn.disabled = gsModifyMode;
@@ -327,9 +334,7 @@ function gsSwitchMode(mode) {
 }
 
 function gsSubmit() {
-    if (gsModifyMode) {
-        return gsApplyModify();
-    }
+    if (gsModifyMode) return gsApplyModify();
     if (gsCurrentMode === 'start') return gsStartRescue();
     if (gsCurrentMode === 'complete') return gsCompleteRescue();
     return gsCreateRecord();
@@ -421,6 +426,8 @@ async function gsSaveStartRescue(cabin, group, docId) {
             groupNumber: group,
             timeReachedTop: nowISO,
             timeLanded: null,
+            rescuedBy: '',
+            remarks: '',
             status: 'rescuing',
             createdAt: now,
             updatedAt: now
@@ -516,14 +523,19 @@ function gsCollectCompleteFields() {
     if (other) contact = other;
     if (!contact) contact = '未提供';
 
+    let rescuedBy = document.getElementById('gsRescuedBy').value;
+    if (rescuedBy === '其他') {
+        rescuedBy = document.getElementById('gsOtherRescuerInput').value.trim();
+    }
+
     return {
         guestName: document.getElementById('gsGuestName').value.trim(),
         contactNumber: contact,
         gender: document.getElementById('gsGender').value,
         ageRange: document.getElementById('gsAgeRange').value,
         healthStatus: document.getElementById('gsHealthStatus').value,
-        rescuedBy: document.getElementById('gsRescuedBy')?.value || '',
-        remarks: document.getElementById('gsRemarks')?.value || ''
+        rescuedBy: rescuedBy || '',
+        remarks: document.getElementById('gsRemarks').value.trim()
     };
 }
 
@@ -572,13 +584,17 @@ function gsClearForm() {
     const elAge = document.getElementById('gsAgeRange');
     if (elAge) elAge.value = '';
     const elHealth = document.getElementById('gsHealthStatus');
-    if (elHealth) elHealth.value = '綠色(第三優先)';
+    if (elHealth) elHealth.value = '未能分類';
     const elLanded = document.getElementById('gsTimeLanded');
     if (elLanded) elLanded.value = '';
     const elSms = document.getElementById('gsSmsOnly');
     if (elSms) elSms.checked = false;
     const elRescued = document.getElementById('gsRescuedBy');
     if (elRescued) elRescued.value = '';
+    const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+    if (elOtherRescuer) elOtherRescuer.value = '';
+    const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+    if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
     const elRemarks = document.getElementById('gsRemarks');
     if (elRemarks) elRemarks.value = '';
 }
@@ -649,11 +665,9 @@ function gsCancelOverwrite() {
 // ================================================================
 async function gsChooseModify() {
     document.getElementById('gsOverwriteModal').style.display = 'none';
-
     if (!gsOverwritePendingDocId) return;
 
     const docId = gsOverwritePendingDocId;
-
     try {
         showLoader(true);
         const doc = await db.collection('guests').doc(docId).get();
@@ -661,10 +675,7 @@ async function gsChooseModify() {
             showMessage('gsMessage', '找不到記錄', 'error');
             return;
         }
-        const existing = doc.data();
-
-        gsEnterModifyMode(docId, existing);
-
+        gsEnterModifyMode(docId, doc.data());
     } catch (e) {
         showMessage('gsMessage', '進入修改模式失敗: ' + e.message, 'error');
     } finally {
@@ -691,13 +702,31 @@ function gsEnterModifyMode(docId, data) {
     const elAge = document.getElementById('gsAgeRange');
     if (elAge) elAge.value = data.ageRange || '';
     const elHealth = document.getElementById('gsHealthStatus');
-    if (elHealth) elHealth.value = data.healthStatus || '綠色(第三優先)';
+    if (elHealth) elHealth.value = data.healthStatus || '未能分類';
+
+    // 救援者：判斷是否為預設選項或自訂
     const elRescued = document.getElementById('gsRescuedBy');
-    if (elRescued) elRescued.value = data.rescuedBy || '';
+    const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+    const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+    const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
+    if (elRescued) {
+        if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
+            elRescued.value = data.rescuedBy;
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+        } else if (data.rescuedBy) {
+            elRescued.value = '其他';
+            if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
+        } else {
+            elRescued.value = '';
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+        }
+    }
+
     const elRemarks = document.getElementById('gsRemarks');
     if (elRemarks) elRemarks.value = data.remarks || '';
 
-    // timeLanded 從舊值載入
+    // timeLanded 載入舊值
     const elLanded = document.getElementById('gsTimeLanded');
     if (elLanded && data.timeLanded) {
         try {
@@ -709,7 +738,6 @@ function gsEnterModifyMode(docId, data) {
         }
     }
 
-    // 顯示修改 banner
     const banner = document.getElementById('gsModifyBanner');
     if (banner) {
         banner.style.display = 'flex';
@@ -717,13 +745,12 @@ function gsEnterModifyMode(docId, data) {
             `✏️ 正在修改記錄（車廂 ${data.cabinNumber} 第 ${data.groupNumber} 組）`;
     }
 
-    // 禁用其他模式按鈕
     const startBtn = document.getElementById('gsModeStart');
     const fullBtn = document.getElementById('gsModeFull');
     if (startBtn) startBtn.disabled = true;
     if (fullBtn) fullBtn.disabled = true;
 
-    document.getElementById('gsSubmitBtn').textContent = '儲存修改';
+    document.getElementById('gsSubmitBtn').innerHTML = '<i class="fas fa-save"></i> 儲存修改';
 }
 
 function gsExitModifyMode() {
@@ -765,6 +792,14 @@ async function gsApplyModify() {
             updatedAt: new Date()
         };
 
+        // 修改模式：沒填 rescuedBy / remarks → 保留舊值
+        if (!updateData.rescuedBy && existing.rescuedBy) {
+            updateData.rescuedBy = existing.rescuedBy;
+        }
+        if (!updateData.remarks && existing.remarks) {
+            updateData.remarks = existing.remarks;
+        }
+
         await db.collection('guests').doc(gsModifyDocId).update(updateData);
         await logAction('guests', gsModifyDocId, 'update', updateData, existing);
 
@@ -789,16 +824,13 @@ async function gsApplyModify() {
 
 async function gsChooseFullRestart() {
     document.getElementById('gsOverwriteModal').style.display = 'none';
-
     if (!gsPendingData || !gsOverwritePendingDocId) return;
-
     gsPendingData.mode = 'fullrestart';
     showGsManualTimeModal('fullrestart');
 }
 
 async function gsConfirmOngoingOverwrite() {
     document.getElementById('gsOngoingModal').style.display = 'none';
-
     if (!gsPendingData || !gsOverwritePendingDocId) return;
 
     const docId = gsOverwritePendingDocId;
@@ -988,13 +1020,31 @@ function gsOpenCompleteFromBanner(docId) {
         const elAge = document.getElementById('gsAgeRange');
         if (elAge) elAge.value = data.ageRange || '';
         const elHealth = document.getElementById('gsHealthStatus');
-        if (elHealth) elHealth.value = data.healthStatus || '綠色(第三優先)';
+        if (elHealth) elHealth.value = data.healthStatus || '未能分類';
+
+        // 救援者
         const elRescued = document.getElementById('gsRescuedBy');
-        if (elRescued) elRescued.value = data.rescuedBy || '';
+        const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+        const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+        const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
+        if (elRescued) {
+            if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
+                elRescued.value = data.rescuedBy;
+                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+            } else if (data.rescuedBy) {
+                elRescued.value = '其他';
+                if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
+                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
+            } else {
+                elRescued.value = '';
+                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+            }
+        }
+
         const elRemarks = document.getElementById('gsRemarks');
         if (elRemarks) elRemarks.value = data.remarks || '';
 
-        // timeLanded 清空（使用者要新填）
+        // timeLanded 清空
         const elLanded = document.getElementById('gsTimeLanded');
         if (elLanded) elLanded.value = '';
 
@@ -1026,13 +1076,13 @@ function initGroundSupport() {
 window.setGsContact = setGsContact;
 window.toggleGsOtherContact = toggleGsOtherContact;
 window.toggleGsSmsSuffix = toggleGsSmsSuffix;
+window.toggleGsOtherRescuer = toggleGsOtherRescuer;
 window.gsCreateRecord = gsCreateRecord;
 window.gsCancelDuplicate = gsCancelDuplicate;
 window.gsCreateAnyway = gsCreateAnyway;
 window.gsSavePDF = gsSavePDF;
 window.initGroundSupport = initGroundSupport;
 
-// ★ 新增
 window.gsSwitchMode = gsSwitchMode;
 window.gsSubmit = gsSubmit;
 window.gsStartRescue = gsStartRescue;
