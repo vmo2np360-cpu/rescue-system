@@ -508,138 +508,207 @@ function mdBuildCabins() {
     mdLayoutCabins();
 }
 // ================================================================
-// 車廂唯讀詳情（雙擊車廂開啟）
-// ================================================================
+// ---- 車廂抽屜（唯讀） ----
+let _mdDrawerUnsub = null;
+
 function mdOpenCabinReadonly(cabin) {
     const seq = cabin.fields.sequence || '';
-
     if (!seq) {
         mdShowToast('此車廂尚未設定號碼');
         return;
     }
 
-    db.collection('guests').where('cabinNumber', '==', seq).get().then(snap => {
-        // 從查詢結果計算綜合時間（唯讀，不依賴 cabin.fields）
-        const records = [];
-        snap.forEach(d => records.push({ id: d.id, ...d.data() }));
+    mdEnsureDrawer();
+    document.getElementById('mdCabinDrawerSeq').textContent = seq;
 
-        let overallStart = null;
-        let overallEnd = null;
+    // 取消舊監聽
+    if (_mdDrawerUnsub) { _mdDrawerUnsub(); _mdDrawerUnsub = null; }
 
-        if (records.length > 0) {
-            const startTimes = records.map(g => g.timeReachedTop).filter(t => t);
-            if (startTimes.length > 0) {
-                overallStart = startTimes.reduce((a, b) => {
-                    const da = new Date(a), db = new Date(b);
-                    return da < db ? a : b;
-                });
-                if (overallStart) overallStart = new Date(overallStart).toISOString();
-            }
+    const img = document.getElementById('mdCabinDrawerImg');
+    const placeholder = document.getElementById('mdCabinDrawerPlaceholder');
+    const meta = document.getElementById('mdCabinImageMeta');
+    const thumbsBox = document.getElementById('mdCabinDrawerThumbs');
 
-            const allCompleted = records.every(g => {
-                const status = window.getGroupStatus ? window.getGroupStatus(g) : 'waiting';
-                return status === 'landed' || status === 'departed';
-            });
+    // 監聽圖片（其他裝置上傳時自動更新）
+    _mdDrawerUnsub = window.listenCabinImages(seq, (data) => {
+        const photos = (data && data.photos) || [];
 
-            if (allCompleted) {
-                const endTimes = records.map(g => g.timeLanded).filter(t => t);
-                if (endTimes.length > 0) {
-                    overallEnd = endTimes.reduce((a, b) => {
-                        const da = new Date(a), db = new Date(b);
-                        return da > db ? a : b;
-                    });
-                    if (overallEnd) overallEnd = new Date(overallEnd).toISOString();
-                }
-            }
+        if (photos.length === 0) {
+            img.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = '尚無現場照片';
+            meta.style.display = 'none';
+            thumbsBox.style.display = 'none';
+            return;
         }
 
-        let html = `<div style="background:#2d2d2d; padding:16px; border-radius:8px; color:#e0e0e0;">`;
-        html += `<h3 style="color:#fff; margin-bottom:12px;">🚠 車廂 ${seq} 詳情</h3>`;
-        html += `<p style="color:#aaa; font-size:0.85rem; margin-bottom:12px;">📌 此為唯讀模式，無法編輯</p>`;
+        const main = photos[0];
+        img.src = main.url;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
 
-        html += `<div style="background:#1a3a5f; padding:10px 14px; border-radius:6px; margin-bottom:12px; border:1px solid #2a5a8f;">`;
-        html += `<div style="display:flex; flex-wrap:wrap; gap:16px; color:#cde;">`;
-        html += `<div><strong>📊 綜合開始救援：</strong> ${overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—'}</div>`;
-        if (overallEnd) {
-            html += `<div><strong>📊 綜合完成救援：</strong> ${window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd}</div>`;
-        } else if (overallStart) {
-            html += `<div><strong>📊 綜合完成救援：</strong> ⏳ 進行中</div>`;
+        const t = main.uploadedAt
+            ? new Date(main.uploadedAt).toLocaleString('zh-TW', { hour12: false })
+            : '-';
+        meta.style.display = 'flex';
+        meta.innerHTML = `
+            <span>🚠 ${data.cabinType || ''}</span>
+            <span>📷 ${photos.length} 張</span>
+            <span>🕒 ${t}</span>
+        `;
+
+        if (photos.length > 1) {
+            thumbsBox.style.display = 'flex';
+            thumbsBox.innerHTML = photos.map((p, i) => `
+                <img src="${p.url}" data-idx="${i}" class="${i === 0 ? 'active' : ''}"
+                     onclick="mdSelectCabinPhoto('${mdEscJs(seq)}', ${i})"
+                     title="${p.note ? mdEsc(p.note) : ''}">
+            `).join('');
         } else {
-            html += `<div><strong>📊 綜合完成救援：</strong> —</div>`;
+            thumbsBox.style.display = 'none';
         }
-        html += `</div><div style="font-size:0.7rem; color:#8ab; margin-top:4px;">💡 自動計算，僅供參考</div></div>`;
+    });
+
+    // 載入組別狀態
+    mdLoadCabinGroupsIntoDrawer(seq);
+
+    // 顯示抽屜
+    document.getElementById('mdCabinDrawer').classList.add('open');
+    document.getElementById('mdCabinDrawerOverlay').classList.add('open');
+
+    // 30 秒後自動關閉（避免大屏卡住）
+    clearTimeout(window._mdDrawerAutoClose);
+    window._mdDrawerAutoClose = setTimeout(mdCloseDrawer, 30000);
+}
+
+// ---- 動態建立抽屜 DOM（只建一次） ----
+function mdEnsureDrawer() {
+    if (document.getElementById('mdCabinDrawer')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mdCabinDrawerOverlay';
+    overlay.className = 'cabin-drawer-overlay';
+    overlay.onclick = mdCloseDrawer;
+    document.body.appendChild(overlay);
+
+    const drawer = document.createElement('div');
+    drawer.id = 'mdCabinDrawer';
+    drawer.className = 'cabin-drawer md-theme';
+    drawer.innerHTML = `
+        <div class="cabin-drawer-header">
+            <h3>🚠 車廂 <span id="mdCabinDrawerSeq">—</span></h3>
+            <button onclick="mdCloseDrawer()" title="關閉">✕</button>
+        </div>
+        <div class="cabin-drawer-body">
+            <div class="cabin-drawer-image">
+                <div class="placeholder" id="mdCabinDrawerPlaceholder">尚無現場照片</div>
+                <img id="mdCabinDrawerImg" style="display:none;" alt="車廂照片"
+                     onclick="mdOpenLightbox(this.src)">
+            </div>
+            <div class="cabin-drawer-thumbs" id="mdCabinDrawerThumbs" style="display:none;"></div>
+            <div class="cabin-image-meta" id="mdCabinImageMeta" style="display:none;"></div>
+
+            <h4 style="margin: 14px 0 8px; color: #00d4ff;">📋 組別記錄</h4>
+            <div id="mdCabinGroupsList" style="font-size: 0.85rem; color: #c0c0c0;">
+                <p style="color:#888;">載入中...</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(drawer);
+}
+
+function mdCloseDrawer() {
+    const d = document.getElementById('mdCabinDrawer');
+    const o = document.getElementById('mdCabinDrawerOverlay');
+    if (d) d.classList.remove('open');
+    if (o) o.classList.remove('open');
+    if (_mdDrawerUnsub) { _mdDrawerUnsub(); _mdDrawerUnsub = null; }
+    clearTimeout(window._mdDrawerAutoClose);
+}
+
+// ---- 載入組別（唯讀） ----
+async function mdLoadCabinGroupsIntoDrawer(seq) {
+    const container = document.getElementById('mdCabinGroupsList');
+    if (!container) return;
+
+    try {
+        const snap = await window.db.collection('guests')
+            .where('cabinNumber', '==', seq)
+            .get();
 
         if (snap.empty) {
-            html += `<p style="color:#94a3b8;">此車廂暫無組別記錄</p>`;
-        } else {
-            html += `<table style="width:100%; border-collapse:collapse; font-size:0.85rem;">`;
-            html += `<tr style="border-bottom:1px solid #444;">
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">組別</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">姓名</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">開始救援</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">完成救援</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">救護車車牌</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">醫院名稱</th>
-                <th style="text-align:left; padding:6px 4px; color:#aaa;">狀態</th>
-            </tr>`;
-            snap.forEach(doc => {
-                const data = doc.data();
-                const status = window.getGroupStatus ? window.getGroupStatus(data) : 'waiting';
-                const statusMap = { 'departed': '🔵 已離開', 'landed': '✅ 已著陸', 'rescuing': '🔄 救援中', 'waiting': '⏳ 等待救援' };
-                const startTime = window.extractDateTime ? window.extractDateTime(data.timeReachedTop) : (data.timeReachedTop || '-');
-                const endTime = window.extractDateTime ? window.extractDateTime(data.timeLanded) : (data.timeLanded || '-');
-                const plate = data.ambulancePlate || '-';
-                const hospital = data.hospital || '-';
-                html += `<tr style="border-bottom:1px solid #3d3d3d;">`;
-                html += `<td style="padding:6px 4px;">第${data.groupNumber||'?'}組</td>`;
-                html += `<td style="padding:6px 4px;">${data.guestName||'-'}</td>`;
-                html += `<td style="padding:6px 4px;">${startTime}</td>`;
-                html += `<td style="padding:6px 4px;">${endTime}</td>`;
-                html += `<td style="padding:6px 4px;">${plate}</td>`;
-                html += `<td style="padding:6px 4px;">${hospital}</td>`;
-                html += `<td style="padding:6px 4px;">${statusMap[status]||status}</td>`;
-                html += `</tr>`;
-            });
-            html += `</table>`;
+            container.innerHTML = '<p style="color:#888;">此車廂暫無組別記錄</p>';
+            return;
         }
 
-        html += `<div style="margin-top:16px; text-align:center;">`;
-        html += `<button class="md-modal-close-btn" style="padding:8px 24px; background:#4285F4; border:none; border-radius:4px; color:#fff; cursor:pointer;">關閉</button>`;
-        html += `</div></div>`;
-
-        const modal = document.createElement('div');
-        modal.className = 'md-cabin-modal';
-        modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; z-index:9999;';
-
-        const content = document.createElement('div');
-        content.className = 'md-cabin-modal-content';
-        content.style.cssText = 'background:#1a1a1a; border-radius:12px; padding:20px; max-width:700px; width:95%; max-height:80vh; overflow-y:auto;';
-        content.innerHTML = html;
-
-        modal.appendChild(content);
-        document.body.appendChild(modal);
-
-        // 關閉按鈕
-        content.querySelector('.md-modal-close-btn').addEventListener('click', () => modal.remove());
-
-        // 點擊背景關閉
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+        let html = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                <tr style="border-bottom:1px solid #444;">
+                    <th style="text-align:left; padding:4px; color:#aaa;">組別</th>
+                    <th style="text-align:left; padding:4px; color:#aaa;">姓名</th>
+                    <th style="text-align:left; padding:4px; color:#aaa;">狀態</th>
+                </tr>
+        `;
+        snap.forEach(doc => {
+            const d = doc.data();
+            const s = window.getGroupStatus ? window.getGroupStatus(d) : 'waiting';
+            const map = {
+                departed: '🔵 已離開',
+                landed: '✅ 已著陸',
+                rescuing: '🔄 救援中',
+                waiting: '⏳ 等待'
+            };
+            html += `
+                <tr style="border-bottom:1px solid #3d3d3d;">
+                    <td style="padding:4px;">第${d.groupNumber || '?'}組</td>
+                    <td style="padding:4px;">${mdEsc(d.guestName || '-')}</td>
+                    <td style="padding:4px;">${map[s] || s}</td>
+                </tr>
+            `;
         });
+        html += '</table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<p style="color:#f88;">載入失敗: ${mdEsc(e.message)}</p>`;
+    }
+}
 
-        // ESC 關閉
-        const escHandler = (e) => {
-            if (e.key === 'Escape') {
-                modal.remove();
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-
-    }).catch(err => {
-        console.error('載入車廂資料失敗:', err);
-        mdShowToast('載入失敗: ' + err.message);
+// ---- 切換主圖（多張時） ----
+function mdSelectCabinPhoto(seq, idx) {
+    window.getCabinImages(seq).then(data => {
+        if (!data || !data.photos || !data.photos[idx]) return;
+        document.getElementById('mdCabinDrawerImg').src = data.photos[idx].url;
+        document.querySelectorAll('#mdCabinDrawerThumbs img').forEach((el, i) => {
+            el.classList.toggle('active', i === idx);
+        });
     });
+}
+
+// ---- Lightbox ----
+function mdOpenLightbox(src) {
+    let lb = document.getElementById('mdCabinLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'mdCabinLightbox';
+        lb.className = 'cabin-lightbox';
+        lb.onclick = () => lb.style.display = 'none';
+        lb.innerHTML = '<img id="mdCabinLightboxImg">';
+        document.body.appendChild(lb);
+    }
+    document.getElementById('mdCabinLightboxImg').src = src;
+    lb.style.display = 'flex';
+}
+
+// ---- XSS 保護 ----
+function mdEsc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+function mdEscJs(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 // ---- 簡易 toast ----
@@ -1401,5 +1470,10 @@ window.mdOpenCabinReadonly = mdOpenCabinReadonly;
 window.mdLoadAllData = mdLoadAllData;
 window.mdUpdateFromFirestore = mdUpdateFromFirestore;
 window.mdToggleFullscreen = mdToggleFullscreen;
+// ---- 全域暴露 ----
+window.mdOpenCabinReadonly = mdOpenCabinReadonly;
+window.mdCloseDrawer = mdCloseDrawer;
+window.mdSelectCabinPhoto = mdSelectCabinPhoto;
+window.mdOpenLightbox = mdOpenLightbox;
 
 console.log('✅ monitor-dashboard.js 已載入');
