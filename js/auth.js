@@ -14,6 +14,7 @@ const ROLE_EMAIL_MAP = {
 const SECTIONS = [
     { id: 'section-gs', key: 'gs', label: 'Ground Support', icon: 'fa-user-plus', pageKey: 'index_ground_support', template: 'templates/gs.html', init: 'initGroundSupport' },
     { id: 'section-ap', key: 'ap', label: 'Assembly Point', icon: 'fa-qrcode', pageKey: 'index_assembly_point', template: 'templates/ap.html', init: 'initAssemblyPoint' },
+    { id: 'section-cabin-photos', key: 'cabin_photos', label: '車廂照片', icon: 'fa-camera', pageKey: 'index_cabin_photos', template: 'templates/cabin-photos.html', init: 'cpInit' },
     { id: 'section-dashboard', key: 'dashboard', label: '監控面板', icon: 'fa-chart-line', pageKey: 'index_dashboard', template: 'templates/dashboard.html', init: 'initDashboard' },
     { id: 'section-map', key: 'map', label: '救援地圖', icon: 'fa-map-marked-alt', pageKey: 'index_rescue_map', template: 'templates/map.html', init: 'initMap' },
     { id: 'section-occ', key: 'occ', label: 'OCC 求助記錄', icon: 'fa-headset', pageKey: 'recourse', template: 'templates/occ.html', init: 'initOcc' },
