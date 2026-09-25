@@ -1,0 +1,154 @@
+/* ================================================================
+   cabin-drawer.css - 車廂側邊抽屜（map / monitor 共用）
+   ================================================================ */
+
+.cabin-drawer {
+    position: fixed;
+    top: 0;
+    right: -640px;
+    width: 620px;
+    max-width: 95vw;
+    height: 100vh;
+    background: #ffffff;
+    box-shadow: -6px 0 24px rgba(0,0,0,0.18);
+    transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    font-family: inherit;
+}
+.cabin-drawer.open { right: 0; }
+
+.cabin-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: #1e3a5f;
+    color: #fff;
+    flex-shrink: 0;
+}
+.cabin-drawer-header h3 { margin: 0; font-size: 1.05rem; }
+.cabin-drawer-header button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: 0.2s;
+}
+.cabin-drawer-header button:hover { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+.cabin-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.cabin-drawer-image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #f1f5f9;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.cabin-drawer-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+    cursor: zoom-in;
+}
+.cabin-drawer-image .placeholder {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 20px;
+}
+
+/* 多張圖片時的小縮圖列 */
+.cabin-drawer-thumbs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+    padding: 4px 0;
+}
+.cabin-drawer-thumbs img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: 0.2s;
+    flex-shrink: 0;
+}
+.cabin-drawer-thumbs img.active { border-color: #2563eb; }
+.cabin-drawer-thumbs img:hover { border-color: #64748b; }
+
+.cabin-image-meta {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* 遮罩層 */
+.cabin-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 1999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.28s;
+}
+.cabin-drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 圖片放大 Lightbox */
+.cabin-lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+.cabin-lightbox img {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+}
+
+/* Monitor Dashboard 暗色主題 */
+.cabin-drawer.md-theme { background: #1a1a1a; color: #e0e0e0; }
+.cabin-drawer.md-theme .cabin-drawer-header { background: #0d1f3a; }
+.cabin-drawer.md-theme .cabin-drawer-body { background: #1a1a1a; }
+.cabin-drawer.md-theme .cabin-drawer-image { background: #111; }
+.cabin-drawer.md-theme .placeholder { color: #666; }
+.cabin-drawer.md-theme .cabin-image-meta { background: #222; color: #aaa; }
+.cabin-drawer.md-theme hr { border-top-color: #333; }
+
+/* 響應式：手機縮小寬度 */
+@media (max-width: 640px) {
+    .cabin-drawer { width: 100vw; right: -100vw; }
+    .cabin-drawer.open { right: 0; }
+}
