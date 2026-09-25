@@ -1,0 +1,150 @@
+<h2 style="color:#1e3a5f; margin-bottom:16px;">
+    <i class="fas fa-camera"></i> 車廂照片管理
+</h2>
+
+<!-- Tabs -->
+<div class="bg-white rounded-t-lg shadow flex border-b" style="border-bottom:1px solid #e2e8f0;">
+    <button class="tab-btn tab-active" data-tab="photos" onclick="cpSwitchTab('photos')" 
+            style="padding:12px 24px; background:none; border:none; font-size:1rem; cursor:pointer; color:#1e3a5f; font-weight:600; border-bottom:3px solid #2563eb;">
+        📷 車廂圖片管理
+    </button>
+    <button class="tab-btn" data-tab="order" onclick="cpSwitchTab('order')"
+            style="padding:12px 24px; background:none; border:none; font-size:1rem; cursor:pointer; color:#64748b; font-weight:600; border-bottom:3px solid transparent;">
+        📋 車廂順序設定
+    </button>
+</div>
+
+<!-- ============ Tab 1: 圖片管理 ============ -->
+<div id="cp-tab-photos" class="card" style="border-radius:0 0 12px 12px; border-top:none;">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="display:grid; grid-template-columns: 1fr 2fr; gap:20px;">
+
+        <!-- 左側：上傳表單 -->
+        <div>
+            <div style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid #e2e8f0;">
+                <h3 style="font-weight:700; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid #e2e8f0;">
+                    📤 上傳新圖片
+                </h3>
+
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-weight:600; margin-bottom:6px; font-size:0.9rem;">車廂號碼</label>
+                    <input type="text" id="cp-cabin-seq" list="cp-cabin-seq-list"
+                           placeholder="輸入或選擇車廂號碼"
+                           style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:1rem;">
+                    <datalist id="cp-cabin-seq-list"></datalist>
+                    <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">可輸入新號碼或從下拉選現有號碼</p>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-weight:600; margin-bottom:6px; font-size:0.9rem;">車廂類型</label>
+                    <select id="cp-cabin-type"
+                            style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:1rem; background:white;">
+                        <option value="標準車廂">標準車廂</option>
+                        <option value="水晶車廂">水晶車廂</option>
+                        <option value="全景車廂">全景車廂</option>
+                        <option value="工程車">工程車</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-weight:600; margin-bottom:6px; font-size:0.9rem;">📷 選擇圖片（可多選）</label>
+                    <input type="file" id="cp-photo-files" accept="image/jpeg,image/png,image/jpg" multiple
+                           style="width:100%; padding:8px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.9rem;">
+                    <p style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">JPG/PNG，自動壓縮至 1600px，單張上限 2MB</p>
+                </div>
+
+                <div style="margin-bottom:14px;">
+                    <label style="display:block; font-weight:600; margin-bottom:6px; font-size:0.9rem;">備註（選填）</label>
+                    <input type="text" id="cp-photo-note" placeholder="例如：左側外觀、救援現場..."
+                           style="width:100%; padding:10px 12px; border:2px solid #e2e8f0; border-radius:8px; font-size:1rem;">
+                </div>
+
+                <div id="cp-upload-progress" style="height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; display:none; margin-bottom:12px;">
+                    <div style="height:100%; width:0; background:#2563eb; transition:width 0.2s;"></div>
+                </div>
+
+                <button onclick="cpHandleUpload()" id="cp-btn-upload"
+                        class="btn btn-success btn-block"
+                        style="width:100%; padding:12px; font-size:1rem;">
+                    ⬆️ 上傳
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側：列表 -->
+        <div>
+            <div style="background:#f8fafc; padding:16px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:16px;">
+                <input type="text" id="cp-photo-search" oninput="cpRenderPhotoList()"
+                       placeholder="🔍 搜尋車廂號碼或備註..."
+                       style="width:100%; padding:10px 14px; border:2px solid #dbeafe; border-radius:8px; font-size:1rem; outline:none;">
+                <div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+                    <div style="flex:1; min-width:150px;">
+                        <label style="display:block; font-size:0.75rem; color:#64748b; margin-bottom:4px;">🚠 篩選類型</label>
+                        <select id="cp-photo-type-filter" onchange="cpRenderPhotoList()"
+                                style="width:100%; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; background:white; font-size:0.9rem;">
+                            <option value="">📌 所有類型</option>
+                            <option value="標準車廂">標準車廂</option>
+                            <option value="水晶車廂">水晶車廂</option>
+                            <option value="全景車廂">全景車廂</option>
+                            <option value="工程車">工程車</option>
+                        </select>
+                    </div>
+                    <div id="cp-photo-stats" style="font-size:0.8rem; color:#64748b;"></div>
+                </div>
+            </div>
+
+            <div id="cp-photo-list"
+                 style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:14px;">
+                <!-- 動態卡片 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ Tab 2: 車廂順序 ============ -->
+<div id="cp-tab-order" class="card" style="border-radius:0 0 12px 12px; border-top:none; display:none;">
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:16px;">
+        <span style="font-weight:700; font-size:1.1rem;">🔢 模式：</span>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="radio" name="cp-order-mode" value="84" checked onchange="cpSetOrderMode(84)">
+            <span>84 車廂</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="radio" name="cp-order-mode" value="109" onchange="cpSetOrderMode(109)">
+            <span>109 車廂</span>
+        </label>
+        <span style="font-size:0.85rem; color:#64748b; margin-left:auto;">
+            💡 左側數字為地圖上的排列位置
+        </span>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+        <button onclick="cpImportOrderFromMap()"
+                style="background:#dbeafe; color:#1e40af; padding:8px 16px; border:none; border-radius:8px; font-weight:500; cursor:pointer;">
+            📥 從地圖載入現有順序
+        </button>
+        <button onclick="cpClearOrderInputs()"
+                style="background:#e2e8f0; color:#1e293b; padding:8px 16px; border:none; border-radius:8px; font-weight:500; cursor:pointer;">
+            🗑️ 清空全部
+        </button>
+        <button onclick="cpApplyCabinOrder()"
+                style="background:#22c55e; color:white; padding:8px 24px; border:none; border-radius:8px; font-weight:500; cursor:pointer; margin-left:auto;">
+            ✅ 套用到地圖
+        </button>
+    </div>
+
+    <div id="cp-order-inputs"
+         style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:8px; max-height:60vh; overflow-y:auto; padding:4px;">
+        <!-- 動態產生 -->
+    </div>
+</div>
+
+<!-- 圖片預覽 Modal（放大） -->
+<div id="cpImageModal"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; align-items:center; justify-content:center;"
+     onclick="cpCloseImageModal(event)">
+    <button onclick="cpCloseImageModal()"
+            style="position:absolute; top:20px; right:35px; background:none; border:none; color:#fff; font-size:40px; cursor:pointer; z-index:10000;">&times;</button>
+    <img id="cpModalImage" src="" style="max-width:95%; max-height:95%; object-fit:contain; border-radius:8px;">
+    <div id="cpModalInfo"
+         style="position:absolute; bottom:30px; left:35px; color:#fff; background:rgba(0,0,0,0.6); padding:10px 20px; border-radius:8px; font-size:0.9rem;"></div>
+</div>
