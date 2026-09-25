@@ -142,7 +142,14 @@ async function gsCreateRecord() {
         showMessage('gsMessage', '檢查重複失敗: ' + e.message, 'error');
     }
 }
-
+function gsScrollToQr() {
+    setTimeout(() => {
+        const qrEl = document.getElementById('gsQrResult');
+        if (qrEl && qrEl.style.display !== 'none') {
+            qrEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 200);
+}
 function gsCancelDuplicate() {
     document.getElementById('gsDuplicateWarning').style.display = 'none';
     gsPendingData = null;
