@@ -3,6 +3,7 @@
 // ================================================================
 
 let mapCabins = [];
+let _mapCabinsUnsub = null;
 let mapRopePts = [];
 let mapGlobalOffset = 0;
 let mapCabinMode = 84;
@@ -469,6 +470,28 @@ async function mapInit() {
 
     if (_mapModeUnsubscribe) _mapModeUnsubscribe();
     _mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
+           // ★ 監聽 Realtime DB cabins（車廂序號即時同步，讓 admin 在管理頁改序號能同步到地圖）
+    if (_mapCabinsUnsub) {
+        try {
+            realtimeDb.ref('cabins').off('value', _mapCabinsUnsub);
+        } catch (e) {
+            console.warn('移除舊 cabins 監聽失敗:', e);
+        }
+        _mapCabinsUnsub = null;
+    }
+    _mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        const data = snap.val();
+        mapCabins.forEach(c => {
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        mapUpdateFromFirestore();
+    });
         if (newMode !== mapCabinMode) {
             mapCabinMode = newMode;
             console.log('模式已同步（來自雲端）:', newMode);
