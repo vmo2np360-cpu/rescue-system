@@ -986,16 +986,39 @@ function mapExportCSV() {
 }
 
 // ---- 開啟車廂資訊 ----
+// ---- 車廂抽屜 ----
+let _cabinDrawerUnsub = null;
+
 function mapOpenCabin(cabin) {
     mapCurrentCabin = cabin;
-    document.getElementById('cabinSeq').value = cabin.fields.sequence || '';
-    document.getElementById('cabinTimeReachedTop').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeReachedTop) : '';
-    document.getElementById('cabinTimeLanded').value = window.extractDateTime ? window.extractDateTime(cabin.fields.timeLanded) : '';
+    const seq = cabin.fields.sequence || '';
+
+    // 標題與表單欄位
+    document.getElementById('cabinDrawerSeq').textContent = seq || '(未設定)';
+    document.getElementById('cabinSeq').value = seq;
+    document.getElementById('cabinTimeReachedTop').value =
+        window.extractDateTime ? window.extractDateTime(cabin.fields.timeReachedTop) : '';
+    document.getElementById('cabinTimeLanded').value =
+        window.extractDateTime ? window.extractDateTime(cabin.fields.timeLanded) : '';
     document.getElementById('cabinRemarks').value = cabin.fields.remarks || '';
 
+    // 綜合時間容器（沿用原邏輯，掛載點改到抽屜內的 form）
+    renderCabinOverallTime(cabin);
+
+    // 開抽屜
+    document.getElementById('cabinDrawer').classList.add('open');
+    document.getElementById('cabinDrawerOverlay').classList.add('open');
+
+    // 載入圖片（訂閱式，其他裝置上傳時自動更新）
+    loadCabinDrawerImage(seq);
+
+    // 載入組別狀態
+    loadCabinGroupStatus(cabin);
+}
+
+function renderCabinOverallTime(cabin) {
     const overallStart = cabin.fields.overallTimeReachedTop;
     const overallEnd = cabin.fields.overallTimeLanded;
-    console.log('綜合時間資料:', { overallStart, overallEnd });
 
     let overallContainer = document.getElementById('cabinOverallTimeContainer');
     if (!overallContainer) {
@@ -1017,34 +1040,15 @@ function mapOpenCabin(cabin) {
                 <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">💡 此為車廂所有組別的自動計算時間，僅供參考</div>
             `;
             remarksGroup.parentNode.insertBefore(overallContainer, remarksGroup);
-        } else {
-            const form = document.getElementById('cabinForm');
-            if (form) {
-                overallContainer = document.createElement('div');
-                overallContainer.id = 'cabinOverallTimeContainer';
-                overallContainer.className = 'form-group';
-                overallContainer.style.marginTop = '12px';
-                overallContainer.style.padding = '10px 14px';
-                overallContainer.style.background = '#f0f7ff';
-                overallContainer.style.borderRadius = '6px';
-                overallContainer.style.border = '1px solid #dbeafe';
-                overallContainer.innerHTML = `
-                    <div style="display:flex; flex-wrap:wrap; gap:16px;">
-                        <div><strong>📊 綜合開始救援：</strong> <span id="cabinOverallStartDisplay">—</span></div>
-                        <div><strong>📊 綜合完成救援：</strong> <span id="cabinOverallEndDisplay">—</span></div>
-                    </div>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">💡 此為車廂所有組別的自動計算時間，僅供參考</div>
-                `;
-                form.appendChild(overallContainer);
-            }
         }
     }
-
     if (overallContainer) {
         const startDisplay = document.getElementById('cabinOverallStartDisplay');
         const endDisplay = document.getElementById('cabinOverallEndDisplay');
         if (startDisplay) {
-            startDisplay.textContent = overallStart ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart) : '—';
+            startDisplay.textContent = overallStart
+                ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart)
+                : '—';
         }
         if (endDisplay) {
             if (overallEnd) {
@@ -1056,9 +1060,123 @@ function mapOpenCabin(cabin) {
             }
         }
     }
+}
 
-    document.getElementById('cabinModal').style.display = 'flex';
-    loadCabinGroupStatus(cabin);
+function loadCabinDrawerImage(seq) {
+    const img = document.getElementById('cabinDrawerImg');
+    const placeholder = document.getElementById('cabinDrawerPlaceholder');
+    const meta = document.getElementById('cabinImageMeta');
+    const thumbsBox = document.getElementById('cabinDrawerThumbs');
+
+    // 取消舊監聽
+    if (_cabinDrawerUnsub) { _cabinDrawerUnsub(); _cabinDrawerUnsub = null; }
+
+    if (!seq) {
+        img.style.display = 'none';
+        placeholder.style.display = 'block';
+        placeholder.textContent = '此車廂尚未設定號碼';
+        meta.style.display = 'none';
+        thumbsBox.style.display = 'none';
+        return;
+    }
+
+    _cabinDrawerUnsub = window.listenCabinImages(seq, (data) => {
+        const photos = (data && data.photos) || [];
+
+        if (photos.length === 0) {
+            img.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = '尚無現場照片';
+            meta.style.display = 'none';
+            thumbsBox.style.display = 'none';
+            return;
+        }
+
+        // 主圖：顯示第一張
+        const main = photos[0];
+        img.src = main.url;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        // Meta 資訊
+        meta.style.display = 'flex';
+        const t = main.uploadedAt
+            ? new Date(main.uploadedAt).toLocaleString('zh-TW', { hour12: false })
+            : '-';
+        meta.innerHTML = `
+            <span>🚠 ${window.escapeCabinType ? window.escapeCabinType(data.cabinType) : (data.cabinType || '')}</span>
+            <span>📷 ${photos.length} 張</span>
+            <span>🕒 ${t}</span>
+        `;
+
+        // 多張縮圖列
+        if (photos.length > 1) {
+            thumbsBox.style.display = 'flex';
+            thumbsBox.innerHTML = photos.map((p, i) => `
+                <img src="${p.url}" data-idx="${i}" class="${i === 0 ? 'active' : ''}"
+                     onclick="selectCabinPhoto(${i})" title="${p.note ? p.note.replace(/"/g, '&quot;') : ''}">
+            `).join('');
+        } else {
+            thumbsBox.style.display = 'none';
+        }
+    });
+}
+
+// 切換主圖（多張時用）
+function selectCabinPhoto(idx) {
+    const seq = mapCurrentCabin && mapCurrentCabin.fields.sequence;
+    if (!seq) return;
+    window.getCabinImages(seq).then(data => {
+        if (!data || !data.photos || !data.photos[idx]) return;
+        const p = data.photos[idx];
+        document.getElementById('cabinDrawerImg').src = p.url;
+        document.querySelectorAll('#cabinDrawerThumbs img').forEach((el, i) => {
+            el.classList.toggle('active', i === idx);
+        });
+    });
+}
+
+function closeCabinDrawer() {
+    document.getElementById('cabinDrawer').classList.remove('open');
+    document.getElementById('cabinDrawerOverlay').classList.remove('open');
+    if (_cabinDrawerUnsub) { _cabinDrawerUnsub(); _cabinDrawerUnsub = null; }
+    mapCurrentCabin = null;
+}
+
+// 向後兼容：原本呼叫 closeCabinModal 的地方改成關抽屜
+function closeCabinModal() {
+    closeCabinDrawer();
+}
+
+// Lightbox
+function openCabinLightbox(src) {
+    let lb = document.getElementById('cabinLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'cabinLightbox';
+        lb.className = 'cabin-lightbox';
+        lb.onclick = () => lb.style.display = 'none';
+        lb.innerHTML = '<img id="cabinLightboxImg">';
+        document.body.appendChild(lb);
+    }
+    document.getElementById('cabinLightboxImg').src = src;
+    lb.style.display = 'flex';
+}
+
+// 跳轉到管理頁面（並自動帶入車廂號）
+function goToCabinPhotos() {
+    const seq = mapCurrentCabin && mapCurrentCabin.fields.sequence;
+    closeCabinDrawer();
+    if (typeof window.switchSection === 'function') {
+        window.switchSection('section-cabin-photos');
+    }
+    // 若有車廂號，等頁面載入後自動填入
+    if (seq) {
+        setTimeout(() => {
+            const inp = document.getElementById('cp-cabin-seq');
+            if (inp) inp.value = seq;
+        }, 500);
+    }
 }
 
 function closeCabinModal() {
@@ -2355,6 +2473,10 @@ window.incidentDiagnose = async function () {
     }
 };
 // ★ 暴露全域
+window.closeCabinDrawer = closeCabinDrawer;
+window.openCabinLightbox = openCabinLightbox;
+window.selectCabinPhoto = selectCabinPhoto;
+window.goToCabinPhotos = goToCabinPhotos;
 window.incidentCreate = incidentCreate;
 window.incidentUpdateCurrent = incidentUpdateCurrent;
 window.incidentClose = incidentClose;
