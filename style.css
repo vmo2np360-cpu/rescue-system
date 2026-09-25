@@ -843,3 +843,125 @@ textarea#occNotes:focus {
     margin: 0 4px;
     font-weight: 300;
 }
+/* ================================================================
+   GS 新模式樣式
+   ================================================================ */
+
+/* 模式切換按鈕 */
+.gs-mode-switch {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.gs-mode-btn {
+    padding: 10px 20px;
+    border: 2px solid #e2e8f0;
+    background: white;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    color: #1e293b;
+}
+
+.gs-mode-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+}
+
+.gs-mode-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.gs-mode-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 進行中救援 Banner */
+.gs-ongoing-banner {
+    background: #fef3c7;
+    border: 2px solid #eab308;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+
+.gs-ongoing-header {
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.gs-ongoing-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gs-ongoing-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.gs-ongoing-item button {
+    padding: 4px 14px;
+    background: #22c55e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.gs-ongoing-item button:hover {
+    background: #16a34a;
+}
+
+/* 修改模式 Banner */
+.gs-modify-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #dbeafe;
+    border: 2px solid #2563eb;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gs-modify-text {
+    color: #1e40af;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.gs-modify-cancel {
+    padding: 6px 16px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.gs-modify-cancel:hover {
+    background: #b91c1c;
+}
