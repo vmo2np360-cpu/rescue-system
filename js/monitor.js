@@ -1242,7 +1242,260 @@ function onFullscreenChange() {
 
 document.addEventListener('fullscreenchange', onFullscreenChange);
 document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+// ================================================================
+// 【步驟 8 新增】車廂側邊抽屜（覆蓋舊的 monOpenCabinReadonly）
+// 使用 md-theme 暗色主題，與 monitor-dashboard 一致
+// ================================================================
+let _monDrawerUnsub = null;
 
+function monOpenCabinReadonly(cabin) {
+    const seq = cabin.fields.sequence || '';
+    if (!seq) {
+        alert('此車廂尚未設定號碼');
+        return;
+    }
+
+    monEnsureDrawer();
+    document.getElementById('monCabinDrawerSeq').textContent = seq;
+
+    if (_monDrawerUnsub) { _monDrawerUnsub(); _monDrawerUnsub = null; }
+
+    const img = document.getElementById('monCabinDrawerImg');
+    const placeholder = document.getElementById('monCabinDrawerPlaceholder');
+    const meta = document.getElementById('monCabinImageMeta');
+    const thumbsBox = document.getElementById('monCabinDrawerThumbs');
+
+    _monDrawerUnsub = window.listenCabinImages(seq, (data) => {
+        const photos = (data && data.photos) || [];
+
+        if (photos.length === 0) {
+            img.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = '尚無現場照片';
+            meta.style.display = 'none';
+            thumbsBox.style.display = 'none';
+            return;
+        }
+
+        const main = photos[0];
+        img.src = main.url;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        const t = main.uploadedAt
+            ? new Date(main.uploadedAt).toLocaleString('zh-TW', { hour12: false })
+            : '-';
+        meta.style.display = 'flex';
+        meta.innerHTML = `
+            <span>🚠 ${data.cabinType || ''}</span>
+            <span>📷 ${photos.length} 張</span>
+            <span>🕒 ${t}</span>
+        `;
+
+        if (photos.length > 1) {
+            thumbsBox.style.display = 'flex';
+            thumbsBox.innerHTML = photos.map((p, i) => `
+                <img src="${p.url}" data-idx="${i}" class="${i === 0 ? 'active' : ''}"
+                     onclick="monSelectCabinPhoto('${monEscJs(seq)}', ${i})"
+                     title="${p.note ? monEsc(p.note) : ''}">
+            `).join('');
+        } else {
+            thumbsBox.style.display = 'none';
+        }
+    });
+
+    monLoadCabinGroupsIntoDrawer(seq, cabin);
+
+    document.getElementById('monCabinDrawer').classList.add('open');
+    document.getElementById('monCabinDrawerOverlay').classList.add('open');
+
+    clearTimeout(window._monDrawerAutoClose);
+    window._monDrawerAutoClose = setTimeout(monCloseDrawer, 30000);
+}
+
+function monEnsureDrawer() {
+    if (document.getElementById('monCabinDrawer')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'monCabinDrawerOverlay';
+    overlay.className = 'cabin-drawer-overlay';
+    overlay.onclick = monCloseDrawer;
+    document.body.appendChild(overlay);
+
+    const drawer = document.createElement('div');
+    drawer.id = 'monCabinDrawer';
+    drawer.className = 'cabin-drawer md-theme';
+    drawer.innerHTML = `
+        <div class="cabin-drawer-header">
+            <h3>🚠 車廂 <span id="monCabinDrawerSeq">—</span></h3>
+            <button onclick="monCloseDrawer()" title="關閉">✕</button>
+        </div>
+        <div class="cabin-drawer-body">
+
+            <div class="cabin-drawer-image">
+                <div class="placeholder" id="monCabinDrawerPlaceholder">尚無現場照片</div>
+                <img id="monCabinDrawerImg" style="display:none;" alt="車廂照片"
+                     onclick="monOpenLightbox(this.src)">
+            </div>
+            <div class="cabin-drawer-thumbs" id="monCabinDrawerThumbs" style="display:none;"></div>
+            <div class="cabin-image-meta" id="monCabinImageMeta" style="display:none;"></div>
+
+            <h4 style="margin: 14px 0 8px; color: #00d4ff;">📊 綜合救援時間</h4>
+            <div id="monCabinOverallTime"
+                 style="background:#1a3a5f; padding:10px 14px; border-radius:6px;
+                        margin-bottom:12px; border:1px solid #2a5a8f;
+                        color:#cde; font-size:0.85rem; line-height:1.6;">
+                載入中...
+            </div>
+
+            <h4 style="margin: 14px 0 8px; color: #00d4ff;">📋 組別記錄</h4>
+            <div id="monCabinGroupsList" style="font-size: 0.85rem; color: #c0c0c0;">
+                <p style="color:#888;">載入中...</p>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(drawer);
+}
+
+function monCloseDrawer() {
+    const d = document.getElementById('monCabinDrawer');
+    const o = document.getElementById('monCabinDrawerOverlay');
+    if (d) d.classList.remove('open');
+    if (o) o.classList.remove('open');
+    if (_monDrawerUnsub) { _monDrawerUnsub(); _monDrawerUnsub = null; }
+    clearTimeout(window._monDrawerAutoClose);
+}
+
+// ---- 綜合救援時間 ----
+function monRenderOverallTime(cabin) {
+    const el = document.getElementById('monCabinOverallTime');
+    if (!el) return;
+
+    const overallStart = cabin.fields.overallTimeReachedTop;
+    const overallEnd = cabin.fields.overallTimeLanded;
+
+    let html = `<div style="display:flex; flex-direction:column; gap:6px;">`;
+    html += `<div><strong>📊 開始：</strong> ${
+        overallStart
+            ? (window.formatTimestamp ? window.formatTimestamp(overallStart) : overallStart)
+            : '—'
+    }</div>`;
+
+    if (overallEnd) {
+        html += `<div><strong>📊 完成：</strong> ${
+            window.formatTimestamp ? window.formatTimestamp(overallEnd) : overallEnd
+        }</div>`;
+    } else if (overallStart) {
+        html += `<div><strong>📊 完成：</strong> ⏳ 進行中</div>`;
+    } else {
+        html += `<div><strong>📊 完成：</strong> —</div>`;
+    }
+    html += `</div>`;
+    html += `<div style="font-size:0.7rem; color:#8ab; margin-top:6px;">💡 由所有組別自動計算</div>`;
+
+    el.innerHTML = html;
+}
+
+// ---- 載入組別（唯讀） ----
+async function monLoadCabinGroupsIntoDrawer(seq, cabin) {
+    // 綜合時間（從 cabin.fields 讀）
+    monRenderOverallTime(cabin);
+
+    const container = document.getElementById('monCabinGroupsList');
+    if (!container) return;
+
+    try {
+        const snap = await window.db.collection('guests')
+            .where('cabinNumber', '==', seq)
+            .get();
+
+        if (snap.empty) {
+            container.innerHTML = '<p style="color:#888;">此車廂暫無組別記錄</p>';
+            return;
+        }
+
+        let html = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+                <thead>
+                    <tr style="border-bottom:1px solid #444;">
+                        <th style="text-align:left; padding:4px; color:#aaa;">組別</th>
+                        <th style="text-align:left; padding:4px; color:#aaa;">姓名</th>
+                        <th style="text-align:left; padding:4px; color:#aaa;">車牌</th>
+                        <th style="text-align:left; padding:4px; color:#aaa;">醫院</th>
+                        <th style="text-align:left; padding:4px; color:#aaa;">狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        snap.forEach(doc => {
+            const d = doc.data();
+            const s = window.getGroupStatus ? window.getGroupStatus(d) : 'waiting';
+            const map = {
+                departed: '🔵 已離開',
+                landed: '✅ 已著陸',
+                rescuing: '🔄 救援中',
+                waiting: '⏳ 等待'
+            };
+            html += `
+                <tr style="border-bottom:1px solid #3d3d3d;">
+                    <td style="padding:4px;">第${d.groupNumber || '?'}組</td>
+                    <td style="padding:4px;">${monEsc(d.guestName || '-')}</td>
+                    <td style="padding:4px;">${monEsc(d.ambulancePlate || '-')}</td>
+                    <td style="padding:4px;">${monEsc(d.hospital || '-')}</td>
+                    <td style="padding:4px;">${map[s] || s}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<p style="color:#f88;">載入失敗: ${monEsc(e.message)}</p>`;
+    }
+}
+
+// ---- 切換主圖（多張時） ----
+function monSelectCabinPhoto(seq, idx) {
+    window.getCabinImages(seq).then(data => {
+        if (!data || !data.photos || !data.photos[idx]) return;
+        document.getElementById('monCabinDrawerImg').src = data.photos[idx].url;
+        document.querySelectorAll('#monCabinDrawerThumbs img').forEach((el, i) => {
+            el.classList.toggle('active', i === idx);
+        });
+    });
+}
+
+// ---- Lightbox ----
+function monOpenLightbox(src) {
+    let lb = document.getElementById('monCabinLightbox');
+    if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'monCabinLightbox';
+        lb.className = 'cabin-lightbox';
+        lb.onclick = () => lb.style.display = 'none';
+        lb.innerHTML = '<img id="monCabinLightboxImg">';
+        document.body.appendChild(lb);
+    }
+    document.getElementById('monCabinLightboxImg').src = src;
+    lb.style.display = 'flex';
+}
+
+// ---- XSS 保護 ----
+function monEsc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+function monEscJs(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// ---- 覆蓋全域暴露 ----
+window.monOpenCabinReadonly = monOpenCabinReadonly;
+window.monCloseDrawer = monCloseDrawer;
+window.monSelectCabinPhoto = monSelectCabinPhoto;
+window.monOpenLightbox = monOpenLightbox;
 // ---- 暴露全域 ----
 window.toggleFullscreen = toggleFullscreen;
 window.monInit = monInit;
