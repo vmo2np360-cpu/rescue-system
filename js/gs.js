@@ -224,10 +224,11 @@ async function gsSaveOrUpdateRecord(data, docId) {
         }
 
         const healthStatus = data.healthStatus || '未分類';
-        gsGenerateQR(gsCurrentDocId, healthStatus);
+             gsGenerateQR(gsCurrentDocId, healthStatus);
         document.getElementById('gsQrResult').style.display = 'block';
         document.getElementById('gsPrintCabin').textContent = data.cabinNumber;
         document.getElementById('gsPrintGroup').textContent = `第${data.groupNumber}組`;
+        gsScrollToQr();   // ★ 新增
 
         gsClearForm();
 
@@ -602,10 +603,11 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
     await db.collection('guests').doc(docId).update(updateData);
     await logAction('guests', docId, 'update', updateData, existing || null);
 
-    gsGenerateQR(docId, formData.healthStatus || '未分類');
+      gsGenerateQR(docId, formData.healthStatus || '未分類');
     document.getElementById('gsQrResult').style.display = 'block';
     document.getElementById('gsPrintCabin').textContent = cabin;
     document.getElementById('gsPrintGroup').textContent = `第${group}組`;
+    gsScrollToQr();   // ★ 新增
 
     showMessage('gsMessage', '✅ 已完成救援', 'success');
 
@@ -844,10 +846,11 @@ async function gsApplyModify() {
         await db.collection('guests').doc(gsModifyDocId).update(updateData);
         await logAction('guests', gsModifyDocId, 'update', updateData, existing);
 
-        gsGenerateQR(gsModifyDocId, formData.healthStatus || '未分類');
+            gsGenerateQR(gsModifyDocId, formData.healthStatus || '未分類');
         document.getElementById('gsQrResult').style.display = 'block';
         document.getElementById('gsPrintCabin').textContent = updateData.cabinNumber;
         document.getElementById('gsPrintGroup').textContent = `第${updateData.groupNumber}組`;
+        gsScrollToQr();   // ★ 新增
 
         showMessage('gsMessage', '✅ 已儲存修改', 'success');
 
@@ -927,11 +930,12 @@ async function gsConfirmManualTime() {
             await db.collection('guests').doc(docId).update(updateData);
             await logAction('guests', docId, 'update', updateData, existing);
 
-            if (currentTimeLanded) {
+                    if (currentTimeLanded) {
                 gsGenerateQR(docId, updateData.healthStatus || '未分類');
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
+                gsScrollToQr();   // ★ 新增
             }
 
             showMessage('gsMessage', '✅ 已完全重新記錄', 'success');
@@ -949,15 +953,15 @@ async function gsConfirmManualTime() {
             await db.collection('guests').doc(docId).update(updateData);
             await logAction('guests', docId, 'update', updateData, existing);
 
-            if (timeLanded) {
+                   if (timeLanded) {
                 gsGenerateQR(docId, updateData.healthStatus || '未分類');
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
+                gsScrollToQr();   // ★ 新增
             }
 
             showMessage('gsMessage', '✅ 已補填開始時間', 'success');
-
         } else {
             const newData = {
                 cabinNumber: cabin,
@@ -977,6 +981,7 @@ async function gsConfirmManualTime() {
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
+                gsScrollToQr();   // ★ 新增
             }
 
             showMessage('gsMessage', '✅ 已建立記錄', 'success');
