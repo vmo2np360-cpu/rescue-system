@@ -1152,6 +1152,7 @@ window.gsCancelDuplicate = gsCancelDuplicate;
 window.gsCreateAnyway = gsCreateAnyway;
 window.gsSavePDF = gsSavePDF;
 window.initGroundSupport = initGroundSupport;
+window.gsScrollToQr = gsScrollToQr;
 
 window.gsSwitchMode = gsSwitchMode;
 window.gsSubmit = gsSubmit;
