@@ -1,10 +1,18 @@
 // ================================================================
-// cabin-images.js - 車廂圖片共用模組（Firebase Storage + Firestore）
+// cabin-images.js - 車廂圖片共用模組（Supabase Storage + Firestore）
 // 依賴：common.js（firebase, db, auth, realtimeDb, getUserRole, logAction）
+//      @supabase/supabase-js（window.supabase）
 // ================================================================
 
-const cabinStorage = firebase.storage();
+// ---- Supabase 設定 ----
+const SUPABASE_URL = 'https://oksnlupatbihxflacvfc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rc25sdXBhdGJpaHhmbGFjdmZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzMTYwODQsImV4cCI6MjEwNTg5MjA4NH0.jgdvlfvi4obB3O9t4SO41iXadfzgcYQr5YlQu7F_y9Q';
+const SUPABASE_BUCKET = 'cabin-images';
 
+// 初始化 Supabase client（UMD 版本暴露 window.supabase）
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ---- 常數 ----
 const CABIN_IMG_MAX_DIM = 1600;
 const CABIN_IMG_QUALITY = 0.82;
 const CABIN_IMG_MAX_UPLOAD = 2 * 1024 * 1024;   // 2MB 硬上限
@@ -44,8 +52,56 @@ function cabinCompressImage(file, maxDim = CABIN_IMG_MAX_DIM, quality = CABIN_IM
 // ---- 驗證車廂號碼 ----
 function cabinValidateSeq(seq) {
     if (!seq || !seq.trim()) return false;
-    // 中英數、-、_，1~20 字
     return /^[A-Za-z0-9_\-\u4e00-\u9fa5]{1,20}$/.test(seq.trim());
+}
+
+// ---- URL encode 路徑（保留 / 分隔符） ----
+function encodeStoragePath(path) {
+    return String(path).split('/').map(encodeURIComponent).join('/');
+}
+
+// ---- 用 XHR 上傳到 Supabase Storage（帶進度） ----
+function supabaseUpload(path, blob, onProgress) {
+    return new Promise((resolve, reject) => {
+        const url = `${SUPABASE_URL}/storage/v1/object/${SUPABASE_BUCKET}/${encodeStoragePath(path)}`;
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
+        xhr.setRequestHeader('Content-Type', blob.type || 'image/jpeg');
+        xhr.setRequestHeader('x-upsert', 'false');
+
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+            }
+        });
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve();
+            } else {
+                let msg = `上傳失敗 (${xhr.status})`;
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.message) msg += '：' + res.message;
+                } catch (_) {}
+                reject(new Error(msg));
+            }
+        };
+        xhr.onerror = () => reject(new Error('網路錯誤'));
+        xhr.send(blob);
+    });
+}
+
+// ---- 取得 Supabase 公開 URL ----
+function getSupabasePublicUrl(path) {
+    return `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${encodeStoragePath(path)}`;
+}
+
+// ---- 刪除 Storage 檔案 ----
+async function supabaseDelete(path) {
+    const { error } = await supabaseClient.storage.from(SUPABASE_BUCKET).remove([path]);
+    if (error) throw error;
 }
 
 // ---- 上傳單張 ----
@@ -62,29 +118,26 @@ async function uploadCabinPhoto(cabinSeq, cabinType, file, note = '', onProgress
 
     const timestamp = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
     const photoId = 'p_' + timestamp;
-    const storagePath = `cabin-images/${cabinSeq}/${timestamp}.jpg`;
-    const ref = cabinStorage.ref(storagePath);
+    const storagePath = `${cabinSeq}/${timestamp}.jpg`;
 
-    onProgress && onProgress({ phase: 'upload', percent: 0 });
-    const task = ref.put(blob, { contentType: 'image/jpeg' });
-    task.on('state_changed', (snap) => {
-        const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-        onProgress && onProgress({ phase: 'upload', percent: pct });
-    });
-    await task;
-    const url = await ref.getDownloadURL();
-
-    // 更新 Firestore
+    // 先檢查數量上限（避免白上傳）
     const docRef = window.db.collection('cabin_images').doc(cabinSeq);
     const doc = await docRef.get();
     const oldData = doc.exists ? doc.data() : { photos: [] };
     const photos = Array.isArray(oldData.photos) ? oldData.photos.slice() : [];
-
     if (photos.length >= CABIN_IMG_MAX_PER_CABIN) {
-        await ref.delete().catch(() => {});
         throw new Error(`每個車廂最多 ${CABIN_IMG_MAX_PER_CABIN} 張圖片`);
     }
 
+    // 上傳到 Supabase
+    onProgress && onProgress({ phase: 'upload', percent: 0 });
+    await supabaseUpload(storagePath, blob, (pct) => {
+        onProgress && onProgress({ phase: 'upload', percent: pct });
+    });
+
+    const url = getSupabasePublicUrl(storagePath);
+
+    // 更新 Firestore（保留原邏輯，地圖端讀取不變）
     const newPhoto = {
         id: photoId,
         url, storagePath,
@@ -127,7 +180,7 @@ async function deleteCabinPhoto(cabinSeq, photoId) {
     });
 
     if (removed.storagePath) {
-        cabinStorage.ref(removed.storagePath).delete().catch(() => {});
+        supabaseDelete(removed.storagePath).catch(e => console.warn('刪除 Storage 失敗:', e));
     }
     await window.logAction('cabin_images', cabinSeq, 'delete',
         { photoId, storagePath: removed.storagePath }, null);
@@ -201,4 +254,4 @@ window.getCabinImages = getCabinImages;
 window.listenCabinImages = listenCabinImages;
 window.getAllCabinImages = getAllCabinImages;
 
-console.log('✅ cabin-images.js 已載入');
+console.log('✅ cabin-images.js 已載入（Supabase Storage 版）');
