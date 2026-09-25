@@ -73,7 +73,6 @@ async function gsCreateRecord() {
     if (other) contact = other;
     if (!contact) contact = '未提供';
 
-    // 救援者處理
     let rescuedBy = document.getElementById('gsRescuedBy').value;
     if (rescuedBy === '其他') {
         rescuedBy = document.getElementById('gsOtherRescuerInput').value.trim();
@@ -482,6 +481,13 @@ async function gsCompleteRescue() {
         const hasReached = !!existing.timeReachedTop;
         const hasLanded = !!existing.timeLanded;
 
+        // ★★★ 優先判斷：進行中（status === 'rescuing'）直接更新
+        if (existing.status === 'rescuing') {
+            await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
+            return;
+        }
+
+        // 已有完整記錄（且非進行中）→ 2 選項
         if (hasReached && hasLanded) {
             gsPendingData = {
                 cabin, group, timeLanded,
@@ -493,11 +499,13 @@ async function gsCompleteRescue() {
             return;
         }
 
+        // 有開始、無完成 → 正常更新
         if (hasReached && !hasLanded) {
             await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
             return;
         }
 
+        // 有完成、無開始 → 手動補填開始時間
         if (!hasReached && hasLanded) {
             gsPendingData = {
                 cabin, group, timeLanded,
@@ -508,6 +516,7 @@ async function gsCompleteRescue() {
             return;
         }
 
+        // 理論上不會到這
         await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
 
     } catch (e) {
@@ -704,7 +713,6 @@ function gsEnterModifyMode(docId, data) {
     const elHealth = document.getElementById('gsHealthStatus');
     if (elHealth) elHealth.value = data.healthStatus || '未能分類';
 
-    // 救援者：判斷是否為預設選項或自訂
     const elRescued = document.getElementById('gsRescuedBy');
     const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
     const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
@@ -726,7 +734,6 @@ function gsEnterModifyMode(docId, data) {
     const elRemarks = document.getElementById('gsRemarks');
     if (elRemarks) elRemarks.value = data.remarks || '';
 
-    // timeLanded 載入舊值
     const elLanded = document.getElementById('gsTimeLanded');
     if (elLanded && data.timeLanded) {
         try {
@@ -963,7 +970,13 @@ function gsInitOngoingListener() {
         .where('status', '==', 'rescuing')
         .onSnapshot(snap => {
             const list = [];
-            snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+            snap.forEach(d => {
+                const data = d.data();
+                // ★ 過濾：有完成救援時間的不顯示
+                if (!data.timeLanded) {
+                    list.push({ id: d.id, ...data });
+                }
+            });
             gsRenderOngoingBanner(list);
         }, err => console.warn('banner 監聽失敗:', err));
 }
@@ -1022,7 +1035,6 @@ function gsOpenCompleteFromBanner(docId) {
         const elHealth = document.getElementById('gsHealthStatus');
         if (elHealth) elHealth.value = data.healthStatus || '未能分類';
 
-        // 救援者
         const elRescued = document.getElementById('gsRescuedBy');
         const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
         const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
@@ -1044,9 +1056,21 @@ function gsOpenCompleteFromBanner(docId) {
         const elRemarks = document.getElementById('gsRemarks');
         if (elRemarks) elRemarks.value = data.remarks || '';
 
-        // timeLanded 清空
+        // ★ 若舊記錄有 timeLanded，帶入表單
         const elLanded = document.getElementById('gsTimeLanded');
-        if (elLanded) elLanded.value = '';
+        if (elLanded) {
+            if (data.timeLanded) {
+                try {
+                    const d = data.timeLanded.toDate ? data.timeLanded.toDate() : new Date(data.timeLanded);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    elLanded.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                } catch (e) {
+                    elLanded.value = '';
+                }
+            } else {
+                elLanded.value = '';
+            }
+        }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
