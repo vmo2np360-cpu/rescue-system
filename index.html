@@ -265,14 +265,32 @@
 </div>
 
 <script>
-     document.addEventListener('DOMContentLoaded', function() {
-        console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
-<script>
-// ===== 全域 ESC 關閉抽屜 / Lightbox =====
+// ============================================================
+// DOM 載入後：動態載入模式 + 地圖初始化
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ 動態載入模式已啟動，區塊將在切換時載入。');
+
+    // 若地圖區塊顯示，自動初始化
+    function tryInitMap() {
+        var mapSection = document.getElementById('section-map');
+        if (mapSection && mapSection.style.display !== 'none') {
+            if (typeof initMap === 'function') {
+                console.log('📍 偵測到地圖區塊，初始化地圖...');
+                setTimeout(initMap, 300);
+            }
+        }
+    }
+    tryInitMap();
+});
+
+// ============================================================
+// 全域 ESC 關閉抽屜 / Lightbox
+// ============================================================
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
 
-    // 側邊抽屜（依序嘗試三個平台）
+    // 側邊抽屜（三個平台）
     if (typeof closeCabinDrawer === 'function') {
         const d = document.getElementById('cabinDrawer');
         if (d && d.classList.contains('open')) closeCabinDrawer();
@@ -299,27 +317,6 @@ document.addEventListener('keydown', e => {
         document.body.style.overflow = 'auto';
     }
 });
-</script>
-        // ============================================================
-        // ★ 在此加入地圖初始化邏輯（確保地圖區塊顯示時自動載入）
-        // ============================================================
-        function tryInitMap() {
-            var mapSection = document.getElementById('section-map');
-            // 如果地圖區塊存在且是顯示狀態（或是預設顯示），就初始化地圖
-            if (mapSection && mapSection.style.display !== 'none') {
-                if (typeof initMap === 'function') {
-                    console.log('📍 偵測到地圖區塊，初始化地圖...');
-                    setTimeout(initMap, 300); // 延遲 300ms 確保 DOM 完整渲染
-                }
-            }
-        }
-
-        // 初次載入嘗試
-        tryInitMap();
-
-        // 如果有導航切換事件，也可在此監聽（視您的架構而定）
-        // 但通常導航切換會在 auth.js 中處理，請參考下方「位置二」說明
-    });
 </script>
 </body>
 </html>
