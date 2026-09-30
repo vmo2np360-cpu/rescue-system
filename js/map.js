@@ -1202,10 +1202,6 @@ function goToCabinPhotos() {
     }
 }
 
-function closeCabinModal() {
-    document.getElementById('cabinModal').style.display = 'none';
-    mapCurrentCabin = null;
-}
 
 // ---- 載入車廂組別狀態 ----
 async function loadCabinGroupStatus(cabin) {
