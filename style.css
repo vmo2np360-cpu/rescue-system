@@ -357,6 +357,7 @@ tr:hover td { background: #f8fafc; }
     display: flex;
     flex-direction: column;
     height: calc(100vh - 110px);
+    min-height: 0;            /* ★ 新增 */
     background: #f0f4f8;
     padding: 0 16px;
     overflow: hidden;
@@ -644,6 +645,19 @@ tr:hover td { background: #f8fafc; }
 #matchAlertContainer {
     flex-shrink: 0;
     margin-bottom: 6px;
+    max-height: 120px;       /* ★ 上限 120px */
+    overflow-y: auto;        /* ★ 超出可滾動 */
+    overflow-x: hidden;
+}
+
+#matchAlertContainer::-webkit-scrollbar {
+    width: 6px;
+    background: #f1f5f9;
+}
+
+#matchAlertContainer::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 3px;
 }
 
 #matchAlertContainer .match-alert {
