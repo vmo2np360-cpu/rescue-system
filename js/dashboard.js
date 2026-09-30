@@ -3,7 +3,7 @@
 // ================================================================
 
 let allGuests = [];
-let window._dbAutoRefreshTimer = null;
+window._dbAutoRefreshTimer = null;
 
 // ---- 載入與統計 ----
 async function dbLoadRecords() {
