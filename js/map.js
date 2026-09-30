@@ -1789,9 +1789,16 @@ function mapOccDisplayComparison(results, record) {
             </div>
         `;
         container.style.display = 'block';
+
+        // ★ 3 秒後自動隱藏
+        if (window._occNoResultTimer) clearTimeout(window._occNoResultTimer);
+        window._occNoResultTimer = setTimeout(() => {
+            container.style.display = 'none';
+            container.innerHTML = '';
+        }, 3000);
+
         return;
     }
-
     let html = `<h4 style="color:#1e3a5f;">🔍 比對結果 (找到 ${results.length} 條匹配)</h4>
                 <p style="font-size:0.85rem; color:#64748b;">💡 點擊下方按鈕可將此求助記錄標記為「已處理」，不會影響被救者記錄 (guests)。</p>`;
     results.forEach(g => {
