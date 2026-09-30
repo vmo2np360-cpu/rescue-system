@@ -82,7 +82,7 @@ function occRenderTable(records) {
         return true;
     });
     let idx = filtered.length;
-        const canEdit = ['admin', 'occ', 'gr'].includes(window.currentRole);
+    const canEdit = ['admin', 'occ', 'gr'].includes(window.currentRole);
     const canDelete = ['admin', 'occ', 'gr'].includes(window.currentRole);
     filtered.forEach(r => {
         const tr = document.createElement('tr');
@@ -98,8 +98,9 @@ function occRenderTable(records) {
             <td><span class="status-badge ${badge}">${statusText}</span></td>
             <td>
                 ${canEdit && !r.processed ? `<button class="btn btn-success btn-sm" data-action="markProcessed" data-id="${r.id}">標記已處理</button>` : ''}
+                ${canEdit ? `<button class="btn btn-primary btn-sm" data-action="edit" data-id="${r.id}"><i class="fas fa-edit"></i></button>` : ''}
                 <button class="btn btn-secondary btn-sm" data-action="compare" data-id="${r.id}"><i class="fas fa-search"></i> 對比</button>
-                ${window.currentRole === 'admin' ? `<button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}"><i class="fas fa-trash"></i></button>` : ''}
+                ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete" data-id="${r.id}"><i class="fas fa-trash"></i></button>` : ''}
             </td>
         `;
         tbody.appendChild(tr);
@@ -114,6 +115,7 @@ function occRenderTable(records) {
             if (action === 'compare') occCompareRecord(id);
             else if (action === 'markProcessed') occMarkProcessed(id);
             else if (action === 'delete') occDeleteRecord(id);
+            else if (action === 'edit') occEditRecord(id);
         });
     });
 }
@@ -296,8 +298,170 @@ function initOcc() {
     console.log('✅ OCC 求助記錄初始化完成');
     occLoadRecords();
 }
+// ================================================================
+// ★ 編輯求助記錄
+// ================================================================
+async function occEditRecord(id) {
+    const record = allRescueRecords.find(r => r.id === id);
+    if (!record) {
+        showMessage('occMessage', '找不到記錄', 'error');
+        return;
+    }
 
-// ---- 暴露至全域 ----
+    // 動態建立 Modal（若不存在）
+    let modal = document.getElementById('occEditModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'occEditModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:600px; max-height:90vh; overflow-y:auto;">
+                <div class="modal-header">
+                    <span class="modal-title"><i class="fas fa-edit"></i> 編輯求助記錄</span>
+                    <button class="modal-close" onclick="occCloseEditModal()">&times;</button>
+                </div>
+                <form id="occEditForm" onsubmit="event.preventDefault(); occSaveEdit();">
+                    <input type="hidden" id="occEditId">
+                    <div class="form-group">
+                        <label>車廂號碼</label>
+                        <input type="text" id="occEditCabin">
+                    </div>
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" id="occEditName">
+                    </div>
+                    <div class="form-group">
+                        <label>聯絡方式</label>
+                        <input type="text" id="occEditContact">
+                    </div>
+                    <div class="form-group">
+                        <label>性別</label>
+                        <select id="occEditGender">
+                            <option value="">請選擇</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>年齡</label>
+                        <select id="occEditAge">
+                            <option value="">請選擇</option>
+                            <option value="未能提供">未能提供</option>
+                            <option value="0-12">0-12歲</option>
+                            <option value="13-17">13-17歲</option>
+                            <option value="18-25">18-25歲</option>
+                            <option value="26-35">26-35歲</option>
+                            <option value="36-45">36-45歲</option>
+                            <option value="46-55">46-55歲</option>
+                            <option value="56-65">56-65歲</option>
+                            <option value="66+">66歲以上</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>健康狀況</label>
+                        <select id="occEditHealth">
+                            <option value="">請選擇</option>
+                            <option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動</option>
+                            <option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理</option>
+                            <option value="紅色(第一優先)">紅色_有生命危險需立即搶救</option>
+                            <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
+                            <option value="未能分類">未能分類</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>資料來源</label>
+                        <select id="occEditSource">
+                            <option value="">請選擇</option>
+                            <option value="電話">電話</option>
+                            <option value="無線電">無線電</option>
+                            <option value="現場">現場</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>備註</label>
+                        <textarea id="occEditNotes" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>處理狀態</label>
+                        <select id="occEditProcessed">
+                            <option value="false">待處理</option>
+                            <option value="true">已處理</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="occCloseEditModal()">取消</button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> 儲存</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // 填入資料
+    document.getElementById('occEditId').value = id;
+    document.getElementById('occEditCabin').value = record.cabinNumber || '';
+    document.getElementById('occEditName').value = record.guestName || '';
+    document.getElementById('occEditContact').value = record.contactNumber || '';
+    document.getElementById('occEditGender').value = record.gender || '';
+    document.getElementById('occEditAge').value = record.ageRange || '';
+    document.getElementById('occEditHealth').value = record.healthStatus || '';
+    document.getElementById('occEditSource').value = record.source || '';
+    document.getElementById('occEditNotes').value = record.notes || '';
+    document.getElementById('occEditProcessed').value = record.processed ? 'true' : 'false';
+
+    modal.style.display = 'flex';
+}
+
+function occCloseEditModal() {
+    const modal = document.getElementById('occEditModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function occSaveEdit() {
+    const id = document.getElementById('occEditId').value;
+    if (!id) return;
+
+    const updateData = {
+        cabinNumber: document.getElementById('occEditCabin').value.trim(),
+        guestName: document.getElementById('occEditName').value.trim(),
+        contactNumber: document.getElementById('occEditContact').value.trim(),
+        gender: document.getElementById('occEditGender').value,
+        ageRange: document.getElementById('occEditAge').value,
+        healthStatus: document.getElementById('occEditHealth').value,
+        source: document.getElementById('occEditSource').value,
+        notes: document.getElementById('occEditNotes').value.trim(),
+        processed: document.getElementById('occEditProcessed').value === 'true',
+        updatedAt: new Date()
+    };
+
+    if (!updateData.cabinNumber && !updateData.guestName) {
+        showMessage('occMessage', '車廂或姓名至少填一個', 'error');
+        return;
+    }
+
+    try {
+        showLoader();
+        const existingDoc = await db.collection('rescue_records').doc(id).get();
+        const previousData = existingDoc.exists ? existingDoc.data() : null;
+
+        await db.collection('rescue_records').doc(id).update(updateData);
+        await logAction('rescue_records', id, 'update', updateData, previousData);
+
+        showMessage('occMessage', '✅ 求助記錄已更新', 'success');
+        occCloseEditModal();
+        occLoadRecords();
+        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+    } catch (e) {
+        console.error('更新失敗:', e);
+        showMessage('occMessage', '更新失敗: ' + e.message, 'error');
+    } finally {
+        hideLoader();
+    }
+}
+
 window.occToggleOtherSource = occToggleOtherSource;
 window.occSaveRecord = occSaveRecord;
 window.occLoadRecords = occLoadRecords;
@@ -307,3 +471,7 @@ window.occDeleteRecord = occDeleteRecord;
 window.occCompareRecord = occCompareRecord;
 window.occCloseComparison = occCloseComparison;
 window.initOcc = initOcc;
+// ★ 新增
+window.occEditRecord = occEditRecord;
+window.occCloseEditModal = occCloseEditModal;
+window.occSaveEdit = occSaveEdit;
