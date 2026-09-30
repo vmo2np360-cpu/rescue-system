@@ -546,6 +546,10 @@ async function monUpdateFromFirestore() {
 }
 
 function monUpdateSummary() {
+    // ★ 修復：元素不存在時直接跳過（切走頁面時）
+    const elWaiting = document.getElementById('monWaiting');
+    if (!elWaiting) return;
+
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
     monMapCabins.forEach(c => {
@@ -556,16 +560,24 @@ function monUpdateSummary() {
         else if (c.el.classList.contains('status-departed')) { departed++; if (seq) dc.push(seq); }
     });
 
-    document.getElementById('monWaiting').textContent = waiting;
-    document.getElementById('monRescuing').textContent = rescuing;
-    document.getElementById('monLanded').textContent = landed;
-    document.getElementById('monDeparted').textContent = departed;
-    document.getElementById('monTotalCabins').textContent = monMapCabins.length;
+    elWaiting.textContent = waiting;
+    const elRescuing = document.getElementById('monRescuing');
+    if (elRescuing) elRescuing.textContent = rescuing;
+    const elLanded = document.getElementById('monLanded');
+    if (elLanded) elLanded.textContent = landed;
+    const elDeparted = document.getElementById('monDeparted');
+    if (elDeparted) elDeparted.textContent = departed;
+    const elTotal = document.getElementById('monTotalCabins');
+    if (elTotal) elTotal.textContent = monMapCabins.length;
 
-    document.getElementById('monWaitingCabins').textContent = wc.join(', ');
-    document.getElementById('monRescuingCabins').textContent = rc.join(', ');
-    document.getElementById('monLandedCabins').textContent = lc.join(', ');
-    document.getElementById('monDepartedCabins').textContent = dc.join(', ');
+    const elWC = document.getElementById('monWaitingCabins');
+    if (elWC) elWC.textContent = wc.join(', ');
+    const elRC = document.getElementById('monRescuingCabins');
+    if (elRC) elRC.textContent = rc.join(', ');
+    const elLC = document.getElementById('monLandedCabins');
+    if (elLC) elLC.textContent = lc.join(', ');
+    const elDC = document.getElementById('monDepartedCabins');
+    if (elDC) elDC.textContent = dc.join(', ');
 }
 
 // ----- 搜尋車廂 -----
@@ -712,6 +724,9 @@ function monRefreshCabinsSequences() {
 }
 
 function monUpdateAllDisplays() {
+    // ★ 修復：切走頁面時 DOM 不存在，直接跳過
+    if (!document.getElementById('occ-total')) return;
+
     const total = monRescueRecords.length;
     const pending = monRescueRecords.filter(r => !r.processed).length;
     const processed = monRescueRecords.filter(r => r.processed).length;
