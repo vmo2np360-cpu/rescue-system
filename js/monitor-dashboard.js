@@ -1032,6 +1032,10 @@ function mdFormatDateTime(input) {
 // Current Time / Duration
 // ================================================================
 function mdUpdateCurrentTime() {
+    // ★ 若頁面不可見，跳過
+    const sec = document.getElementById('section-monitor-dashboard');
+    if (!sec || !sec.classList.contains('active')) return;
+
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const curEl = document.getElementById('md-current-time');
