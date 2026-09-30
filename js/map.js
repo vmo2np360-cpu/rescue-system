@@ -775,6 +775,7 @@ function setupMoveMode() {
 // ================================================================
 // ★ 更新地圖 + 計算車廂綜合時間
 // ================================================================
+window.MAP_DEBUG = window.MAP_DEBUG || false;
 async function mapUpdateFromFirestore() {
     console.log('🔄 mapUpdateFromFirestore 開始');
     try {
