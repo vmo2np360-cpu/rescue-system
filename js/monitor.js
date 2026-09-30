@@ -9,9 +9,18 @@ let monGuestRecords = [];
 let monRescueRecords = [];
 let monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
-let _monOffsetUnsubscribe = null;
 let monCabinMode = 84;
-let _monModeUnsubscribe = null;
+// ★ _monOffsetUnsubscribe / _monModeUnsubscribe 改用 window.*
+// ★ 新增防抖
+let _monDebounceTimer = null;
+
+function monDebouncedLoadAll() {
+    if (_monDebounceTimer) clearTimeout(_monDebounceTimer);
+    _monDebounceTimer = setTimeout(() => {
+        _monDebounceTimer = null;
+        monLoadAllData();
+    }, 500);
+}
 
 // ★ 新增：防抖計時器
 let _monDebounceTimer = null;
@@ -255,8 +264,9 @@ async function monInitMap() {
     monBuildCabins();
 
     // ★ 註冊偏移量監聽
-    if (_monOffsetUnsubscribe) _monOffsetUnsubscribe();
-    _monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+    // ★ 註冊偏移量監聽
+    if (window._monOffsetUnsubscribe) window._monOffsetUnsubscribe();
+    window._monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - monCurrentOffset) > 0.001) {
             monCurrentOffset = newOffset;
             monLayoutCabins();
@@ -265,8 +275,9 @@ async function monInitMap() {
     });
 
     // ★ 註冊模式監聽
-    if (_monModeUnsubscribe) _monModeUnsubscribe();
-    _monModeUnsubscribe = window.listenGlobalMode((newMode) => {
+    // ★ 註冊模式監聽
+    if (window._monModeUnsubscribe) window._monModeUnsubscribe();
+    window._monModeUnsubscribe = window.listenGlobalMode((newMode) => {
         if (newMode !== monCabinMode) {
             monCabinMode = newMode;
             console.log('Monitor 模式已同步（來自雲端）:', newMode);
@@ -281,7 +292,11 @@ async function monInitMap() {
     });
 
     // ★ 監聽車廂序號變化（即時同步）
-    realtimeDb.ref('cabins').on('value', (snap) => {
+    // ★ 監聽車廂序號變化（即時同步）
+    if (window._monCabinsUnsub) {
+        try { realtimeDb.ref('cabins').off('value', window._monCabinsUnsub); } catch (e) {}
+    }
+    window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         if (!data) {
             monMapCabins.forEach(c => {
@@ -1182,20 +1197,74 @@ async function monInit() {
         setTimeout(monInit, 500);
         return;
     }
-    if (window._monInitialized) {
-        console.log('Monitor 已初始化，跳過');
+
+    // ★ 修復：若監聽器已被清理，允許重新初始化
+    if (window._monInitialized && monMapCabins.length > 0 && window._monCabinsUnsub) {
+        console.log('Monitor 已初始化且監聽正常，跳過');
         return;
     }
+
+    // 監聽器被清但地圖還在 → 只重新註冊監聽
+    if (window._monInitialized && monMapCabins.length > 0 && !window._monCabinsUnsub) {
+        console.log('⚠️ 偵測到監聽器已被清理，重新註冊');
+        window._monInitialized = false;
+    }
+
+    // 若地圖已存在但監聽器被清掉，只需重新註冊監聽
+    if (monMapCabins.length > 0 && !window._monCabinsUnsub) {
+        console.log('地圖已存在，重新註冊監聽器');
+        window._monInitialized = true;
+
+        // 重新註冊所有監聽器
+        if (window._monOffsetUnsubscribe) window._monOffsetUnsubscribe();
+        window._monOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+            if (Math.abs(newOffset - monCurrentOffset) > 0.001) {
+                monCurrentOffset = newOffset;
+                monLayoutCabins();
+            }
+        });
+
+        if (window._monModeUnsubscribe) window._monModeUnsubscribe();
+        window._monModeUnsubscribe = window.listenGlobalMode((newMode) => {
+            if (newMode !== monCabinMode) {
+                monCabinMode = newMode;
+                localStorage.setItem('mapCabinMode', newMode);
+                monBuildCabins();
+                monLayoutCabins();
+                monUpdateFromFirestore();
+            }
+        });
+
+        window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+            const data = snap.val();
+            monMapCabins.forEach(c => {
+                if (data && data[c.id]) {
+                    c.fields = data[c.id];
+                    c.label.textContent = c.fields.sequence || '';
+                } else {
+                    c.fields = {};
+                    c.label.textContent = '';
+                }
+            });
+            monUpdateFromFirestore();
+        });
+
+        db.collection('guests').onSnapshot(() => {
+            if (monMapCabins.length > 0) monDebouncedLoadAll();
+        });
+        db.collection('rescue_records').onSnapshot(() => {
+            if (monMapCabins.length > 0) monDebouncedLoadAll();
+        });
+
+        await monLoadAllData();
+        return;
+    }
+
     window._monInitialized = true;
 
-    // ★ 等待地圖初始化完成（包含車廂構建與標籤載入）
     await monInitMap();
-
-    // ★ 再載入所有數據（表格、統計等）
     await monLoadAllData();
 
-    // ★ 監聽 guests / rescue_records 變更（已在 monInitMap 內註冊，此處可省略，但保留備用）
-    // 啟動自動刷新計時器
     if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
     monAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-monitor');
