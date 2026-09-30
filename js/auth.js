@@ -299,7 +299,6 @@ function cleanupSectionListeners(nextSectionId) {
 }
 
 // 監聽登入狀態
-auth.onAuthStateChanged(async (user) => {
 // ★ 認證就緒 Promise（供其他模組等待）
 let _resolveAuthReady;
 window.authReady = new Promise(resolve => { _resolveAuthReady = resolve; });
