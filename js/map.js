@@ -1825,6 +1825,13 @@ function mapOccDisplayComparison(results, record) {
     `;
     container.innerHTML = html;
     container.style.display = 'block';
+
+    // ★ 10 秒後自動隱藏
+    if (window._occResultTimer) clearTimeout(window._occResultTimer);
+    window._occResultTimer = setTimeout(() => {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    }, 10000);
 }
 
 // ---- 關閉比對結果 ----
