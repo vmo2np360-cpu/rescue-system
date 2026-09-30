@@ -897,6 +897,10 @@ async function mapUpdateFromFirestore() {
 }
 
 // ---- 更新地圖摘要（強化版：元素檢查 + 強制重繪） ----
+// ★ 在檔案開頭變數宣告區加入重試計數
+let _mapSummaryRetryCount = 0;
+const MAP_SUMMARY_MAX_RETRY = 5;
+
 function mapUpdateSummary() {
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
@@ -908,10 +912,16 @@ function mapUpdateSummary() {
     const departedCabinsSvg = document.getElementById('mapDepartedSvgCabins');
 
     if (!waitingSvg || !rescuingSvg || !landedSvg || !departedSvg) {
-        console.warn('摘要元素尚未就緒，延遲 200ms 重試');
-        setTimeout(mapUpdateSummary, 200);
+        // ★ 修復：加上重試上限，避免無限遞迴
+        if (_mapSummaryRetryCount < MAP_SUMMARY_MAX_RETRY) {
+            _mapSummaryRetryCount++;
+            console.warn(`摘要元素尚未就緒，延遲 200ms 重試 (${_mapSummaryRetryCount}/${MAP_SUMMARY_MAX_RETRY})`);
+            setTimeout(mapUpdateSummary, 200);
+        }
         return;
     }
+
+    _mapSummaryRetryCount = 0;  // 成功時重置
 
     let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     const wc = [], rc = [], lc = [], dc = [];
