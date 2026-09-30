@@ -300,6 +300,12 @@ function cleanupSectionListeners(nextSectionId) {
 
 // 監聽登入狀態
 auth.onAuthStateChanged(async (user) => {
+// ★ 認證就緒 Promise（供其他模組等待）
+let _resolveAuthReady;
+window.authReady = new Promise(resolve => { _resolveAuthReady = resolve; });
+
+// 監聽登入狀態（同時處理 UI 與 authReady）
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         const role = await getUserRole(user.uid);
         window.currentRole = role;
@@ -320,6 +326,12 @@ auth.onAuthStateChanged(async (user) => {
         });
         document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
         showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
+    }
+
+    // ★ 無論登入或登出，都 resolve authReady
+    if (_resolveAuthReady) {
+        _resolveAuthReady(user || null);
+        _resolveAuthReady = null;  // 只 resolve 一次
     }
 });
 
