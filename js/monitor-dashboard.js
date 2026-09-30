@@ -73,10 +73,10 @@ let mdRadarLoadFailCount = 0;
 
 // ★ 全部改用 window._md* 以便 auth.js 清理
 // （變數宣告保留給計時器）
-let _mdTimeTimer = null;
-let _mdAutoRefreshTimer = null;
-let _mdRadarTimer = null;
-let _mdWeatherTimer = null;
+let window._mdTimeTimer = null;
+let window._mdAutoRefreshTimer = null;
+let window._mdRadarTimer = null;
+let window._mdWeatherTimer = null;
 
 // ★ 新增防抖
 let _mdDebounceTimer = null;
@@ -212,10 +212,10 @@ async function mdInit() {
         mdUpdateCurrentTime();
 
         if (_mdTimeTimer) clearInterval(_mdTimeTimer);
-        _mdTimeTimer = setInterval(mdUpdateCurrentTime, 1000);
+        window._mdTimeTimer = setInterval(mdUpdateCurrentTime, 1000);
 
-        if (_mdAutoRefreshTimer) clearInterval(_mdAutoRefreshTimer);
-        _mdAutoRefreshTimer = setInterval(() => {
+        if (window._mdAutoRefreshTimer) clearInterval(window._mdAutoRefreshTimer);
+        window._mdAutoRefreshTimer = setInterval(() => {
             const sec = document.getElementById('section-monitor-dashboard');
             if (sec && sec.classList.contains('active')) {
                 console.log('🔄 Monitor Dashboard 自動更新 (20秒)');
@@ -226,16 +226,16 @@ async function mdInit() {
         // 天氣：每 10 分鐘
         mdFetchWeather();
         mdFetchWarnings();
-        if (_mdWeatherTimer) clearInterval(_mdWeatherTimer);
-        _mdWeatherTimer = setInterval(() => {
+        if (window._mdWeatherTimer) clearInterval(window._mdWeatherTimer);
+        window._mdWeatherTimer = setInterval(() => {
             mdFetchWeather();
             mdFetchWarnings();
         }, 10 * 60 * 1000);
 
         // 雷達圖：每 5 分鐘
         mdUpdateRadar();
-        if (_mdRadarTimer) clearInterval(_mdRadarTimer);
-        _mdRadarTimer = setInterval(mdUpdateRadar, 5 * 60 * 1000);
+        if (window._mdRadarTimer) clearInterval(window._mdRadarTimer);
+        window._mdRadarTimer = setInterval(mdUpdateRadar, 5 * 60 * 1000);
 
         mdBindRadarControls();
 
