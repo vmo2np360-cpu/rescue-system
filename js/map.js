@@ -28,11 +28,22 @@ let _mapInitRetryCount = 0;
 const MAP_INIT_MAX_RETRIES = 10;
 
 async function mapInit() {
+    const mapEl = document.getElementById('map');
+
+    // ★ 修復：若地圖已建好但監聽器被清掉，只重新註冊監聽
+    if (mapCabins.length > 0 && mapEl && window._mapInitialized && !window._mapCabinsUnsub) {
+        console.log('⚠️ 地圖監聽器已被清理，重新註冊');
+        mapReattachListeners();
+        return;
+    }
+
     if (mapCabins.length > 0 && document.querySelector('#map polyline[stroke="transparent"]')) {
-        console.log('地圖已初始化，跳過');
+        console.log('地圖已初始化且監聽正常，跳過');
         _mapInitRetryCount = 0;
         return;
     }
+
+    window._mapInitialized = true;
 
     mapSvg = document.getElementById('map');
     if (!mapSvg) {
@@ -55,6 +66,61 @@ async function mapInit() {
 
     _mapInitRetryCount = 0;
 
+    /**
+ * ★ 重新註冊地圖監聽器（切回頁面時使用）
+ */
+async function mapReattachListeners() {
+    // 偏移量
+    if (window._mapOffsetUnsubscribe) window._mapOffsetUnsubscribe();
+    window._mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+        if (Math.abs(newOffset - mapGlobalOffset) > 0.001) {
+            mapGlobalOffset = newOffset;
+            mapLayoutCabins();
+        }
+    });
+
+    // 模式
+    if (window._mapModeUnsubscribe) window._mapModeUnsubscribe();
+    window._mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
+        if (newMode !== mapCabinMode) {
+            mapCabinMode = newMode;
+            const modeLabel = document.getElementById('modeLabel');
+            if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
+            const mapToggleBtn = document.getElementById('mapToggleBtn');
+            if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+            localStorage.setItem('mapCabinMode', mapCabinMode);
+            mapBuildCabins();
+            mapLayoutCabins();
+            mapUpdateFromFirestore();
+        }
+    });
+
+    // cabins 序號
+    if (window._mapCabinsUnsub) {
+        try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
+    }
+    window._mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        const data = snap.val();
+        mapCabins.forEach(c => {
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        mapUpdateFromFirestore();
+    });
+
+    // 重新讀取車廂序號與更新狀態
+    await mapRestoreSequences();
+    await mapUpdateFromFirestore();
+    await mapLoadTables();
+    await performAutoMatch();
+
+    console.log('✅ 地圖監聽器已重新註冊');
+}
     // ★ 確保地圖頁面有訊息容器 #mapMessage
     let mapMsg = document.getElementById('mapMessage');
     if (!mapMsg) {
