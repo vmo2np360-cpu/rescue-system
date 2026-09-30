@@ -83,6 +83,17 @@ let _mdAutoRefreshTimer = null;
 let _mdRadarTimer = null;
 let _mdWeatherTimer = null;
 
+// ★ 新增：防抖計時器（避免 onSnapshot 連續觸發造成讀取風暴）
+let _mdDebounceTimer = null;
+
+function mdDebouncedUpdateFromFirestore() {
+    if (_mdDebounceTimer) clearTimeout(_mdDebounceTimer);
+    _mdDebounceTimer = setTimeout(() => {
+        _mdDebounceTimer = null;
+        mdUpdateFromFirestore();
+    }, 500);
+}
+
 let _mdInitRetryCount = 0;
 const MD_INIT_MAX_RETRIES = 20;   // 20 × 300ms = 6 秒
 
@@ -447,15 +458,15 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     });
 
     // ★ 防重複註冊 Firestore guests 監聽（onSnapshot 回傳 unsubscribe，可直接呼叫）
+    // ★ 修復：改用防抖，避免短時間大量讀取
     if (_mdGuestsUnsub) _mdGuestsUnsub();
-   _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
-    if (mdMapCabins.length > 0) mdLoadAllData();  // 而不是 mdUpdateFromFirestore()
-});
+    _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
+        if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
+    });
 
-    // ★ 防重複註冊 Firestore rescue_records 監聽
     if (_mdRescueUnsub) _mdRescueUnsub();
     _mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
-        if (mdMapCabins.length > 0) mdUpdateFromFirestore();
+        if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
     });
 }
 
@@ -755,25 +766,35 @@ function mdPointAt(pts, d) {
 // 資料更新
 // ================================================================
 async function mdLoadAllData() {
+    // ★ 簡化：mdUpdateFromFirestore 已經會讀取最新資料
+    await mdUpdateFromFirestore();
+}
+
+async function mdUpdateFromFirestore() {
+    // ★ 修復：每次執行都重新抓 Firestore 最新資料，並更新全域快取
     try {
         const [guestSnap, rescueSnap] = await Promise.all([
             db.collection('guests').get(),
             db.collection('rescue_records').get()
         ]);
+
         mdGuestRecords = [];
-        guestSnap.forEach(d => { const data = d.data(); data.id = d.id; mdGuestRecords.push(data); });
+        guestSnap.forEach(d => {
+            const data = d.data();
+            data.id = d.id;
+            mdGuestRecords.push(data);
+        });
+
         mdRescueRecords = [];
-        rescueSnap.forEach(d => { const data = d.data(); data.id = d.id; mdRescueRecords.push(data); });
-
-        mdUpdateFromFirestore();
-        mdUpdateOperationalImpact();
-        mdUpdateLastUpdated();
+        rescueSnap.forEach(d => {
+            const data = d.data();
+            data.id = d.id;
+            mdRescueRecords.push(data);
+        });
     } catch (e) {
-        console.error('Monitor Dashboard 載入失敗:', e);
+        console.warn('mdUpdateFromFirestore 讀取失敗，改用舊快取:', e);
     }
-}
 
-async function mdUpdateFromFirestore() {
     mdMapCabins.forEach(cabin => {
         const seq = cabin.fields.sequence;
         cabin.el.classList.remove('status-red', 'status-yellow', 'status-green', 'status-departed', 'status-empty');
@@ -830,6 +851,8 @@ async function mdUpdateFromFirestore() {
     });
 
     mdUpdateSummary();
+    mdUpdateOperationalImpact();
+    mdUpdateLastUpdated();
 }
 
 function mdUpdateSummary() {
