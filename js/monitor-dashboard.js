@@ -89,16 +89,6 @@ function mdDebouncedUpdateFromFirestore() {
     }, 500);
 }
 
-// ★ 新增：防抖計時器（避免 onSnapshot 連續觸發造成讀取風暴）
-let _mdDebounceTimer = null;
-
-function mdDebouncedUpdateFromFirestore() {
-    if (_mdDebounceTimer) clearTimeout(_mdDebounceTimer);
-    _mdDebounceTimer = setTimeout(() => {
-        _mdDebounceTimer = null;
-        mdUpdateFromFirestore();
-    }, 500);
-}
 
 let _mdInitRetryCount = 0;
 const MD_INIT_MAX_RETRIES = 20;   // 20 × 300ms = 6 秒
