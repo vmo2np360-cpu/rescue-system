@@ -74,8 +74,8 @@ function dbRenderTable(records) {
     });
 
     let idx = filtered.length;
-    const canEdit = window.currentRole === 'admin' || window.currentRole === 'occ';
-    const canDelete = window.currentRole === 'admin';
+       const canEdit = ['admin', 'occ', 'ap'].includes(window.currentRole);
+    const canDelete = ['admin', 'occ', 'ap'].includes(window.currentRole);
 
     filtered.forEach(r => {
         const tr = document.createElement('tr');
