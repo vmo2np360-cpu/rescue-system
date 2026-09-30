@@ -502,6 +502,9 @@ async function mapReattachListeners() {
         container.style.borderRadius = '8px';
         container.style.border = '1px solid #e2e8f0';
         container.style.display = 'none';
+        container.style.maxHeight = '200px';       // ★ 上限 200px
+        container.style.overflowY = 'auto';        // ★ 超出可滾動
+        container.style.flexShrink = '0';          // ★ 不壓縮
         const occPanel = document.querySelector('.map-table-panel[style*="flex: 4;"]');
         if (occPanel) {
             const wrap = occPanel.querySelector('#mapOccTableWrap');
@@ -1786,7 +1789,6 @@ function mapOccDisplayComparison(results, record) {
             </div>
         `;
         container.style.display = 'block';
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
     }
 
@@ -1816,7 +1818,6 @@ function mapOccDisplayComparison(results, record) {
     `;
     container.innerHTML = html;
     container.style.display = 'block';
-    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---- 關閉比對結果 ----
