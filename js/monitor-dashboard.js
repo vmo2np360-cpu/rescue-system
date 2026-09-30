@@ -73,10 +73,10 @@ let mdRadarLoadFailCount = 0;
 
 // ★ 全部改用 window._md* 以便 auth.js 清理
 // （變數宣告保留給計時器）
-let window._mdTimeTimer = null;
-let window._mdAutoRefreshTimer = null;
-let window._mdRadarTimer = null;
-let window._mdWeatherTimer = null;
+ window._mdTimeTimer = null;
+ window._mdAutoRefreshTimer = null;
+ window._mdRadarTimer = null;
+ window._mdWeatherTimer = null;
 
 // ★ 新增防抖
 let _mdDebounceTimer = null;
