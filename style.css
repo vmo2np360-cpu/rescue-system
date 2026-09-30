@@ -977,3 +977,62 @@ textarea#occNotes:focus {
     margin: 2px;
     vertical-align: middle;
 }
+/* ================================================================
+   OCC 佈局（左 4 : 右 6）
+   ================================================================ */
+.occ-layout {
+    display: grid;
+    grid-template-columns: 4fr 6fr;
+    gap: 16px;
+    align-items: start;
+}
+
+.occ-left,
+.occ-right {
+    min-width: 0;
+}
+
+.occ-left .card,
+.occ-right .card {
+    margin-bottom: 0;
+}
+
+.occ-card-title {
+    color: #1e3a5f;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.occ-right .table-wrap {
+    max-height: 65vh;
+    overflow-y: auto;
+}
+
+/* 響應式：小屏改為上下堆疊 */
+@media (max-width: 1200px) {
+    .occ-layout {
+        grid-template-columns: 1fr;
+    }
+    .occ-right .table-wrap {
+        max-height: 50vh;
+    }
+}
+
+/* ===== 表格內的小按鈕（覆蓋 .btn-primary 的 width:100%） ===== */
+.btn-sm {
+    width: auto !important;
+    padding: 4px 10px !important;
+    font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: 2px;
+    vertical-align: middle;
+}
