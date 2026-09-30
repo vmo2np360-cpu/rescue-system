@@ -22,16 +22,6 @@ function monDebouncedLoadAll() {
     }, 500);
 }
 
-// ★ 新增：防抖計時器
-let _monDebounceTimer = null;
-
-function monDebouncedLoadAll() {
-    if (_monDebounceTimer) clearTimeout(_monDebounceTimer);
-    _monDebounceTimer = setTimeout(() => {
-        _monDebounceTimer = null;
-        monLoadAllData();
-    }, 500);
-}
 
 // ★ 救援建議相關變數（預設展開）－修正拼寫錯誤
 let monUrgencyData = [];
