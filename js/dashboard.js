@@ -3,7 +3,7 @@
 // ================================================================
 
 let allGuests = [];
-let dbAutoRefreshTimer = null;
+let window._dbAutoRefreshTimer = null;
 
 // ---- 載入與統計 ----
 async function dbLoadRecords() {
@@ -297,8 +297,8 @@ function initDashboard() {
     console.log('✅ 監控面板初始化完成');
     dbLoadRecords();
 
-    if (dbAutoRefreshTimer) clearInterval(dbAutoRefreshTimer);
-    dbAutoRefreshTimer = setInterval(() => {
+    if (window._dbAutoRefreshTimer) clearInterval(window._dbAutoRefreshTimer);
+   window._dbAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-dashboard');
         if (section && section.classList.contains('active')) {
             console.log('🔄 監控面板自動更新 (20秒)');
