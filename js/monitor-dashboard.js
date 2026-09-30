@@ -448,9 +448,9 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     // ★ 防重複註冊 Firestore guests 監聽（onSnapshot 回傳 unsubscribe，可直接呼叫）
     if (_mdGuestsUnsub) _mdGuestsUnsub();
-    _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
-        if (mdMapCabins.length > 0) mdUpdateFromFirestore();
-    });
+   _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
+    if (mdMapCabins.length > 0) mdLoadAllData();  // 而不是 mdUpdateFromFirestore()
+});
 
     // ★ 防重複註冊 Firestore rescue_records 監聽
     if (_mdRescueUnsub) _mdRescueUnsub();
