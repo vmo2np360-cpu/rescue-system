@@ -13,6 +13,17 @@ let _monOffsetUnsubscribe = null;
 let monCabinMode = 84;
 let _monModeUnsubscribe = null;
 
+// ★ 新增：防抖計時器
+let _monDebounceTimer = null;
+
+function monDebouncedLoadAll() {
+    if (_monDebounceTimer) clearTimeout(_monDebounceTimer);
+    _monDebounceTimer = setTimeout(() => {
+        _monDebounceTimer = null;
+        monLoadAllData();
+    }, 500);
+}
+
 // ★ 救援建議相關變數（預設展開）－修正拼寫錯誤
 let monUrgencyData = [];
 let monSuggestionExpanded = false;
@@ -313,11 +324,12 @@ async function monInitMap() {
     }
 
     // ★ 監聽 guests 與 rescue_records
+     // ★ 修復：改成呼叫完整載入，讓表格/統計也更新
     db.collection('guests').onSnapshot(() => {
-        if (monMapCabins.length > 0) monUpdateFromFirestore();
+        if (monMapCabins.length > 0) monDebouncedLoadAll();
     });
     db.collection('rescue_records').onSnapshot(() => {
-        if (monMapCabins.length > 0) monUpdateFromFirestore();
+        if (monMapCabins.length > 0) monDebouncedLoadAll();
     });
 
     // ★ 初次更新車廂狀態（此時 monMapCabins 已完整）
@@ -418,6 +430,10 @@ async function monUpdateFromFirestore() {
         const guestSnap = await db.collection('guests').get();
         const guestRecords = [];
         guestSnap.forEach(d => guestRecords.push({ id: d.id, ...d.data() }));
+
+        // ★ 修復：順便更新全域快取，讓 monUpdateAllDisplays 用到最新資料
+        monGuestRecords = guestRecords;
+        monRescueRecords = rescueRecords;
 
         const updates = {};
 
@@ -756,7 +772,7 @@ function monUpdateAllDisplays() {
     updateDelayAlert();
 
     monRenderTable();
-    if (monMapCabins.length > 0) monUpdateFromFirestore();
+    // ★ 移除：monUpdateFromFirestore() 已在監聽器與 monLoadAllData 中呼叫
 }
 
 // ★ 更新 Header 最新救援訊息
