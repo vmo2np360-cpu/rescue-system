@@ -12,7 +12,7 @@ let gsCurrentMode = 'start';
 let gsModifyMode = false;
 let gsModifyDocId = null;
 let gsOverwritePendingDocId = null;
-let _gsOngoingUnsub = null;
+// ★ _gsOngoingUnsub 改用 window._gsOngoingUnsub（見 gsInitOngoingListener）
 
 // ================================================================
 // 聯絡方式輔助
@@ -1004,14 +1004,13 @@ async function gsConfirmManualTime() {
 // ★ Banner：進行中救援
 // ================================================================
 function gsInitOngoingListener() {
-    if (_gsOngoingUnsub) _gsOngoingUnsub();
-    _gsOngoingUnsub = db.collection('guests')
+    if (window._gsOngoingUnsub) window._gsOngoingUnsub();
+    window._gsOngoingUnsub = db.collection('guests')
         .where('status', '==', 'rescuing')
         .onSnapshot(snap => {
             const list = [];
             snap.forEach(d => {
                 const data = d.data();
-                // ★ 過濾：有完成救援時間的不顯示
                 if (!data.timeLanded) {
                     list.push({ id: d.id, ...data });
                 }
