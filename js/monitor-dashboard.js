@@ -71,17 +71,23 @@ let mdRadarRange = 64;
 let mdRadarCycleOffset = 0;
 let mdRadarLoadFailCount = 0;
 
-let _mdOffsetUnsub = null;
-let _mdModeUnsub = null;
-let _mdIncidentUnsub = null;
-let _mdImpactUnsub = null;
-let _mdCabinsUnsub = null;
-let _mdGuestsUnsub = null;
-let _mdRescueUnsub = null;
+// ★ 全部改用 window._md* 以便 auth.js 清理
+// （變數宣告保留給計時器）
 let _mdTimeTimer = null;
 let _mdAutoRefreshTimer = null;
 let _mdRadarTimer = null;
 let _mdWeatherTimer = null;
+
+// ★ 新增防抖
+let _mdDebounceTimer = null;
+
+function mdDebouncedUpdateFromFirestore() {
+    if (_mdDebounceTimer) clearTimeout(_mdDebounceTimer);
+    _mdDebounceTimer = setTimeout(() => {
+        _mdDebounceTimer = null;
+        mdUpdateFromFirestore();
+    }, 500);
+}
 
 // ★ 新增：防抖計時器（避免 onSnapshot 連續觸發造成讀取風暴）
 let _mdDebounceTimer = null;
@@ -175,8 +181,26 @@ async function mdInit() {
     _mdInitRetryCount = 0;
 
     // 若已初始化且 SVG 有內容 → 真正跳過
-    if (window._mdInitialized && mapEl.childElementCount > 0) {
-        console.log('Monitor Dashboard 已初始化，跳過');
+    // ★ 修復：若監聽器已被清理，允許重新初始化
+    if (window._mdInitialized && mapEl.childElementCount > 0 && window._mdGuestsUnsub) {
+        console.log('Monitor Dashboard 已初始化且監聽正常，跳過');
+        return;
+    }
+
+    // 監聽器被清但地圖還在 → 只重新註冊監聽
+    if (window._mdInitialized && mapEl.childElementCount > 0 && !window._mdGuestsUnsub) {
+        console.log('⚠️ Dashboard 監聽器已被清理，重新註冊');
+        mdListenIncident();
+        mdListenOperationalImpact();
+        if (window._mdGuestsUnsub) window._mdGuestsUnsub();
+        window._mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
+            if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
+        });
+        if (window._mdRescueUnsub) window._mdRescueUnsub();
+        window._mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
+            if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
+        });
+        await mdUpdateFromFirestore();
         return;
     }
 
@@ -413,8 +437,9 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     mdBuildCabins();
 
     // ★ 防重複註冊偏移量監聽（Firestore onSnapshot 回傳 unsubscribe，可直接呼叫）
-    if (_mdOffsetUnsub) _mdOffsetUnsub();
-    _mdOffsetUnsub = window.listenGlobalOffset((newOffset) => {
+    // ★ 防重複註冊偏移量監聽
+    if (window._mdOffsetUnsub) window._mdOffsetUnsub();
+    window._mdOffsetUnsub = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mdCurrentOffset) > 0.001) {
             mdCurrentOffset = newOffset;
             mdLayoutCabins();
@@ -422,8 +447,9 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     });
 
     // ★ 防重複註冊模式監聽
-    if (_mdModeUnsub) _mdModeUnsub();
-    _mdModeUnsub = window.listenGlobalMode((newMode) => {
+    // ★ 防重複註冊模式監聽
+    if (window._mdModeUnsub) window._mdModeUnsub();
+    window._mdModeUnsub = window.listenGlobalMode((newMode) => {
         if (newMode !== mdCabinMode) {
             mdCabinMode = newMode;
             localStorage.setItem('mapCabinMode', newMode);
@@ -435,15 +461,15 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     // ★ 防重複註冊 Realtime DB 車廂監聽
     // 注意：Realtime DB 的 .on() 回傳的是 callback 本身，不是 unsubscribe 函數
-    if (_mdCabinsUnsub) {
+    if (window._mdCabinsUnsub) {
         try {
-            realtimeDb.ref('cabins').off('value', _mdCabinsUnsub);
+            realtimeDb.ref('cabins').off('value', window._mdCabinsUnsub);
         } catch (e) {
             console.warn('移除舊 cabins 監聽失敗:', e);
         }
-        _mdCabinsUnsub = null;
+        window._mdCabinsUnsub = null;
     }
-    _mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+    window._mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
         const data = snap.val();
         mdMapCabins.forEach(c => {
             if (data && data[c.id]) {
@@ -459,13 +485,14 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
     // ★ 防重複註冊 Firestore guests 監聽（onSnapshot 回傳 unsubscribe，可直接呼叫）
     // ★ 修復：改用防抖，避免短時間大量讀取
-    if (_mdGuestsUnsub) _mdGuestsUnsub();
-    _mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
+    // ★ 修復：改用防抖 + 改為 window.*
+    if (window._mdGuestsUnsub) window._mdGuestsUnsub();
+    window._mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
     });
 
-    if (_mdRescueUnsub) _mdRescueUnsub();
-    _mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
+    if (window._mdRescueUnsub) window._mdRescueUnsub();
+    window._mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
         if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
     });
 }
@@ -915,8 +942,8 @@ function mdUpdateLastUpdated() {
 // Incident 監聽
 // ================================================================
 function mdListenIncident() {
-    if (_mdIncidentUnsub) _mdIncidentUnsub();
-    _mdIncidentUnsub = db.collection('incidents')
+    if (window._mdIncidentUnsub) window._mdIncidentUnsub();
+    window._mdIncidentUnsub = db.collection('incidents')
         .orderBy('incidentTime', 'desc')
         .limit(1)
         .onSnapshot((snap) => {
@@ -1205,8 +1232,8 @@ function mdBindRadarControls() {
 // 監聽 config/operationalImpact（Guests online 接口）
 // ================================================================
 function mdListenOperationalImpact() {
-    if (_mdImpactUnsub) _mdImpactUnsub();
-    _mdImpactUnsub = db.collection('config').doc('operationalImpact')
+    if (window._mdImpactUnsub) window._mdImpactUnsub();
+    window._mdImpactUnsub = db.collection('config').doc('operationalImpact')
         .onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
