@@ -35,12 +35,12 @@ const PERMISSIONS = {
 
     },
     collections: {
-        'guests': {
-            create: ['admin', 'gs', 'occ'],
-            read: ['admin', 'gs', 'ap', 'occ'],
-            update: ['admin', 'gs', 'ap', 'occ'],
-            delete: ['admin', 'gs', 'occ'],
-        },
+      'guests': {
+    create: ['admin', 'gs', 'occ'],
+    read:   ['admin', 'gs', 'ap', 'occ'],
+    update: ['admin', 'gs', 'ap', 'occ'],
+    delete: ['admin', 'gs', 'occ', 'ap'],   // ★ 加入 ap
+},
         'rescue_records': {
             create: ['admin', 'occ', 'gr'],
             read: ['admin', 'occ', 'gr'],
