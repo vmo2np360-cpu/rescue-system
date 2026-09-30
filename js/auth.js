@@ -252,6 +252,7 @@ function cleanupSectionListeners(nextSectionId) {
     }
 
     // Map 頁面
+    // Map 頁面
     if (nextSectionId !== 'section-map') {
         if (window._mapCabinsUnsub) {
             try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
@@ -265,7 +266,35 @@ function cleanupSectionListeners(nextSectionId) {
             try { window._mapModeUnsubscribe(); } catch (e) {}
             window._mapModeUnsubscribe = null;
         }
+        // ★ 修復：清理定時器
+        if (window._mapRefreshTimer) {
+            clearInterval(window._mapRefreshTimer);
+            window._mapRefreshTimer = null;
+        }
         console.log('🧹 已清理 Map 監聽');
+    }
+
+    // ★ 新增：清理 Monitor V2 定時器
+    if (nextSectionId !== 'section-monitor-dashboard') {
+        if (window._mdTimeTimer) { clearInterval(window._mdTimeTimer); window._mdTimeTimer = null; }
+        if (window._mdAutoRefreshTimer) { clearInterval(window._mdAutoRefreshTimer); window._mdAutoRefreshTimer = null; }
+        if (window._mdWeatherTimer) { clearInterval(window._mdWeatherTimer); window._mdWeatherTimer = null; }
+        if (window._mdRadarTimer) { clearInterval(window._mdRadarTimer); window._mdRadarTimer = null; }
+    }
+
+    // ★ 新增：清理 Monitor V1 定時器
+    if (nextSectionId !== 'section-monitor') {
+        if (window._monAutoRefreshTimer) { clearInterval(window._monAutoRefreshTimer); window._monAutoRefreshTimer = null; }
+    }
+
+    // ★ 新增：清理 Audit 定時器
+    if (nextSectionId !== 'section-audit') {
+        if (window._auditAutoRefreshTimer) { clearInterval(window._auditAutoRefreshTimer); window._auditAutoRefreshTimer = null; }
+    }
+
+    // ★ 新增：清理 Dashboard 定時器
+    if (nextSectionId !== 'section-dashboard') {
+        if (window._dbAutoRefreshTimer) { clearInterval(window._dbAutoRefreshTimer); window._dbAutoRefreshTimer = null; }
     }
 }
 
