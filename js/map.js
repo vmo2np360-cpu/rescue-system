@@ -3,7 +3,6 @@
 // ================================================================
 
 let mapCabins = [];
-let _mapCabinsUnsub = null;
 let mapRopePts = [];
 let mapGlobalOffset = 0;
 let mapCabinMode = 84;
@@ -13,8 +12,8 @@ let mapSvg = null;
 let isDragging = false;
 let dragStartX = 0;
 let mapRopeElement = null;
-let _mapOffsetUnsubscribe = null;
-let _mapModeUnsubscribe = null;
+// ★ _mapCabinsUnsub / _mapOffsetUnsubscribe / _mapModeUnsubscribe
+//   改用 window._mapCabinsUnsub / window._mapOffsetUnsubscribe / window._mapModeUnsubscribe
 
 // ★ 表格資料變數
 let mapRescueRecords = [];
@@ -459,8 +458,9 @@ async function mapInit() {
     }, 30000);
 
     // ★ 監聽雲端偏移量與模式
-    if (_mapOffsetUnsubscribe) _mapOffsetUnsubscribe();
-    _mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+     // ★ 監聽雲端偏移量與模式
+    if (window._mapOffsetUnsubscribe) window._mapOffsetUnsubscribe();
+    window._mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
         if (Math.abs(newOffset - mapGlobalOffset) > 0.001) {
             mapGlobalOffset = newOffset;
             mapLayoutCabins();
@@ -468,30 +468,8 @@ async function mapInit() {
         }
     });
 
-    if (_mapModeUnsubscribe) _mapModeUnsubscribe();
-    _mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
-           // ★ 監聽 Realtime DB cabins（車廂序號即時同步，讓 admin 在管理頁改序號能同步到地圖）
-    if (_mapCabinsUnsub) {
-        try {
-            realtimeDb.ref('cabins').off('value', _mapCabinsUnsub);
-        } catch (e) {
-            console.warn('移除舊 cabins 監聽失敗:', e);
-        }
-        _mapCabinsUnsub = null;
-    }
-    _mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
-        const data = snap.val();
-        mapCabins.forEach(c => {
-            if (data && data[c.id]) {
-                c.fields = data[c.id];
-                c.label.textContent = c.fields.sequence || '';
-            } else {
-                c.fields = {};
-                c.label.textContent = '';
-            }
-        });
-        mapUpdateFromFirestore();
-    });
+     if (window._mapModeUnsubscribe) window._mapModeUnsubscribe();
+    window._mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
         if (newMode !== mapCabinMode) {
             mapCabinMode = newMode;
             console.log('模式已同步（來自雲端）:', newMode);
@@ -504,6 +482,29 @@ async function mapInit() {
             mapLayoutCabins();
             mapUpdateFromFirestore();
         }
+    });
+
+    // ★ 監聽 Realtime DB cabins
+    if (window._mapCabinsUnsub) {
+        try {
+            realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub);
+        } catch (e) {
+            console.warn('移除舊 cabins 監聽失敗:', e);
+        }
+        window._mapCabinsUnsub = null;
+    }
+    window._mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        const data = snap.val();
+        mapCabins.forEach(c => {
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        mapUpdateFromFirestore();
     });
 
     // ★ 監聽 guests 和 rescue_records 變更（即時更新表格）
