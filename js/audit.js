@@ -3,7 +3,7 @@
 // ================================================================
 
 let allLogs = [];
-let window._auditAutoRefreshTimer = null;
+window._auditAutoRefreshTimer = null;
 
 // ---- 載入日誌 ----
 async function auditLoadLogs() {
