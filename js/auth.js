@@ -141,6 +141,9 @@ async function loadSection(sectionId) {
 }
 
 function switchSection(sectionId) {
+    // ★ 新增：切離頁面時清理監聽器
+    cleanupSectionListeners(sectionId);
+
     // ★ 若切離新版監控頁且仍在全屏，先退出全屏
     if (sectionId !== 'section-monitor-dashboard') {
         const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
@@ -177,9 +180,93 @@ function switchSection(sectionId) {
     }
 
     // 更新導航按鈕樣式
+    // 更新導航按鈕樣式
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.target === sectionId);
     });
+}
+
+/**
+ * ★ 切換頁面時，清理舊頁面的即時監聽器，避免記憶體洩漏
+ */
+function cleanupSectionListeners(nextSectionId) {
+    // GS 頁面
+    if (nextSectionId !== 'section-gs') {
+        if (window._gsOngoingUnsub) {
+            try { window._gsOngoingUnsub(); } catch (e) {}
+            window._gsOngoingUnsub = null;
+            console.log('🧹 已清理 GS 監聽');
+        }
+    }
+
+    // Monitor V1
+    if (nextSectionId !== 'section-monitor') {
+        if (window._monOffsetUnsubscribe) {
+            try { window._monOffsetUnsubscribe(); } catch (e) {}
+            window._monOffsetUnsubscribe = null;
+        }
+        if (window._monModeUnsubscribe) {
+            try { window._monModeUnsubscribe(); } catch (e) {}
+            window._monModeUnsubscribe = null;
+        }
+        if (window._monCabinsUnsub) {
+            try { realtimeDb.ref('cabins').off('value', window._monCabinsUnsub); } catch (e) {}
+            window._monCabinsUnsub = null;
+        }
+        if (window._monInitialized) window._monInitialized = false;
+        console.log('🧹 已清理 Monitor V1 監聽');
+    }
+
+    // Monitor Dashboard
+    if (nextSectionId !== 'section-monitor-dashboard') {
+        if (window._mdOffsetUnsub) {
+            try { window._mdOffsetUnsub(); } catch (e) {}
+            window._mdOffsetUnsub = null;
+        }
+        if (window._mdModeUnsub) {
+            try { window._mdModeUnsub(); } catch (e) {}
+            window._mdModeUnsub = null;
+        }
+        if (window._mdCabinsUnsub) {
+            try { realtimeDb.ref('cabins').off('value', window._mdCabinsUnsub); } catch (e) {}
+            window._mdCabinsUnsub = null;
+        }
+        if (window._mdGuestsUnsub) {
+            try { window._mdGuestsUnsub(); } catch (e) {}
+            window._mdGuestsUnsub = null;
+        }
+        if (window._mdRescueUnsub) {
+            try { window._mdRescueUnsub(); } catch (e) {}
+            window._mdRescueUnsub = null;
+        }
+        if (window._mdIncidentUnsub) {
+            try { window._mdIncidentUnsub(); } catch (e) {}
+            window._mdIncidentUnsub = null;
+        }
+        if (window._mdImpactUnsub) {
+            try { window._mdImpactUnsub(); } catch (e) {}
+            window._mdImpactUnsub = null;
+        }
+        if (window._mdInitialized) window._mdInitialized = false;
+        console.log('🧹 已清理 Monitor Dashboard 監聽');
+    }
+
+    // Map 頁面
+    if (nextSectionId !== 'section-map') {
+        if (window._mapCabinsUnsub) {
+            try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
+            window._mapCabinsUnsub = null;
+        }
+        if (window._mapOffsetUnsubscribe) {
+            try { window._mapOffsetUnsubscribe(); } catch (e) {}
+            window._mapOffsetUnsubscribe = null;
+        }
+        if (window._mapModeUnsubscribe) {
+            try { window._mapModeUnsubscribe(); } catch (e) {}
+            window._mapModeUnsubscribe = null;
+        }
+        console.log('🧹 已清理 Map 監聽');
+    }
 }
 
 // 監聽登入狀態
