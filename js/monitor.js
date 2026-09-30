@@ -7,7 +7,7 @@ let monMapRopePts = [];
 let monSvg = null;
 let monGuestRecords = [];
 let monRescueRecords = [];
-let window._monAutoRefreshTimer = null;
+window._monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let monCabinMode = 84;
 // ★ _monOffsetUnsubscribe / _monModeUnsubscribe 改用 window.*
