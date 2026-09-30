@@ -213,7 +213,5 @@ window.handleLogout = handleLogout;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.switchSection = switchSection;
 
-document.addEventListener('DOMContentLoaded', () => {
-    const user = auth.currentUser;
-    if (user) auth.onAuthStateChanged(user);
-});
+// ★ 修復：移除了誤用 onAuthStateChanged 的 DOMContentLoaded
+// Firebase Auth SDK 會自動記住登入狀態，onAuthStateChanged 註冊時會立即觸發一次
