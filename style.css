@@ -965,3 +965,15 @@ textarea#occNotes:focus {
 .gs-modify-cancel:hover {
     background: #b91c1c;
 }
+/* ===== 表格內的小按鈕（覆蓋 .btn-primary 的 width:100%） ===== */
+.btn-sm {
+    width: auto !important;
+    padding: 4px 10px !important;
+    font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: 2px;
+    vertical-align: middle;
+}
