@@ -7,7 +7,7 @@ let monMapRopePts = [];
 let monSvg = null;
 let monGuestRecords = [];
 let monRescueRecords = [];
-let monAutoRefreshTimer = null;
+let window._monAutoRefreshTimer = null;
 let monCurrentOffset = 0;
 let monCabinMode = 84;
 // ★ _monOffsetUnsubscribe / _monModeUnsubscribe 改用 window.*
@@ -1270,8 +1270,8 @@ async function monInit() {
     await monInitMap();
     await monLoadAllData();
 
-    if (monAutoRefreshTimer) clearInterval(monAutoRefreshTimer);
-    monAutoRefreshTimer = setInterval(() => {
+    if (window._monAutoRefreshTimer) clearInterval(window._monAutoRefreshTimer);
+    window._monAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-monitor');
         if (section && section.classList.contains('active')) {
             console.log('🔄 監控平台自動更新 (20秒)');
