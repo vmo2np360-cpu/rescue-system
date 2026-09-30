@@ -3,6 +3,7 @@
 // ================================================================
 
 let allRescueRecords = [];
+let _occComparisonTimer = null;   // ★ 新增：比對結果自動關閉計時器
 
 // ---- 來源切換 ----
 function occToggleOtherSource() {
@@ -218,6 +219,12 @@ function occCalcMatchScore(guest, record) {
 function occDisplayComparison(results, record) {
     console.log('occDisplayComparison called, results count:', results.length);
 
+    // ★ 清除舊計時器
+    if (_occComparisonTimer) {
+        clearTimeout(_occComparisonTimer);
+        _occComparisonTimer = null;
+    }
+
     // 移除舊容器
     let container = document.getElementById('occComparisonResult');
     if (container) container.remove();
@@ -243,6 +250,7 @@ function occDisplayComparison(results, record) {
     }
 
     // ★ 無結果時顯示可見的自訂提示（不使用 .message 類）
+      // ★ 無結果時顯示可見的自訂提示（不使用 .message 類）
     if (!results.length) {
         container.innerHTML = `
             <div style="padding: 16px; background: #dbeafe; border-radius: 8px; color: #1e40af; font-weight: 500;">
@@ -252,6 +260,12 @@ function occDisplayComparison(results, record) {
         // 同時使用 showMessage 在頂部提示
         showMessage('occMessage', 'ℹ️ 未找到匹配度 50% 以上的記錄', 'info', 4000);
         container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // ★ 啟動 10 秒自動關閉計時器
+        _occComparisonTimer = setTimeout(() => {
+            console.log('⏱️ 比對結果自動關閉（10 秒無操作）');
+            occCloseComparison();
+        }, 10000);
         return;
     }
 
@@ -285,10 +299,36 @@ function occDisplayComparison(results, record) {
     // 自動滾動到結果區域
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showMessage('occMessage', `✅ 比對完成，找到 ${results.length} 筆匹配記錄`, 'success', 3000);
+
+    // ★ 啟動 10 秒自動關閉計時器
+    _occComparisonTimer = setTimeout(() => {
+        console.log('⏱️ 比對結果自動關閉（10 秒無操作）');
+        occCloseComparison();
+    }, 10000);
+        // ★ 滑鼠移入時暫停計時器，移出後重新計時
+    container.addEventListener('mouseenter', () => {
+        if (_occComparisonTimer) {
+            clearTimeout(_occComparisonTimer);
+            _occComparisonTimer = null;
+        }
+    });
+
+    container.addEventListener('mouseleave', () => {
+        if (!_occComparisonTimer) {
+            _occComparisonTimer = setTimeout(() => {
+                console.log('⏱️ 比對結果自動關閉（10 秒無操作）');
+                occCloseComparison();
+            }, 10000);
+        }
+    });
 }
 
-// ★ 關閉比對結果（直接移除容器）
 function occCloseComparison() {
+    // ★ 清除計時器
+    if (_occComparisonTimer) {
+        clearTimeout(_occComparisonTimer);
+        _occComparisonTimer = null;
+    }
     const container = document.getElementById('occComparisonResult');
     if (container) container.remove();
 }
