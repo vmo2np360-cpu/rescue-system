@@ -43,3 +43,98 @@
         </table>
     </div>
 </div>
+<!-- ★ 編輯求助記錄 Modal -->
+<div id="occEditModal" class="modal">
+    <div class="modal-content" style="max-width:600px; max-height:90vh; overflow-y:auto;">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-edit"></i> 編輯求助記錄</span>
+            <button class="modal-close" onclick="occCloseEditModal()">&times;</button>
+        </div>
+        <form id="occEditForm" onsubmit="event.preventDefault(); occSaveEdit();">
+            <input type="hidden" id="occEditId">
+
+            <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div class="form-group">
+                    <label>車廂號碼</label>
+                    <input type="text" id="occEditCabin" placeholder="1-125">
+                </div>
+                <div class="form-group">
+                    <label>賓客姓名</label>
+                    <input type="text" id="occEditName" placeholder="請輸入姓名">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>聯絡方式</label>
+                <input type="text" id="occEditContact" placeholder="請輸入聯絡電話">
+            </div>
+
+            <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label>性別</label>
+                    <select id="occEditGender">
+                        <option value="">請選擇</option>
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>年齡</label>
+                    <select id="occEditAge">
+                        <option value="">請選擇</option>
+                        <option value="未能提供">未能提供</option>
+                        <option value="0-12">0-12歲</option>
+                        <option value="13-17">13-17歲</option>
+                        <option value="18-25">18-25歲</option>
+                        <option value="26-35">26-35歲</option>
+                        <option value="36-45">36-45歲</option>
+                        <option value="46-55">46-55歲</option>
+                        <option value="56-65">56-65歲</option>
+                        <option value="66+">66歲以上</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>健康狀況</label>
+                    <select id="occEditHealth">
+                        <option value="綠色(第三優先)">綠色_正常或傷勢較輕可自由走動</option>
+                        <option value="黃色(第二優先)">黃色_傷勢較為嚴重需緊急處理</option>
+                        <option value="紅色(第一優先)">紅色_有生命危險需立即搶救</option>
+                        <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
+                        <option value="未能分類">未能分類</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>資料來源</label>
+                <select id="occEditSource">
+                    <option value="">請選擇</option>
+                    <option value="警察(999報案中心)">警察(999報案中心)</option>
+                    <option value="消防處">消防處</option>
+                    <option value="NP360熱線中心">NP360熱線中心</option>
+                    <option value="NP360纜車求助熱線">NP360纜車求助熱線</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>備註</label>
+                <textarea id="occEditNotes" rows="3" placeholder="請輸入備註"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>處理狀態</label>
+                <select id="occEditProcessed">
+                    <option value="false">待處理</option>
+                    <option value="true">已處理</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="occCloseEditModal()">取消</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> 儲存</button>
+            </div>
+        </form>
+    </div>
+</div>
