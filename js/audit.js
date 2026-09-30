@@ -3,7 +3,7 @@
 // ================================================================
 
 let allLogs = [];
-let auditAutoRefreshTimer = null;
+let window._auditAutoRefreshTimer = null;
 
 // ---- 載入日誌 ----
 async function auditLoadLogs() {
@@ -200,8 +200,8 @@ function initAudit() {
     console.log('✅ 日誌審計模組初始化完成');
     auditLoadLogs();
     
-    if (auditAutoRefreshTimer) clearInterval(auditAutoRefreshTimer);
-    auditAutoRefreshTimer = setInterval(() => {
+    if (window._auditAutoRefreshTimer) clearInterval(window._auditAutoRefreshTimer);
+    window._auditAutoRefreshTimer = setInterval(() => {
         const section = document.getElementById('section-audit');
         if (section && section.classList.contains('active')) {
             console.log('🔄 日誌自動更新 (30秒)');
