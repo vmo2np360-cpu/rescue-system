@@ -66,61 +66,6 @@ async function mapInit() {
 
     _mapInitRetryCount = 0;
 
-    /**
- * ★ 重新註冊地圖監聽器（切回頁面時使用）
- */
-async function mapReattachListeners() {
-    // 偏移量
-    if (window._mapOffsetUnsubscribe) window._mapOffsetUnsubscribe();
-    window._mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
-        if (Math.abs(newOffset - mapGlobalOffset) > 0.001) {
-            mapGlobalOffset = newOffset;
-            mapLayoutCabins();
-        }
-    });
-
-    // 模式
-    if (window._mapModeUnsubscribe) window._mapModeUnsubscribe();
-    window._mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
-        if (newMode !== mapCabinMode) {
-            mapCabinMode = newMode;
-            const modeLabel = document.getElementById('modeLabel');
-            if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
-            const mapToggleBtn = document.getElementById('mapToggleBtn');
-            if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
-            localStorage.setItem('mapCabinMode', mapCabinMode);
-            mapBuildCabins();
-            mapLayoutCabins();
-            mapUpdateFromFirestore();
-        }
-    });
-
-    // cabins 序號
-    if (window._mapCabinsUnsub) {
-        try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
-    }
-    window._mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
-        const data = snap.val();
-        mapCabins.forEach(c => {
-            if (data && data[c.id]) {
-                c.fields = data[c.id];
-                c.label.textContent = c.fields.sequence || '';
-            } else {
-                c.fields = {};
-                c.label.textContent = '';
-            }
-        });
-        mapUpdateFromFirestore();
-    });
-
-    // 重新讀取車廂序號與更新狀態
-    await mapRestoreSequences();
-    await mapUpdateFromFirestore();
-    await mapLoadTables();
-    await performAutoMatch();
-
-    console.log('✅ 地圖監聽器已重新註冊');
-}
     // ★ 確保地圖頁面有訊息容器 #mapMessage
     let mapMsg = document.getElementById('mapMessage');
     if (!mapMsg) {
@@ -577,12 +522,16 @@ async function mapReattachListeners() {
     });
 
     // ★ 監聽 guests 和 rescue_records 變更（即時更新表格）
-    db.collection('guests').onSnapshot(() => {
+    // ★ 監聽 guests 和 rescue_records 變更（跨域即時同步）
+    if (window._mapGuestsUnsub) window._mapGuestsUnsub();
+    window._mapGuestsUnsub = db.collection('guests').onSnapshot(() => {
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
         }
     });
-    db.collection('rescue_records').onSnapshot(() => {
+
+    if (window._mapRescueUnsub) window._mapRescueUnsub();
+    window._mapRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
         }
@@ -609,7 +558,80 @@ async function mapReattachListeners() {
     }, 300);
     console.log('✅ 地圖初始化完成');
 }
+/**
+ * ★ 重新註冊地圖監聽器（切回頁面時使用）
+ * 跨域協調系統關鍵：確保切回地圖頁面時，能重新接收其他現場的即時更新
+ */
+async function mapReattachListeners() {
+    console.log('🔄 重新註冊地圖監聽器...');
 
+    // 偏移量（其他現場調整地圖位置時同步）
+    if (window._mapOffsetUnsubscribe) window._mapOffsetUnsubscribe();
+    window._mapOffsetUnsubscribe = window.listenGlobalOffset((newOffset) => {
+        if (Math.abs(newOffset - mapGlobalOffset) > 0.001) {
+            mapGlobalOffset = newOffset;
+            mapLayoutCabins();
+        }
+    });
+
+    // 車廂模式（84 / 109，其他現場切換時同步）
+    if (window._mapModeUnsubscribe) window._mapModeUnsubscribe();
+    window._mapModeUnsubscribe = window.listenGlobalMode((newMode) => {
+        if (newMode !== mapCabinMode) {
+            mapCabinMode = newMode;
+            const modeLabel = document.getElementById('modeLabel');
+            if (modeLabel) modeLabel.textContent = '模式: ' + mapCabinMode + ' 車廂';
+            const mapToggleBtn = document.getElementById('mapToggleBtn');
+            if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
+            localStorage.setItem('mapCabinMode', mapCabinMode);
+            mapBuildCabins();
+            mapLayoutCabins();
+            mapUpdateFromFirestore();
+        }
+    });
+
+    // 車廂序號（其他現場在管理頁改序號時同步）
+    if (window._mapCabinsUnsub) {
+        try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
+    }
+    window._mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        const data = snap.val();
+        mapCabins.forEach(c => {
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
+        });
+        mapUpdateFromFirestore();
+    });
+
+    // guests（其他現場新增/更新救援記錄時同步）
+    if (window._mapGuestsUnsub) window._mapGuestsUnsub();
+    window._mapGuestsUnsub = db.collection('guests').onSnapshot(() => {
+        if (document.getElementById('section-map')?.classList.contains('active')) {
+            mapLoadTables();
+        }
+    });
+
+    // rescue_records（其他現場新增求助時同步）
+    if (window._mapRescueUnsub) window._mapRescueUnsub();
+    window._mapRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
+        if (document.getElementById('section-map')?.classList.contains('active')) {
+            mapLoadTables();
+        }
+    });
+
+    // 重新讀取車廂序號與更新狀態
+    await mapRestoreSequences();
+    await mapUpdateFromFirestore();
+    await mapLoadTables();
+    await performAutoMatch();
+
+    console.log('✅ 地圖監聽器已重新註冊（跨域同步已恢復）');
+}
 // ★ 重寫 mapRestoreSequences，加入重試邏輯
 function mapRestoreSequences(retryCount = 0) {
     return new Promise((resolve, reject) => {
