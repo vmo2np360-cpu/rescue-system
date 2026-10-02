@@ -253,6 +253,7 @@ function cleanupSectionListeners(nextSectionId) {
 
     // Map 頁面
     // Map 頁面
+    // Map 頁面
     if (nextSectionId !== 'section-map') {
         if (window._mapCabinsUnsub) {
             try { realtimeDb.ref('cabins').off('value', window._mapCabinsUnsub); } catch (e) {}
@@ -266,12 +267,21 @@ function cleanupSectionListeners(nextSectionId) {
             try { window._mapModeUnsubscribe(); } catch (e) {}
             window._mapModeUnsubscribe = null;
         }
-        // ★ 修復：清理定時器
+        // ★ 新增：清理跨域監聽器
+        if (window._mapGuestsUnsub) {
+            try { window._mapGuestsUnsub(); } catch (e) {}
+            window._mapGuestsUnsub = null;
+        }
+        if (window._mapRescueUnsub) {
+            try { window._mapRescueUnsub(); } catch (e) {}
+            window._mapRescueUnsub = null;
+        }
+        // 清理定時器
         if (window._mapRefreshTimer) {
             clearInterval(window._mapRefreshTimer);
             window._mapRefreshTimer = null;
         }
-        console.log('🧹 已清理 Map 監聽');
+        console.log('🧹 已清理 Map 監聽（含跨域同步）');
     }
 
     // ★ 新增：清理 Monitor V2 定時器
