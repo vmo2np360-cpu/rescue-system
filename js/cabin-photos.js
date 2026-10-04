@@ -11,7 +11,6 @@ let cpInitialized = false;
 async function cpInit() {
     console.log('🚀 cpInit 初始化車廂照片管理頁');
     if (cpInitialized) {
-        // 已初始化過（切回分頁時），只需重新載入資料
         await cpLoadAllPhotos();
         return;
     }
@@ -20,6 +19,29 @@ async function cpInit() {
     try {
         await cpLoadAllPhotos();
         cpPopulateCabinSeqDatalist();
+
+        // ★ 新增：監聽全域模式，其他頁面切換時即時同步
+        if (window._cpModeUnsub) window._cpModeUnsub();
+        window._cpModeUnsub = window.listenGlobalMode((newMode) => {
+            if (newMode !== cpCabinOrderMode) {
+                console.log('🔄 車廂管理模式已同步:', newMode);
+                cpCabinOrderMode = newMode;
+
+                // 更新 radio
+                document.querySelectorAll('input[name="cp-order-mode"]').forEach(r => {
+                    r.checked = parseInt(r.value) === newMode;
+                });
+
+                // 若「車廂順序」Tab 是開啟的，重新渲染
+                const orderTab = document.getElementById('cp-tab-order');
+                if (orderTab && orderTab.style.display !== 'none') {
+                    window.realtimeDb.ref('cabins').once('value').then(snap => {
+                        cpRenderCabinOrderInputs(snap.val() || {});
+                    });
+                }
+            }
+        });
+
     } catch (e) {
         console.error('cpInit 載入失敗:', e);
     }
@@ -301,9 +323,19 @@ function cpRenderCabinOrderInputs(data) {
     document.getElementById('cp-order-inputs').innerHTML = html;
 }
 
-function cpSetOrderMode(mode) {
-    cpCabinOrderMode = mode;
-    cpLoadCabinOrder();
+async function cpSetOrderMode(mode) {
+    // ★ 與地圖同步：寫入 Firestore
+    try {
+        await window.setGlobalModeToFirestore(mode);
+        cpCabinOrderMode = mode;
+        await cpLoadCabinOrder();
+        console.log(`✅ 車廂模式已切換為 ${mode}`);
+    } catch (e) {
+        console.error('切換模式失敗:', e);
+        alert('切換模式失敗: ' + e.message);
+        // 失敗時重新載入，讓 radio 恢復到正確狀態
+        await cpLoadCabinOrder();
+    }
 }
 // ---- CSV 解析並填入 ----
 function cpParseCsvToInputs() {
