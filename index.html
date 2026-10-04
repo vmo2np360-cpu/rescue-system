@@ -78,51 +78,55 @@
 
 <div class="app-container">
     <!-- 導航列 -->
+    <!-- 導航列 -->
     <div id="navbar" class="navbar" style="display:none;">
         <div class="navbar-brand"><i class="fas fa-cable-car"></i><span>救援管理系統</span></div>
         <div class="navbar-menu" id="navMenu"></div>
-<div class="navbar-user">
-    <span id="connection-status" style="
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        background: rgba(34, 197, 94, 0.15);
-        color: #22c55e;
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        transition: all 0.3s;
-    ">
-        <span style="
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #22c55e;
-            box-shadow: 0 0 8px #22c55e;
-            animation: pulseDot 1.5s ease-in-out infinite;
-        "></span>
-        <span id="connection-text">已連線</span>
-    </span>
-    <span style="
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        color: rgba(255,255,255,0.8);
-        background: rgba(255,255,255,0.1);
-    ">
-        <i class="fas fa-sync-alt" id="sync-icon" style="font-size:0.7rem;"></i>
-        <span>最後同步</span>
-        <span id="last-sync-time" style="font-weight:600; font-family:monospace;">--:--:--</span>
-    </span>
-    <span id="navUserInfo">使用者</span>
-    <button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> 登出</button>
-</div>
+        <div class="navbar-user">
+            <span id="connection-status" style="
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                background: rgba(34, 197, 94, 0.15);
+                color: #22c55e;
+                border: 1px solid rgba(34, 197, 94, 0.3);
+                transition: all 0.3s;
+            ">
+                <span style="
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #22c55e;
+                    box-shadow: 0 0 8px #22c55e;
+                    animation: pulseDot 1.5s ease-in-out infinite;
+                "></span>
+                <span id="connection-text">已連線</span>
+            </span>
+            <span style="
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 0.75rem;
+                color: rgba(255,255,255,0.8);
+                background: rgba(255,255,255,0.1);
+            ">
+                <i class="fas fa-sync-alt" id="sync-icon" style="font-size:0.7rem;"></i>
+                <span>最後同步</span>
+                <span id="last-sync-time" style="font-weight:600; font-family:monospace;">--:--:--</span>
+            </span>
+            <span id="navUserInfo">使用者</span>
+            <button class="logout-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> 登出</button>
+        </div>
+    </div>
+
+    <!-- 登入表單 -->
 
     <!-- 登入表單 -->
     <div id="loginContainer">
