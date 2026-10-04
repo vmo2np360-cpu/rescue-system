@@ -20,6 +20,57 @@ const realtimeDb = firebase.database();
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .catch(err => console.warn('Persistence setting failed:', err));
 
+// ================================================================
+// ★ 全域站點座標（map / monitor / monitor-dashboard 統一使用）
+// 可透過 Console 即時調整：
+//   mdSetStationX('NP', 2800)
+//   mdSetStationY('NP', 300)
+// ================================================================
+window.mdStationX = window.mdStationX || {
+    'TC':   50,
+    'T1':   178.57,
+    'T2A':  307.14,
+    'AIAS': 435.71,
+    'T2B':  564.29,
+    'T3':   1207.14,
+    'T4':   1592.86,
+    'T5':   1914.29,
+    'NLS':  1978.57,
+    'T6':   2107.14,
+    'T7':   2557.14,
+    'NP':   2750
+};
+
+window.mdStationY = window.mdStationY || {
+    'TC':   650,
+    'T1':   650,
+    'T2A':  650,
+    'AIAS': 650,
+    'T2B':  650,
+    'T3':   380,
+    'T4':   180,
+    'T5':   20,
+    'NLS':  10,
+    'T6':   20,
+    'T7':   220,
+    'NP':   200
+};
+
+window.mdLabelOffset = window.mdLabelOffset || {
+    'TC':   { dx: 40,   dy: -20 },
+    'T1':   { dx: 35,   dy: -20 },
+    'T2A':  { dx: 80,   dy: 45  },
+    'AIAS': { dx: 45,   dy: 45  },
+    'T2B':  { dx: -5,   dy: 45  },
+    'T3':   { dx: 50,   dy: -10 },
+    'T4':   { dx: 50,   dy: -10 },
+    'T5':   { dx: -50,  dy: 5   },
+    'NLS':  { dx: 20,   dy: 30  },
+    'T6':   { dx: 20,   dy: -15 },
+    'T7':   { dx: -10,  dy: -15 },
+    'NP':   { dx: -120, dy: -5  }
+};
+
 // ==================== 權限設定檔 ====================
 const PERMISSIONS = {
     pages: {
