@@ -345,71 +345,72 @@ function cleanupSectionListeners(nextSectionId) {
 let _resolveAuthReady;
 window.authReady = new Promise(resolve => { _resolveAuthReady = resolve; });
 
-// ★ 修復：等待 DOM 完全就緒後，才註冊 onAuthStateChanged
-// 這樣可避免「清除快取後首次載入時，DOM 尚未解析完成」的錯誤
-function registerAuthListener() {
-    console.log('🔐 註冊 auth.onAuthStateChanged');
+// ★ 核心：處理登入 / 登出狀態變化
+async function handleAuthStateChange(user) {
+    const navbarEl = document.getElementById('navbar');
+    const loginEl = document.getElementById('loginContainer');
 
-    auth.onAuthStateChanged(async (user) => {
-        // 每次觸發時再次確認 DOM 元素存在（雙重保險）
-        const navbarEl = document.getElementById('navbar');
-        const loginEl = document.getElementById('loginContainer');
+    // 若 DOM 元素不存在，延遲 100ms 重試（最多 30 次 = 3 秒）
+    if (!navbarEl || !loginEl) {
+        if (!handleAuthStateChange._retryCount) handleAuthStateChange._retryCount = 0;
+        handleAuthStateChange._retryCount++;
 
-        if (!navbarEl || !loginEl) {
-            console.warn('⚠️ navbar 或 loginContainer 尚未就緒，跳過此次更新');
-            // resolve authReady（讓其他模組能繼續）
+        if (handleAuthStateChange._retryCount < 30) {
+            console.warn(`⚠️ DOM 尚未就緒，${handleAuthStateChange._retryCount}/30 次重試`);
+            setTimeout(() => handleAuthStateChange(user), 100);
+        } else {
+            console.error('❌ DOM 重試次數用盡，放棄');
             if (_resolveAuthReady) {
                 _resolveAuthReady(user || null);
                 _resolveAuthReady = null;
             }
-            return;
+        }
+        return;
+    }
+
+    // 成功找到 DOM，重置重試計數
+    handleAuthStateChange._retryCount = 0;
+
+    // ---------- 以下為原本邏輯 ----------
+    if (user) {
+        const role = await getUserRole(user.uid);
+        window.currentRole = role;
+        navbarEl.style.display = 'flex';
+        loginEl.style.display = 'none';
+
+        const info = document.getElementById('navUserInfo');
+        if (info) {
+            info.innerHTML = `<i class="fas fa-user-circle"></i> ${user.displayName||user.email} ${role ? `<span style="background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:0.75rem;">${role.toUpperCase()}</span>` : ''}`;
         }
 
-        if (user) {
-            const role = await getUserRole(user.uid);
-            window.currentRole = role;
-            navbarEl.style.display = 'flex';
-            loginEl.style.display = 'none';
+        renderNavigation(role);
+        if (!role) showMessage('loginMessage', '⚠️ 您的帳號尚未設定角色，請聯繫管理員', 'error');
 
-            const info = document.getElementById('navUserInfo');
-            if (info) {
-                info.innerHTML = `<i class="fas fa-user-circle"></i> ${user.displayName||user.email} ${role ? `<span style="background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:0.75rem;">${role.toUpperCase()}</span>` : ''}`;
-            }
+        const firstBtn = document.querySelector('.nav-btn');
+        if (firstBtn) firstBtn.click();
+    } else {
+        navbarEl.style.display = 'none';
+        loginEl.style.display = 'block';
+        document.querySelectorAll('.section-container').forEach(el => {
+            el.classList.remove('active');
+            el.style.display = 'none';
+        });
+        document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
+        showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
+    }
 
-            renderNavigation(role);
-            if (!role) showMessage('loginMessage', '⚠️ 您的帳號尚未設定角色，請聯繫管理員', 'error');
-
-            const firstBtn = document.querySelector('.nav-btn');
-            if (firstBtn) firstBtn.click();
-        } else {
-            navbarEl.style.display = 'none';
-            loginEl.style.display = 'block';
-            document.querySelectorAll('.section-container').forEach(el => {
-                el.classList.remove('active');
-                el.style.display = 'none';
-            });
-            document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
-            showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
-        }
-
-        // ★ 無論登入或登出，都 resolve authReady
-        if (_resolveAuthReady) {
-            _resolveAuthReady(user || null);
-            _resolveAuthReady = null;
-        }
-    });
+    // ★ resolve authReady
+    if (_resolveAuthReady) {
+        _resolveAuthReady(user || null);
+        _resolveAuthReady = null;
+    }
 }
 
-// 判斷 DOM 是否就緒
-if (document.readyState === 'loading') {
-    // DOM 還在載入中 → 等 DOMContentLoaded
-    console.log('⏳ DOM 載入中，等待 DOMContentLoaded 後註冊 auth 監聽');
-    document.addEventListener('DOMContentLoaded', registerAuthListener);
-} else {
-    // DOM 已就緒（interactive 或 complete）
-    console.log('✅ DOM 已就緒，立即註冊 auth 監聽');
-    registerAuthListener();
-}
+// ★ 直接註冊（不等待 DOMContentLoaded）
+// 若觸發時 DOM 未就緒，handleAuthStateChange 內部會自動重試
+auth.onAuthStateChanged((user) => {
+    handleAuthStateChange(user);
+});
 
 window.onRoleChange = onRoleChange;
 window.handleLogin = handleLogin;
