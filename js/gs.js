@@ -232,8 +232,11 @@ async function gsSaveOrUpdateRecord(data, docId) {
 
         gsClearForm();
 
-        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-        if (typeof dbLoadRecords === 'function') dbLoadRecords();
+         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+    // ★ 修復：只有在 Dashboard 已載入時才呼叫
+    if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+        dbLoadRecords();
+    }
 
     } catch (e) {
         const action = docId ? '更新' : '建立';
