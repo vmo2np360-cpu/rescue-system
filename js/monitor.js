@@ -160,11 +160,13 @@ async function monInitMap() {
 
     let groundPts = [];
     segments.forEach((s, i) => {
-        let gx = xCoords[i], gy = baseY;
-        if (s === 'NLS') gy = topY;
-        else if (s === 'NP') gy = npY;
-        else if (s === 'T3' || (i > 5 && i < segments.indexOf('NLS'))) gy = baseY - (baseY - topY) * ((gx - t3X) / (nlsX - t3X));
-        else if (i > segments.indexOf('NLS')) gy = topY + (npY - topY) * ((gx - nlsX) / (npX - nlsX));
+        // ★ 修復：groundPts 座標與 monitor-dashboard 統一
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s]
+            : xCoords[i];
+        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s]
+            : baseY;
         groundPts.push([gx, gy]);
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', gx);
