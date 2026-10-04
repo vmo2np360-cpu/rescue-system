@@ -169,11 +169,30 @@ function switchSection(sectionId) {
         loadSection(sectionId);
 
         // ★ 切到新版監控頁時，主動呼叫 mdInit()
+            // ★ 切到新版監控頁時，主動呼叫 mdInit()
         if (sectionId === 'section-monitor-dashboard') {
             setTimeout(() => {
                 if (typeof window.mdInit === 'function') {
-                    window._mdInitialized = false;   // 強制讓 mdInit 檢查一次
+                    window._mdInitialized = false;
                     window.mdInit();
+                }
+            }, 250);
+        }
+
+        // ★ 修復：切到地圖頁時，若監聽器被清掉，重新註冊
+        if (sectionId === 'section-map') {
+            setTimeout(() => {
+                if (typeof window.mapInit === 'function') {
+                    window.mapInit();
+                }
+            }, 250);
+        }
+
+        // ★ 修復：切到監控 V1 頁時，重新初始化
+        if (sectionId === 'section-monitor') {
+            setTimeout(() => {
+                if (typeof window.monInit === 'function') {
+                    window.monInit();
                 }
             }, 250);
         }
