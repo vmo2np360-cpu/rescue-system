@@ -603,4 +603,195 @@ window.updateLastSyncTime = updateLastSyncTime;
 window.getConnectionState = getConnectionState;
 window.initConnectionMonitor = initConnectionMonitor;
 
-console.log('✅ common.js 已載入（含連線監控）');
+// ================================================================
+// ★ 手機版 Navbar：10 秒自動隱藏 + 觸控喚出
+// ================================================================
+
+let _navbarHideTimer = null;
+let _navbarTouchStartY = 0;
+let _navbarTouchActive = false;
+
+/**
+ * 判斷是否為手機版
+ */
+function isMobileNavbar() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
+/**
+ * 顯示 Navbar 並啟動 10 秒倒數自動隱藏
+ * @param {number} duration - 顯示持續時間（毫秒），預設 10000
+ */
+function showNavbar(duration = 10000) {
+    if (!isMobileNavbar()) return;
+
+    const navbar = document.getElementById('navbar');
+    if (!navbar) return;
+
+    // 顯示
+    navbar.classList.remove('mobile-hidden');
+
+    // 清除舊的計時器
+    if (_navbarHideTimer) clearTimeout(_navbarHideTimer);
+
+    // 10 秒後自動隱藏
+    _navbarHideTimer = setTimeout(() => {
+        hideNavbar();
+    }, duration);
+}
+
+/**
+ * 隱藏 Navbar（手機版才有效）
+ */
+function hideNavbar() {
+    if (!isMobileNavbar()) return;
+
+    const navbar = document.getElementById('navbar');
+    if (!navbar) return;
+
+    navbar.classList.add('mobile-hidden');
+
+    if (_navbarHideTimer) {
+        clearTimeout(_navbarHideTimer);
+        _navbarHideTimer = null;
+    }
+
+    // 顯示提示 3 秒（告知使用者如何喚出）
+    const hint = document.getElementById('navbar-touch-hint');
+    if (hint) {
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 3000);
+    }
+}
+
+/**
+ * 初始化手機版 Navbar 觸控監聽
+ */
+function initMobileNavbar() {
+    if (!isMobileNavbar()) {
+        console.log('📱 桌面版，略過手機 Navbar 初始化');
+        return;
+    }
+
+    console.log('📱 手機版 Navbar 初始化');
+
+    // ---- 觸控區點擊喚出 ----
+    const touchZone = document.getElementById('navbar-touch-zone');
+    if (touchZone) {
+        touchZone.addEventListener('click', () => {
+            showNavbar();
+        });
+        touchZone.addEventListener('touchstart', (e) => {
+            // 阻止瀏覽器原生下拉刷新（避免衝突）
+            e.stopPropagation();
+            showNavbar();
+        }, { passive: true });
+    }
+
+    // ---- 從頂部向下滑動喚出 ----
+    document.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        // 只有在螢幕頂部 50px 內才啟動
+        if (touch.clientY < 50) {
+            _navbarTouchStartY = touch.clientY;
+            _navbarTouchActive = true;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!_navbarTouchActive) return;
+        const touch = e.touches[0];
+        const deltaY = touch.clientY - _navbarTouchStartY;
+
+        // 向下滑動超過 30px 就喚出
+        if (deltaY > 30) {
+            showNavbar();
+            _navbarTouchActive = false;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        _navbarTouchActive = false;
+    }, { passive: true });
+
+    // ---- 點擊 Navbar 內的按鈕時重置計時器 ----
+    const navbar = document.getElementById('navbar');
+    if (navbar) {
+        navbar.addEventListener('click', (e) => {
+            // 若點到導航按鈕，重置 10 秒
+            if (e.target.closest('.nav-btn') || e.target.closest('.logout-btn')) {
+                showNavbar();
+            }
+        });
+    }
+
+    // ---- 初次顯示：頁面載入後 10 秒自動隱藏 ----
+    // 等 navbar 顯示（登入後會從 display:none → flex）再啟動計時
+    const observer = new MutationObserver(() => {
+        if (navbar && navbar.style.display === 'flex') {
+            showNavbar();
+            observer.disconnect();
+        }
+    });
+    if (navbar) {
+        observer.observe(navbar, { attributes: true, attributeFilter: ['style'] });
+
+        // 若 navbar 已經顯示（例如切換頁面時）
+        if (navbar.style.display === 'flex') {
+            showNavbar();
+        }
+    }
+
+    // ---- 切換頁面時，重新顯示 10 秒 ----
+    // 攔截 switchSection
+    const originalSwitchSection = window.switchSection;
+    if (typeof originalSwitchSection === 'function') {
+        window.switchSection = function (sectionId) {
+            originalSwitchSection(sectionId);
+            // 切換頁面後重新顯示
+            setTimeout(() => showNavbar(), 100);
+        };
+    }
+
+    // ---- 視窗大小改變時，重新評估 ----
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const navbar = document.getElementById('navbar');
+            if (!navbar) return;
+
+            if (isMobileNavbar()) {
+                // 從桌面切到手機：啟動自動隱藏
+                if (!navbar.classList.contains('mobile-hidden')) {
+                    showNavbar();
+                }
+            } else {
+                // 從手機切到桌面：移除隱藏狀態
+                navbar.classList.remove('mobile-hidden');
+                if (_navbarHideTimer) {
+                    clearTimeout(_navbarHideTimer);
+                    _navbarHideTimer = null;
+                }
+            }
+        }, 200);
+    });
+
+    console.log('✅ 手機版 Navbar 已啟動（10 秒自動隱藏）');
+}
+
+// 頁面載入後啟動
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(initMobileNavbar, 500);
+    });
+} else {
+    setTimeout(initMobileNavbar, 500);
+}
+
+// ★ 暴露全域
+window.showNavbar = showNavbar;
+window.hideNavbar = hideNavbar;
+window.initMobileNavbar = initMobileNavbar;
+
+console.log('✅ common.js 已載入（含連線監控 + 手機 Navbar）');
