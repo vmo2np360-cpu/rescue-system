@@ -753,8 +753,9 @@ function initMobileNavbar() {
     // ---- 初次顯示：頁面載入後 10 秒自動隱藏 ----
     // 等 navbar 顯示（登入後會從 display:none → flex）再啟動計時
      // ---- 初次顯示：輪詢偵測 Navbar 從 display:none 變成 flex ----
+    // ---- 初次顯示：輪詢偵測 Navbar 從 display:none 變成 flex ----
     let _lastNavbarDisplay = '';
-    const _navbarCheckInterval = setInterval(() => {
+    let _navbarCheckInterval = setInterval(() => {   // ★ const → let
         const nav = document.getElementById('navbar');
         if (!nav) return;
 
@@ -770,12 +771,11 @@ function initMobileNavbar() {
         _lastNavbarDisplay = currentDisplay;
     }, 500);
 
-    // 保險：若 30 秒後仍未偵測到 navbar，清除輪詢
     // 保險：30 秒後仍未偵測到 navbar，強制停止輪詢
     setTimeout(() => {
         if (_navbarCheckInterval) {
             clearInterval(_navbarCheckInterval);
-            _navbarCheckInterval = null;   // ★ 設為 null
+            _navbarCheckInterval = null;   // ✅ let 可以重新賦值
         }
     }, 30000);
 
