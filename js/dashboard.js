@@ -7,6 +7,11 @@ window._dbAutoRefreshTimer = null;
 
 // ---- 載入與統計 ----
 async function dbLoadRecords() {
+    // ★ 修復：Dashboard 頁面未載入時，直接跳過
+    if (!document.getElementById('dbTableBody')) {
+        return;
+    }
+
     try {
         showLoader(true);
         const snap = await db.collection('guests').orderBy('createdAt', 'desc').get();
