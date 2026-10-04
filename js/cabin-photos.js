@@ -10,29 +10,41 @@ let cpInitialized = false;
 // ---------- 初始化 ----------
 async function cpInit() {
     console.log('🚀 cpInit 初始化車廂照片管理頁');
-    if (cpInitialized) {
-        await cpLoadAllPhotos();
-        return;
-    }
-    cpInitialized = true;
+
+    // ★ 修復：每次進入都重新載入模式與註冊監聽器
+    // （因為切走時監聽器會被清掉）
 
     try {
         await cpLoadAllPhotos();
         cpPopulateCabinSeqDatalist();
 
-        // ★ 新增：監聽全域模式，其他頁面切換時即時同步
-        if (window._cpModeUnsub) window._cpModeUnsub();
+        // ★ 每次都重新讀取 Firestore 的模式
+        try {
+            const mode = await window.getGlobalModeFromFirestore();
+            cpCabinOrderMode = (mode === 109) ? 109 : 84;
+            console.log('📥 讀取目前模式:', cpCabinOrderMode);
+
+            // 更新 radio 勾選
+            document.querySelectorAll('input[name="cp-order-mode"]').forEach(r => {
+                r.checked = parseInt(r.value) === cpCabinOrderMode;
+            });
+        } catch (e) {
+            console.warn('讀取模式失敗:', e);
+        }
+
+        // ★ 每次都重新註冊監聽器
+        if (window._cpModeUnsub) {
+            try { window._cpModeUnsub(); } catch (e) {}
+        }
         window._cpModeUnsub = window.listenGlobalMode((newMode) => {
             if (newMode !== cpCabinOrderMode) {
                 console.log('🔄 車廂管理模式已同步:', newMode);
                 cpCabinOrderMode = newMode;
 
-                // 更新 radio
                 document.querySelectorAll('input[name="cp-order-mode"]').forEach(r => {
                     r.checked = parseInt(r.value) === newMode;
                 });
 
-                // 若「車廂順序」Tab 是開啟的，重新渲染
                 const orderTab = document.getElementById('cp-tab-order');
                 if (orderTab && orderTab.style.display !== 'none') {
                     window.realtimeDb.ref('cabins').once('value').then(snap => {
@@ -42,6 +54,7 @@ async function cpInit() {
             }
         });
 
+        cpInitialized = true;
     } catch (e) {
         console.error('cpInit 載入失敗:', e);
     }
