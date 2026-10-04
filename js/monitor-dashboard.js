@@ -459,7 +459,8 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         }
         window._mdCabinsUnsub = null;
     }
-    window._mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+       window._mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         const data = snap.val();
         mdMapCabins.forEach(c => {
             if (data && data[c.id]) {
@@ -478,14 +479,15 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     // ★ 修復：改用防抖 + 改為 window.*
     if (window._mdGuestsUnsub) window._mdGuestsUnsub();
     window._mdGuestsUnsub = db.collection('guests').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
     });
 
     if (window._mdRescueUnsub) window._mdRescueUnsub();
     window._mdRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (mdMapCabins.length > 0) mdDebouncedUpdateFromFirestore();
     });
-}
 
 // ================================================================
 // 車廂
@@ -933,10 +935,11 @@ function mdUpdateLastUpdated() {
 // ================================================================
 function mdListenIncident() {
     if (window._mdIncidentUnsub) window._mdIncidentUnsub();
-    window._mdIncidentUnsub = db.collection('incidents')
+      window._mdIncidentUnsub = db.collection('incidents')
         .orderBy('incidentTime', 'desc')
         .limit(1)
         .onSnapshot((snap) => {
+            if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
             if (snap.empty) {
                 mdCurrentIncident = null;
                 mdRenderIncident(null);
@@ -1227,8 +1230,9 @@ function mdBindRadarControls() {
 // ================================================================
 function mdListenOperationalImpact() {
     if (window._mdImpactUnsub) window._mdImpactUnsub();
-    window._mdImpactUnsub = db.collection('config').doc('operationalImpact')
+      window._mdImpactUnsub = db.collection('config').doc('operationalImpact')
         .onSnapshot((doc) => {
+            if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
             if (doc.exists) {
                 const data = doc.data();
                 mdGuestsOnline = data.guestsOnline ?? null;
