@@ -74,32 +74,30 @@
    ================================================================ */
     /* Navbar 過渡動畫 */
 @media (max-width: 768px) {
+    /* Navbar 過渡動畫（含高度塌陷） */
     #navbar {
         transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
                     opacity 0.35s ease,
                     margin 0.35s ease,
                     padding 0.35s ease,
-                    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        transform: translateY(0) !important;
-        opacity: 1 !important;
-        max-height: 300px !important;   /* 足夠容納 navbar 內容 */
-        overflow: hidden !important;
-        margin-top: 12px !important;
-        margin-bottom: 20px !important;
-        padding: 12px 20px !important;
+                    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: translateY(0);
+        opacity: 1;
+        max-height: 300px;
+        overflow: hidden;
     }
 
+    /* 隱藏狀態：高度塌陷為 0，完全不佔位 */
     #navbar.mobile-hidden {
-        transform: translateY(-20px) !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        max-height: 0 !important;        /* ★ 關鍵：高度塌陷為 0 */
+        transform: translateY(-20px);
+        opacity: 0;
+        pointer-events: none;
+        max-height: 0;
         margin-top: 0 !important;
         margin-bottom: 0 !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
-        border: none !important;
-        overflow: hidden !important;
+        border-width: 0 !important;
     }
 
     /* 頂部觸控喚出區（透明，位於畫面最頂端） */
