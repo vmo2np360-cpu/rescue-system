@@ -286,7 +286,8 @@ async function monInitMap() {
     if (window._monCabinsUnsub) {
         try { realtimeDb.ref('cabins').off('value', window._monCabinsUnsub); } catch (e) {}
     }
-    window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+      window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         const data = snap.val();
         if (!data) {
             monMapCabins.forEach(c => {
@@ -331,9 +332,11 @@ async function monInitMap() {
     // ★ 監聽 guests 與 rescue_records
      // ★ 修復：改成呼叫完整載入，讓表格/統計也更新
     db.collection('guests').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (monMapCabins.length > 0) monDebouncedLoadAll();
     });
     db.collection('rescue_records').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (monMapCabins.length > 0) monDebouncedLoadAll();
     });
 
@@ -1240,27 +1243,32 @@ async function monInit() {
             }
         });
 
-           window._mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+       if (window._monCabinsUnsub) {
+        try { realtimeDb.ref('cabins').off('value', window._monCabinsUnsub); } catch (e) {}
+    }
+    window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
         if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         const data = snap.val();
-        mdMapCabins.forEach(c => {
-                if (data && data[c.id]) {
-                    c.fields = data[c.id];
-                    c.label.textContent = c.fields.sequence || '';
-                } else {
-                    c.fields = {};
-                    c.label.textContent = '';
-                }
-            });
-            monUpdateFromFirestore();
+        monMapCabins.forEach(c => {   // ← 改成 monMapCabins
+            if (data && data[c.id]) {
+                c.fields = data[c.id];
+                c.label.textContent = c.fields.sequence || '';
+            } else {
+                c.fields = {};
+                c.label.textContent = '';
+            }
         });
+        monUpdateFromFirestore();
+    });
 
-        db.collection('guests').onSnapshot(() => {
-            if (monMapCabins.length > 0) monDebouncedLoadAll();
-        });
-        db.collection('rescue_records').onSnapshot(() => {
-            if (monMapCabins.length > 0) monDebouncedLoadAll();
-        });
+    db.collection('guests').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
+        if (monMapCabins.length > 0) monDebouncedLoadAll();
+    });
+    db.collection('rescue_records').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
+        if (monMapCabins.length > 0) monDebouncedLoadAll();
+    });
 
         await monLoadAllData();
         return;
