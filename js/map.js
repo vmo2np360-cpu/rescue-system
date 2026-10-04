@@ -932,6 +932,12 @@ let _mapSummaryRetryCount = 0;
 const MAP_SUMMARY_MAX_RETRY = 5;
 
 function mapUpdateSummary() {
+    // ★ 修復：地圖頁面未載入時，直接跳過（不重試）
+    const section = document.getElementById('section-map');
+    if (!section || !section.classList.contains('active')) {
+        return;
+    }
+
     const waitingSvg = document.getElementById('mapWaitingSvg');
     const rescuingSvg = document.getElementById('mapRescuingSvg');
     const landedSvg = document.getElementById('mapLandedSvg');
@@ -942,10 +948,11 @@ function mapUpdateSummary() {
     const departedCabinsSvg = document.getElementById('mapDepartedSvgCabins');
 
     if (!waitingSvg || !rescuingSvg || !landedSvg || !departedSvg) {
-        // ★ 修復：加上重試上限，避免無限遞迴
+        // 保留重試機制（防止首次載入時 SVG 尚未建立）
         if (_mapSummaryRetryCount < MAP_SUMMARY_MAX_RETRY) {
             _mapSummaryRetryCount++;
-            console.warn(`摘要元素尚未就緒，延遲 200ms 重試 (${_mapSummaryRetryCount}/${MAP_SUMMARY_MAX_RETRY})`);
+            // ★ 改成 console.log，減少噪音（或直接註解掉）
+            // console.warn(`摘要元素尚未就緒，延遲 200ms 重試 (${_mapSummaryRetryCount}/${MAP_SUMMARY_MAX_RETRY})`);
             setTimeout(mapUpdateSummary, 200);
         }
         return;
