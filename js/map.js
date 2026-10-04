@@ -145,6 +145,7 @@ async function mapInit() {
     }
 
     // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
+      // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 50, endX = 2750, unit = (endX - startX) / 42;
@@ -171,13 +172,16 @@ async function mapInit() {
     mountain.setAttribute('fill','url(#gradMountain)');
     mapSvg.appendChild(mountain);
 
+    // ★ 修復：groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
     let groundPts = [];
     segments.forEach((s,i) => {
-        let gx = xCoords[i], gy = baseY;
-        if(s==='NLS') gy = topY;
-        else if(s==='NP') gy = npY;
-        else if(s==='T3' || (i>5 && i<segments.indexOf('NLS'))) gy = baseY - (baseY-topY)*((gx-t3X)/(nlsX-t3X));
-        else if(i>segments.indexOf('NLS')) gy = topY + (npY-topY)*((gx-nlsX)/(npX-nlsX));
+        // 優先讀取 window.mdStationX/Y（與 monitor-dashboard.js 一致）
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s]
+            : xCoords[i];
+        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s]
+            : baseY;
         groundPts.push([gx, gy]);
         const use = document.createElementNS('http://www.w3.org/2000/svg','use');
         use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
