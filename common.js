@@ -603,6 +603,22 @@ window.updateLastSyncTime = updateLastSyncTime;
 window.getConnectionState = getConnectionState;
 window.initConnectionMonitor = initConnectionMonitor;
 
+// ★ 通用 XSS 轉義（統一版本）
+function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+}
+
+function escapeJs(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+window.escapeHtml = escapeHtml;
+window.escapeJs = escapeJs;
+
 // ================================================================
 // ★ 手機版 Navbar：10 秒自動隱藏 + 觸控喚出
 // ================================================================
@@ -667,11 +683,20 @@ function hideNavbar() {
 /**
  * 初始化手機版 Navbar 觸控監聽
  */
+let _navbarInitialized = false;   // ★ 新增：防重複初始化
+
 function initMobileNavbar() {
     if (!isMobileNavbar()) {
         console.log('📱 桌面版，略過手機 Navbar 初始化');
         return;
     }
+
+    // ★ 防重複初始化
+    if (_navbarInitialized) {
+        console.log('📱 手機版 Navbar 已初始化，跳過');
+        return;
+    }
+    _navbarInitialized = true;
 
     console.log('📱 手機版 Navbar 初始化');
 
@@ -746,9 +771,11 @@ function initMobileNavbar() {
     }, 500);
 
     // 保險：若 30 秒後仍未偵測到 navbar，清除輪詢
+    // 保險：30 秒後仍未偵測到 navbar，強制停止輪詢
     setTimeout(() => {
         if (_navbarCheckInterval) {
             clearInterval(_navbarCheckInterval);
+            _navbarCheckInterval = null;   // ★ 設為 null
         }
     }, 30000);
 
