@@ -727,19 +727,36 @@ function initMobileNavbar() {
 
     // ---- 初次顯示：頁面載入後 10 秒自動隱藏 ----
     // 等 navbar 顯示（登入後會從 display:none → flex）再啟動計時
-    const observer = new MutationObserver(() => {
-        if (navbar && navbar.style.display === 'flex') {
-            showNavbar();
-            observer.disconnect();
-        }
-    });
-    if (navbar) {
-        observer.observe(navbar, { attributes: true, attributeFilter: ['style'] });
+     // ---- 初次顯示：輪詢偵測 Navbar 從 display:none 變成 flex ----
+    let _lastNavbarDisplay = '';
+    const _navbarCheckInterval = setInterval(() => {
+        const nav = document.getElementById('navbar');
+        if (!nav) return;
 
-        // 若 navbar 已經顯示（例如切換頁面時）
-        if (navbar.style.display === 'flex') {
+        const currentDisplay = nav.style.display;
+
+        // 偵測到 Navbar 從非 flex 變成 flex（登入成功）
+        if (currentDisplay === 'flex' && _lastNavbarDisplay !== 'flex') {
+            console.log('👁️ 偵測到 Navbar 顯示，啟動 10 秒倒數');
             showNavbar();
+            clearInterval(_navbarCheckInterval);
         }
+
+        _lastNavbarDisplay = currentDisplay;
+    }, 500);
+
+    // 保險：若 30 秒後仍未偵測到 navbar，清除輪詢
+    setTimeout(() => {
+        if (_navbarCheckInterval) {
+            clearInterval(_navbarCheckInterval);
+        }
+    }, 30000);
+
+    // 立即檢查一次（處理已登入狀態）
+    if (navbar && navbar.style.display === 'flex') {
+        console.log('👁️ Navbar 已顯示，立即啟動 10 秒倒數');
+        showNavbar();
+        clearInterval(_navbarCheckInterval);
     }
 
     // ---- 切換頁面時，重新顯示 10 秒 ----
