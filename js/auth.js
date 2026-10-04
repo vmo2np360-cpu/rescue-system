@@ -341,39 +341,75 @@ function cleanupSectionListeners(nextSectionId) {
 
 // 監聽登入狀態
 // ★ 認證就緒 Promise（供其他模組等待）
+// ★ 認證就緒 Promise（供其他模組等待）
 let _resolveAuthReady;
 window.authReady = new Promise(resolve => { _resolveAuthReady = resolve; });
 
-// 監聽登入狀態（同時處理 UI 與 authReady）
-auth.onAuthStateChanged(async (user) => {
-    if (user) {
-        const role = await getUserRole(user.uid);
-        window.currentRole = role;
-        document.getElementById('navbar').style.display = 'flex';
-        document.getElementById('loginContainer').style.display = 'none';
-        const info = document.getElementById('navUserInfo');
-        info.innerHTML = `<i class="fas fa-user-circle"></i> ${user.displayName||user.email} ${role ? `<span style="background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:0.75rem;">${role.toUpperCase()}</span>` : ''}`;
-        renderNavigation(role);
-        if (!role) showMessage('loginMessage', '⚠️ 您的帳號尚未設定角色，請聯繫管理員', 'error');
-        const firstBtn = document.querySelector('.nav-btn');
-        if (firstBtn) firstBtn.click();
-    } else {
-        document.getElementById('navbar').style.display = 'none';
-        document.getElementById('loginContainer').style.display = 'block';
-        document.querySelectorAll('.section-container').forEach(el => {
-            el.classList.remove('active');
-            el.style.display = 'none';
-        });
-        document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
-        showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
-    }
+// ★ 修復：等待 DOM 完全就緒後，才註冊 onAuthStateChanged
+// 這樣可避免「清除快取後首次載入時，DOM 尚未解析完成」的錯誤
+function registerAuthListener() {
+    console.log('🔐 註冊 auth.onAuthStateChanged');
 
-    // ★ 無論登入或登出，都 resolve authReady
-    if (_resolveAuthReady) {
-        _resolveAuthReady(user || null);
-        _resolveAuthReady = null;  // 只 resolve 一次
-    }
-});
+    auth.onAuthStateChanged(async (user) => {
+        // 每次觸發時再次確認 DOM 元素存在（雙重保險）
+        const navbarEl = document.getElementById('navbar');
+        const loginEl = document.getElementById('loginContainer');
+
+        if (!navbarEl || !loginEl) {
+            console.warn('⚠️ navbar 或 loginContainer 尚未就緒，跳過此次更新');
+            // resolve authReady（讓其他模組能繼續）
+            if (_resolveAuthReady) {
+                _resolveAuthReady(user || null);
+                _resolveAuthReady = null;
+            }
+            return;
+        }
+
+        if (user) {
+            const role = await getUserRole(user.uid);
+            window.currentRole = role;
+            navbarEl.style.display = 'flex';
+            loginEl.style.display = 'none';
+
+            const info = document.getElementById('navUserInfo');
+            if (info) {
+                info.innerHTML = `<i class="fas fa-user-circle"></i> ${user.displayName||user.email} ${role ? `<span style="background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:12px;font-size:0.75rem;">${role.toUpperCase()}</span>` : ''}`;
+            }
+
+            renderNavigation(role);
+            if (!role) showMessage('loginMessage', '⚠️ 您的帳號尚未設定角色，請聯繫管理員', 'error');
+
+            const firstBtn = document.querySelector('.nav-btn');
+            if (firstBtn) firstBtn.click();
+        } else {
+            navbarEl.style.display = 'none';
+            loginEl.style.display = 'block';
+            document.querySelectorAll('.section-container').forEach(el => {
+                el.classList.remove('active');
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.section-container').forEach(el => el.dataset.loaded = 'false');
+            showMessage('loginMessage', '請選擇角色並輸入密碼登入', 'info');
+        }
+
+        // ★ 無論登入或登出，都 resolve authReady
+        if (_resolveAuthReady) {
+            _resolveAuthReady(user || null);
+            _resolveAuthReady = null;
+        }
+    });
+}
+
+// 判斷 DOM 是否就緒
+if (document.readyState === 'loading') {
+    // DOM 還在載入中 → 等 DOMContentLoaded
+    console.log('⏳ DOM 載入中，等待 DOMContentLoaded 後註冊 auth 監聽');
+    document.addEventListener('DOMContentLoaded', registerAuthListener);
+} else {
+    // DOM 已就緒（interactive 或 complete）
+    console.log('✅ DOM 已就緒，立即註冊 auth 監聽');
+    registerAuthListener();
+}
 
 window.onRoleChange = onRoleChange;
 window.handleLogin = handleLogin;
