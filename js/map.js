@@ -508,6 +508,7 @@ async function mapInit() {
         window._mapCabinsUnsub = null;
     }
     window._mapCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         const data = snap.val();
         mapCabins.forEach(c => {
             if (data && data[c.id]) {
