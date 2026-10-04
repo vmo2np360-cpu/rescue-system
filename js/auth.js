@@ -323,7 +323,20 @@ function cleanupSectionListeners(nextSectionId) {
 
     // ★ 新增：清理 Dashboard 定時器
     // ★ 新增：清理 Dashboard 定時器
+        // ★ 新增：清理 Dashboard 定時器
     if (nextSectionId !== 'section-dashboard') {
+        if (window._dbAutoRefreshTimer) { clearInterval(window._dbAutoRefreshTimer); window._dbAutoRefreshTimer = null; }
+    }
+
+    // ★ 新增：清理車廂管理模式監聽
+    if (nextSectionId !== 'section-cabin-photos') {
+        if (window._cpModeUnsub) {
+            try { window._cpModeUnsub(); } catch (e) {}
+            window._cpModeUnsub = null;
+            console.log('🧹 已清理車廂管理模式監聽');
+        }
+    }
+}
         if (window._dbAutoRefreshTimer) { clearInterval(window._dbAutoRefreshTimer); window._dbAutoRefreshTimer = null; }
     }
 
