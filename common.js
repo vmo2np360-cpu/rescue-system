@@ -491,4 +491,116 @@ window.getGlobalModeFromFirestore = getGlobalModeFromFirestore;
 window.setGlobalModeToFirestore = setGlobalModeToFirestore;
 window.listenGlobalMode = listenGlobalMode;
 
-console.log('✅ common.js 已載入');
+// ================================================================
+// ★ 跨域協調系統：連線狀態 + 最後同步時間
+// ================================================================
+
+let _connectionState = 'unknown'; // 'online' | 'offline' | 'reconnecting'
+
+/**
+ * 監聽 Firebase Realtime DB 連線狀態
+ * .info/connected 是 Firebase 內建的特殊路徑，會即時反映連線狀態
+ */
+function initConnectionMonitor() {
+    const connectedRef = firebase.database().ref('.info/connected');
+
+    connectedRef.on('value', (snap) => {
+        const isConnected = snap.val() === true;
+        const el = document.getElementById('connection-status');
+        const textEl = document.getElementById('connection-text');
+
+        if (!el || !textEl) return;
+
+        if (isConnected) {
+            _connectionState = 'online';
+            el.classList.remove('offline', 'reconnecting');
+            textEl.textContent = '已連線';
+            // 恢復連線時，立即更新一次同步時間
+            updateLastSyncTime();
+            console.log('🟢 已連線到 Firebase');
+        } else {
+            _connectionState = 'offline';
+            el.classList.remove('reconnecting');
+            el.classList.add('offline');
+            textEl.textContent = '離線中';
+            console.warn('🔴 已離線');
+        }
+    });
+
+    // Firestore 也有連線監聽（作為補充）
+    try {
+        db.enableNetwork().catch(() => {});
+    } catch (e) {
+        // 忽略
+    }
+}
+
+/**
+ * 更新「最後同步時間」顯示
+ * 每當 Firestore / Realtime DB 有資料更新時呼叫
+ */
+function updateLastSyncTime() {
+    const el = document.getElementById('last-sync-time');
+    if (!el) return;
+
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    // 圖示旋轉動畫
+    const icon = document.getElementById('sync-icon');
+    if (icon) {
+        icon.classList.add('sync-spinning');
+        setTimeout(() => icon.classList.remove('sync-spinning'), 600);
+    }
+}
+
+/**
+ * 取得目前連線狀態
+ */
+function getConnectionState() {
+    return _connectionState;
+}
+
+// 頁面載入後啟動連線監聽
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initConnectionMonitor);
+} else {
+    // DOM 已就緒（動態載入時可能已經過了 DOMContentLoaded）
+    setTimeout(initConnectionMonitor, 100);
+}
+
+// 每 30 秒檢查一次，若超過 60 秒沒同步就顯示警告
+setInterval(() => {
+    const el = document.getElementById('last-sync-time');
+    if (!el || _connectionState !== 'online') return;
+
+    const text = el.textContent;
+    if (!text || text === '--:--:--') return;
+
+    // 解析 HH:MM:SS
+    const [h, m, s] = text.split(':').map(Number);
+    const syncTime = new Date();
+    syncTime.setHours(h, m, s, 0);
+
+    // 若同步時間大於現在，代表是跨日或剛跨過午夜，忽略
+    if (syncTime > new Date()) return;
+
+    const diffSec = (Date.now() - syncTime.getTime()) / 1000;
+
+    if (diffSec > 60) {
+        // 超過 60 秒沒同步 → 顯示警告色
+        el.style.color = '#eab308';
+        el.title = `已 ${Math.round(diffSec)} 秒未收到更新`;
+    } else {
+        el.style.color = '';
+        el.title = '';
+    }
+}, 30000);
+
+// ★ 暴露全域
+window.updateLastSyncTime = updateLastSyncTime;
+window.getConnectionState = getConnectionState;
+window.initConnectionMonitor = initConnectionMonitor;
+
+console.log('✅ common.js 已載入（含連線監控）');
