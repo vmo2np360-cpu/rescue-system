@@ -69,10 +69,79 @@
     .sync-spinning {
         animation: spinSync 0.6s linear infinite;
     }
+        /* ================================================================
+   手機版 Navbar：10 秒自動隱藏 + 觸控喚出
+   ================================================================ */
+@media (max-width: 768px) {
+    /* Navbar 過渡動畫 */
+    #navbar {
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.35s ease;
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    /* 隱藏狀態：向上滑出畫面 */
+    #navbar.mobile-hidden {
+        transform: translateY(-120%);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* 頂部觸控喚出區（透明，位於畫面最頂端） */
+    #navbar-touch-zone {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 24px;
+        z-index: 9998;
+        background: transparent;
+        /* 讓它可被點擊，但不影響其他元素 */
+        pointer-events: auto;
+    }
+
+    /* 喚出提示（第一次顯示用） */
+    #navbar-touch-hint {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(30, 58, 95, 0.9);
+        color: #fff;
+        font-size: 0.7rem;
+        padding: 4px 14px;
+        border-radius: 0 0 12px 12px;
+        z-index: 9999;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        pointer-events: none;
+    }
+    #navbar-touch-hint.show {
+        opacity: 1;
+    }
+}
+
+/* 桌面版：隱藏觸控區 */
+@media (min-width: 769px) {
+    #navbar-touch-zone,
+    #navbar-touch-hint {
+        display: none !important;
+    }
+}
 </style>
 </head>
 <body>
 
+    <!-- 手機版 Navbar 觸控喚出區 -->
+<div id="navbar-touch-zone"></div>
+<div id="navbar-touch-hint">↓ 下拉顯示選單</div>
+
+<!-- 載入遮罩 -->
+<div id="global-loader">...</div>
+    
 <!-- 載入遮罩 -->
 <div id="global-loader"><div class="loader-content"><i class="fas fa-spinner fa-pulse"></i><p>處理中...</p></div></div>
 
