@@ -462,7 +462,10 @@ async function gsSaveStartRescue(cabin, group, docId) {
     }
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    if (typeof dbLoadRecords === 'function') dbLoadRecords();
+    // ★ 修復：只有在 Dashboard 已載入時才呼叫
+    if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+        dbLoadRecords();
+    }
 
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
@@ -615,7 +618,10 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
     showMessage('gsMessage', '✅ 已完成救援', 'success');
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    if (typeof dbLoadRecords === 'function') dbLoadRecords();
+    // ★ 修復：只有在 Dashboard 已載入時才呼叫
+    if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+        dbLoadRecords();
+    }
 
     gsClearForm();
 }
@@ -857,8 +863,11 @@ async function gsApplyModify() {
 
         showMessage('gsMessage', '✅ 已儲存修改', 'success');
 
-        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-        if (typeof dbLoadRecords === 'function') dbLoadRecords();
+          if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        // ★ 修復：只有在 Dashboard 已載入時才呼叫
+        if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+            dbLoadRecords();
+        }
 
         gsExitModifyMode();
 
@@ -991,7 +1000,10 @@ async function gsConfirmManualTime() {
         }
 
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-        if (typeof dbLoadRecords === 'function') dbLoadRecords();
+        // ★ 修復：只有在 Dashboard 已載入時才呼叫
+        if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+            dbLoadRecords();
+        }
 
         gsClearForm();
 
@@ -1019,7 +1031,11 @@ function gsInitOngoingListener() {
                 }
             });
             gsRenderOngoingBanner(list);
-        }, err => console.warn('banner 監聽失敗:', err));
+               }, err => {
+            // ★ 忽略登出時的權限錯誤（正常現象）
+            if (err && err.code === 'permission-denied') return;
+            console.warn('banner 監聽失敗:', err);
+        });
 }
 
 function gsRenderOngoingBanner(list) {
@@ -1045,9 +1061,13 @@ function gsRenderOngoingBanner(list) {
         const startTime = item.timeReachedTop
             ? new Date(item.timeReachedTop).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })
             : '—';
+        // ★ 加 escape 防 XSS
+        const cabinEsc = escapeHtml(item.cabinNumber || '');
+        const groupEsc = escapeHtml(item.groupNumber || '');
+        const idEsc = escapeJs(item.id || '');
         div.innerHTML = `
-            <span>🚠 車廂 ${item.cabinNumber} 第 ${item.groupNumber} 組（開始於 ${startTime}）</span>
-            <button onclick="gsOpenCompleteFromBanner('${item.id}')">完成</button>
+            <span>🚠 車廂 ${cabinEsc} 第 ${groupEsc} 組（開始於 ${startTime}）</span>
+            <button onclick="gsOpenCompleteFromBanner('${idEsc}')">完成</button>
         `;
         listEl.appendChild(div);
     });
