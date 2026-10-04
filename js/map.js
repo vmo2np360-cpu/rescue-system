@@ -94,8 +94,8 @@ async function mapInit() {
     // ★ 清空車廂陣列（避免舊引用殘留）
     mapCabins = [];
 
-    // 設定 viewBox（固定）
-    mapSvg.setAttribute('viewBox', '0 200 2800 500');
+       // 設定 viewBox（與 monitor-dashboard 一致，高度 1000）
+    mapSvg.setAttribute('viewBox', '0 0 2800 1000');
 
     // ★ 從 Firestore 讀取偏移量
     mapGlobalOffset = await window.getGlobalOffsetFromFirestore();
@@ -109,9 +109,10 @@ async function mapInit() {
     localStorage.setItem('mapCabinMode', mapCabinMode);
 
     // ----- 建立白色背景 -----
+    // ----- 建立白色背景 -----
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
-    bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '700');
+    bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '1000');
     bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
 
@@ -168,7 +169,7 @@ async function mapInit() {
     addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, 'city', '#d4d4d4');
     addRect(t2bX, baseY, t3X - t2bX, 100, 'sea', '#81D4FA');
     const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
-    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},700 L${t3X},700 Z`);
+    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
     mountain.setAttribute('fill','url(#gradMountain)');
     mapSvg.appendChild(mountain);
 
