@@ -158,15 +158,20 @@ async function monInitMap() {
     mountain.setAttribute('fill', 'url(#monGradMountain)');
     monSvg.appendChild(mountain);
 
+      // ★ 修復：groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
+    // ★ 新增：整體往下平移 140px，讓索道在 map 頁面居中
+    const MAP_Y_OFFSET = 140;
+
     let groundPts = [];
-    segments.forEach((s, i) => {
-        // ★ 修復：groundPts 座標與 monitor-dashboard 統一
+    segments.forEach((s,i) => {
+        // 優先讀取 window.mdStationX/Y（與 monitor-dashboard.js 一致）
         const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
             ? window.mdStationX[s]
             : xCoords[i];
-        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
+        const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s]
             : baseY;
+        const gy = gyBase + MAP_Y_OFFSET;   // ★ 加上平移補償
         groundPts.push([gx, gy]);
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', gx);
