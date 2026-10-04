@@ -683,17 +683,22 @@ function hideNavbar() {
 /**
  * 初始化手機版 Navbar 觸控監聽
  */
-let _navbarInitialized = false;   // ★ 新增：防重複初始化
+let _navbarInitialized = false;
 
 function initMobileNavbar() {
     if (!isMobileNavbar()) {
         console.log('📱 桌面版，略過手機 Navbar 初始化');
-        return;
+        return;   // ← 不設 _navbarInitialized，讓 resize 後能重新初始化
     }
 
-    // ★ 防重複初始化
+    // ★ 若已初始化，不重複註冊事件
     if (_navbarInitialized) {
         console.log('📱 手機版 Navbar 已初始化，跳過');
+        // 但還是要啟動計時器（若 navbar 已顯示）
+        const navbar = document.getElementById('navbar');
+        if (navbar && navbar.style.display === 'flex' && !navbar.classList.contains('mobile-hidden')) {
+            showNavbar();
+        }
         return;
     }
     _navbarInitialized = true;
@@ -796,7 +801,7 @@ function initMobileNavbar() {
             setTimeout(() => showNavbar(), 100);
         };
     }
-
+    
     // ---- 視窗大小改變時，重新評估 ----
     let resizeTimer = null;
     window.addEventListener('resize', () => {
@@ -825,6 +830,7 @@ function initMobileNavbar() {
 }
 
 // 頁面載入後啟動
+// 頁面載入後啟動
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(initMobileNavbar, 500);
@@ -832,6 +838,16 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initMobileNavbar, 500);
 }
+
+// ★ 修復：視窗大小改變時（例如 DevTools 切換手機模式），重新初始化
+let _navbarResizeTimer = null;
+window.addEventListener('resize', () => {
+    if (_navbarResizeTimer) clearTimeout(_navbarResizeTimer);
+    _navbarResizeTimer = setTimeout(() => {
+        console.log('🔄 視窗大小改變，重新檢查手機 Navbar');
+        initMobileNavbar();
+    }, 300);
+});
 
 // ★ 暴露全域
 window.showNavbar = showNavbar;
