@@ -533,8 +533,9 @@ async function mapInit() {
         }
     });
 
-    if (window._mapRescueUnsub) window._mapRescueUnsub();
+     if (window._mapRescueUnsub) window._mapRescueUnsub();
     window._mapRescueUnsub = db.collection('rescue_records').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
         }
