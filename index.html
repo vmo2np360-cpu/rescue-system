@@ -72,20 +72,34 @@
         /* ================================================================
    手機版 Navbar：10 秒自動隱藏 + 觸控喚出
    ================================================================ */
-@media (max-width: 768px) {
     /* Navbar 過渡動畫 */
+@media (max-width: 768px) {
     #navbar {
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                    opacity 0.35s ease;
-        transform: translateY(0);
-        opacity: 1;
+        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                    opacity 0.35s ease,
+                    margin 0.35s ease,
+                    padding 0.35s ease,
+                    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transform: translateY(0) !important;
+        opacity: 1 !important;
+        max-height: 300px !important;   /* 足夠容納 navbar 內容 */
+        overflow: hidden !important;
+        margin-top: 12px !important;
+        margin-bottom: 20px !important;
+        padding: 12px 20px !important;
     }
 
-    /* 隱藏狀態：向上滑出畫面 */
     #navbar.mobile-hidden {
-        transform: translateY(-120%);
-        opacity: 0;
-        pointer-events: none;
+        transform: translateY(-20px) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        max-height: 0 !important;        /* ★ 關鍵：高度塌陷為 0 */
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
     }
 
     /* 頂部觸控喚出區（透明，位於畫面最頂端） */
