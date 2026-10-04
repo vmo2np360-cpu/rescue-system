@@ -1240,9 +1240,10 @@ async function monInit() {
             }
         });
 
-        window._monCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
-            const data = snap.val();
-            monMapCabins.forEach(c => {
+           window._mdCabinsUnsub = realtimeDb.ref('cabins').on('value', (snap) => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
+        const data = snap.val();
+        mdMapCabins.forEach(c => {
                 if (data && data[c.id]) {
                     c.fields = data[c.id];
                     c.label.textContent = c.fields.sequence || '';
