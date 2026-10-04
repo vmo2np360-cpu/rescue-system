@@ -525,7 +525,9 @@ async function mapInit() {
     // ★ 監聽 guests 和 rescue_records 變更（即時更新表格）
     // ★ 監聽 guests 和 rescue_records 變更（跨域即時同步）
     if (window._mapGuestsUnsub) window._mapGuestsUnsub();
+    if (window._mapGuestsUnsub) window._mapGuestsUnsub();
     window._mapGuestsUnsub = db.collection('guests').onSnapshot(() => {
+        if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
         if (document.getElementById('section-map')?.classList.contains('active')) {
             mapLoadTables();
         }
