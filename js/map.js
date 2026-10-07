@@ -201,6 +201,20 @@ segments.forEach((s, i) => {
         : baseY;
     const gy = gyBase + MAP_Y_OFFSET;
     groundPts.push([gx, gy]);
+
+    // ★★★ 修正：移除站點符號（#towerSymbol / #stationSymbol），只保留文字 ★★★
+    // 原本的 use 元素建立整段刪除
+
+    // 站點文字（保留）
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.textContent = s;
+    txt.setAttribute('x', gx);
+    txt.setAttribute('y', gy + 25);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('class', 'label');
+    txt.setAttribute('fill', '#000');
+    txt.setAttribute('font-weight', 'bold');
+    mapSvg.appendChild(txt);
 });
 
         const up = groundPts.map(p => [p[0], p[1]-70]);
