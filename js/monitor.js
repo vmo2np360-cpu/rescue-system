@@ -120,6 +120,7 @@ async function monInitMap() {
     defs.appendChild(filter);
     monSvg.appendChild(defs);
 
+     // ★ 深色背景（保留，作為圖片載入失敗時的底層）
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
@@ -128,51 +129,56 @@ async function monInitMap() {
     bg.setAttribute('fill', '#1a2a3a');
     monSvg.appendChild(bg);
 
+    // ★ 新增：地形圖片背景（與 monitor-dashboard 一致）
+    const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    terrainImg.setAttribute('id', 'mon-terrain-img');
+    terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
+    terrainImg.setAttribute('href', 'assets/map-terrain.png');
+    terrainImg.setAttribute('preserveAspectRatio', 'none');
+    terrainImg.setAttribute('x', '0');
+    terrainImg.setAttribute('y', '-500');
+    terrainImg.setAttribute('width', '2800');
+    terrainImg.setAttribute('height', '1334.4');
+    monSvg.appendChild(terrainImg);
+
+    terrainImg.addEventListener('load', () => {
+        console.log('✅ monitor 地形圖片載入成功');
+    });
+    terrainImg.addEventListener('error', () => {
+        console.error('❌ monitor 地形圖片載入失敗，請檢查路徑：assets/map-terrain.png');
+    });
+
     const segments = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
     const slots = [2, 2, 2, 2, 10, 6, 5, 1, 2, 7, 3];
     const startX = 50, endX = 2750;
     const unit = (endX - startX) / 42;
-    const baseY = 600, topY = 300, npY = 340;
+    const baseY = 600;
     let x = startX;
     const xCoords = [x];
     for (let i = 0; i < slots.length; i++) {
         x += slots[i] * unit;
         xCoords.push(x);
     }
-    const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
 
-    const addRect = (x, y, w, h, fillColor) => {
-        const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        r.setAttribute('x', x);
-        r.setAttribute('y', y);
-        r.setAttribute('width', w);
-        r.setAttribute('height', h);
-        r.setAttribute('fill', fillColor);
-        monSvg.appendChild(r);
-    };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 180, '#4a4a4a');
-    addRect(t2bX, baseY, t3X - t2bX, 180, '#81D4FA');
+    // ★ 舊的城市 / 海洋 / 山體已由地形圖片取代（不再繪製）
+    // addRect 移除
+    // mountain 移除
 
-    const mountain = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
-    mountain.setAttribute('fill', 'url(#monGradMountain)');
-    monSvg.appendChild(mountain);
-
-      // ★ 修復：groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
-    // ★ 新增：整體往下平移 140px，讓索道在 map 頁面居中
-    const MAP_Y_OFFSET = 140;
+    // ★ 新增：整體往下平移
+    const MON_Y_OFFSET = 140;
 
     let groundPts = [];
-    segments.forEach((s,i) => {
-        // 優先讀取 window.mdStationX/Y（與 monitor-dashboard.js 一致）
+    segments.forEach((s, i) => {
         const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
             ? window.mdStationX[s]
             : xCoords[i];
         const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s]
             : baseY;
-        const gy = gyBase + MAP_Y_OFFSET;   // ★ 加上平移補償
+        const gy = gyBase + MON_Y_OFFSET;
         groundPts.push([gx, gy]);
+
+        // ★ 站點圓點
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', gx);
         circle.setAttribute('cy', gy);
@@ -181,6 +187,8 @@ async function monInitMap() {
         circle.setAttribute('stroke', '#444');
         circle.setAttribute('stroke-width', '3');
         monSvg.appendChild(circle);
+
+        // ★ 站點文字
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
         txt.setAttribute('x', gx);
