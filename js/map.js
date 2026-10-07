@@ -112,7 +112,83 @@ async function mapInit() {
     // ----- 建立白色背景 -----
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
+    bgRect.se    // ★ 白色背景（保留，作為圖片載入失敗時的底層）
+    const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
     bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '1000');
+    bgRect.setAttribute('fill', '#f0f4f8');
+    mapSvg.appendChild(bgRect);
+
+    // ★ 新增：地形圖片背景（與 monitor-dashboard 一致）
+    const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    terrainImg.setAttribute('id', 'map-terrain-img');
+    terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
+    terrainImg.setAttribute('href', 'assets/map-terrain.png');
+    terrainImg.setAttribute('preserveAspectRatio', 'none');
+    terrainImg.setAttribute('x', '0');
+    terrainImg.setAttribute('y', '-500');
+    terrainImg.setAttribute('width', '2800');
+    terrainImg.setAttribute('height', '1334.4');
+    mapSvg.appendChild(terrainImg);
+
+    terrainImg.addEventListener('load', () => {
+        console.log('✅ map 地形圖片載入成功');
+    });
+    terrainImg.addEventListener('error', () => {
+        console.error('❌ map 地形圖片載入失敗，請檢查路徑：assets/map-terrain.png');
+    });
+
+    // 確保 defs 中包含 highlightGlow 濾鏡
+    if (defs) {
+        let glowFilter = defs.querySelector('#highlightGlow');
+        if (!glowFilter) {
+            // ... 原本的建立 highlightGlow filter 邏輯 ...
+        }
+    }
+
+    // ----- 計算站點座標 -----
+    const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
+    const slots = [2,2,2,2,10,6,5,1,2,7,3];
+    const startX = 50, endX = 2750, unit = (endX - startX) / 42;
+    const baseY = 600;
+    let x = startX;
+    const xCoords = [x];
+    for(let i=0;i<slots.length;i++){ x += slots[i]*unit; xCoords.push(x); }
+
+    // ★ 舊的城市 / 海洋 / 山體已由地形圖片取代（不再繪製）
+    // addRect(...) 全部移除
+    // mountain path 移除
+
+    // ★ groundPts 座標與 monitor-dashboard 統一
+    const MAP_Y_OFFSET = 140;
+
+    let groundPts = [];
+    segments.forEach((s,i) => {
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s]
+            : xCoords[i];
+        const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s]
+            : baseY;
+        const gy = gyBase + MAP_Y_OFFSET;
+        groundPts.push([gx, gy]);
+
+        // ★ 站點符號（保留）
+        const use = document.createElementNS('http://www.w3.org/2000/svg','use');
+        use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
+        use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
+        mapSvg.appendChild(use);
+
+        // ★ 站點文字（保留）
+        const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+        txt.textContent = s;
+        txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('class', 'label');
+        txt.setAttribute('fill', '#000');
+        txt.setAttribute('font-weight', 'bold');
+        mapSvg.appendChild(txt);
+    });tAttribute('width', '2800'); bgRect.setAttribute('height', '1000');
     bgRect.setAttribute('fill', '#f0f4f8');
     mapSvg.appendChild(bgRect);
 
