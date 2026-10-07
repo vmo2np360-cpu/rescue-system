@@ -85,6 +85,7 @@ async function mapInit() {
     }
 
     // ★ 清空 SVG（保留 defs）
+    // ★ 清空 SVG（保留 defs）
     const defs = mapSvg.querySelector('defs');
     while (mapSvg.firstChild) {
         mapSvg.removeChild(mapSvg.firstChild);
@@ -94,7 +95,7 @@ async function mapInit() {
     // ★ 清空車廂陣列（避免舊引用殘留）
     mapCabins = [];
 
-       // 設定 viewBox（與 monitor-dashboard 一致，高度 1000）
+    // 設定 viewBox（與 monitor-dashboard 一致，高度 1000）
     mapSvg.setAttribute('viewBox', '0 0 2800 1000');
 
     // ★ 從 Firestore 讀取偏移量
@@ -108,11 +109,7 @@ async function mapInit() {
     if (mapToggleBtn) mapToggleBtn.textContent = '切換到 ' + (mapCabinMode===84?'109':'84') + ' 車廂';
     localStorage.setItem('mapCabinMode', mapCabinMode);
 
-    // ----- 建立白色背景 -----
-    // ----- 建立白色背景 -----
-    const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
-    bgRect.se    // ★ 白色背景（保留，作為圖片載入失敗時的底層）
+    // ----- 建立白色背景（圖片載入失敗時的底層） -----
     const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     bgRect.setAttribute('x', '0'); bgRect.setAttribute('y', '0');
     bgRect.setAttribute('width', '2800'); bgRect.setAttribute('height', '1000');
@@ -137,60 +134,6 @@ async function mapInit() {
     terrainImg.addEventListener('error', () => {
         console.error('❌ map 地形圖片載入失敗，請檢查路徑：assets/map-terrain.png');
     });
-
-    // 確保 defs 中包含 highlightGlow 濾鏡
-    if (defs) {
-        let glowFilter = defs.querySelector('#highlightGlow');
-        if (!glowFilter) {
-            // ... 原本的建立 highlightGlow filter 邏輯 ...
-        }
-    }
-
-    // ----- 計算站點座標 -----
-    const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
-    const slots = [2,2,2,2,10,6,5,1,2,7,3];
-    const startX = 50, endX = 2750, unit = (endX - startX) / 42;
-    const baseY = 600;
-    let x = startX;
-    const xCoords = [x];
-    for(let i=0;i<slots.length;i++){ x += slots[i]*unit; xCoords.push(x); }
-
-    // ★ 舊的城市 / 海洋 / 山體已由地形圖片取代（不再繪製）
-    // addRect(...) 全部移除
-    // mountain path 移除
-
-    // ★ groundPts 座標與 monitor-dashboard 統一
-    const MAP_Y_OFFSET = 140;
-
-    let groundPts = [];
-    segments.forEach((s,i) => {
-        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
-            ? window.mdStationX[s]
-            : xCoords[i];
-        const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
-            ? window.mdStationY[s]
-            : baseY;
-        const gy = gyBase + MAP_Y_OFFSET;
-        groundPts.push([gx, gy]);
-
-        // ★ 站點符號（保留）
-        const use = document.createElementNS('http://www.w3.org/2000/svg','use');
-        use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
-        use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
-        mapSvg.appendChild(use);
-
-        // ★ 站點文字（保留）
-        const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-        txt.textContent = s;
-        txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
-        txt.setAttribute('text-anchor', 'middle');
-        txt.setAttribute('class', 'label');
-        txt.setAttribute('fill', '#000');
-        txt.setAttribute('font-weight', 'bold');
-        mapSvg.appendChild(txt);
-    });tAttribute('width', '2800'); bgRect.setAttribute('height', '1000');
-    bgRect.setAttribute('fill', '#f0f4f8');
-    mapSvg.appendChild(bgRect);
 
     // 確保 defs 中包含 highlightGlow 濾鏡
     if (defs) {
@@ -221,57 +164,40 @@ async function mapInit() {
         }
     }
 
-    // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
-      // ----- 建立地圖元素 (城市、海洋、山脈、纜繩等) -----
+    // ----- 計算站點座標 -----
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     const slots = [2,2,2,2,10,6,5,1,2,7,3];
     const startX = 50, endX = 2750, unit = (endX - startX) / 42;
-    const baseY = 600, topY = 300, npY = 340;
+    const baseY = 600;
     let x = startX;
     const xCoords = [x];
-    for(let i=0;i<slots.length;i++){ x += slots[i]*unit; xCoords.push(x); }
-    const t2bX = xCoords[4], t3X = xCoords[5], nlsX = xCoords[8], npX = xCoords[11];
+    for (let i = 0; i < slots.length; i++) { x += slots[i] * unit; xCoords.push(x); }
 
-    const addRect = (x, y, w, h, cls, fillColor) => {
-        const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
-        r.setAttribute('x', x);
-        r.setAttribute('y', y);
-        r.setAttribute('width', w);
-        r.setAttribute('height', h);
-        r.setAttribute('class', cls);
-        if (fillColor) r.setAttribute('fill', fillColor);
-        mapSvg.appendChild(r);
-    };
-    addRect(xCoords[0], baseY, t2bX - xCoords[0], 100, 'city', '#d4d4d4');
-    addRect(t2bX, baseY, t3X - t2bX, 100, 'sea', '#81D4FA');
-    const mountain = document.createElementNS('http://www.w3.org/2000/svg','path');
-    mountain.setAttribute('d', `M${t3X},${baseY} L${nlsX},${topY} L${npX},${npY} L${npX},1000 L${t3X},1000 Z`);
-    mountain.setAttribute('fill','url(#gradMountain)');
-    mapSvg.appendChild(mountain);
-
-    // ★ 修復：groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
-     // ★ 修復：groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
-    // ★ 新增：整體往下平移 140px，讓索道在 map 頁面居中
+    // ★ groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
     const MAP_Y_OFFSET = 140;
 
     let groundPts = [];
-    segments.forEach((s,i) => {
-        // 優先讀取 window.mdStationX/Y（與 monitor-dashboard.js 一致）
+    segments.forEach((s, i) => {
         const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
             ? window.mdStationX[s]
             : xCoords[i];
         const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s]
             : baseY;
-        const gy = gyBase + MAP_Y_OFFSET;   // ★ 加上平移補償
+        const gy = gyBase + MAP_Y_OFFSET;
         groundPts.push([gx, gy]);
+
+        // 站點符號
         const use = document.createElementNS('http://www.w3.org/2000/svg','use');
         use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
         use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
         mapSvg.appendChild(use);
+
+        // 站點文字
         const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
         txt.textContent = s;
-        txt.setAttribute('x', gx); txt.setAttribute('y', gy+25);
+        txt.setAttribute('x', gx);
+        txt.setAttribute('y', gy + 25);
         txt.setAttribute('text-anchor', 'middle');
         txt.setAttribute('class', 'label');
         txt.setAttribute('fill', '#000');
