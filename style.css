@@ -411,12 +411,13 @@ tr:hover td { background: #f8fafc; }
     flex-direction: column;
     gap: 12px;
     min-height: 0;
+    overflow: hidden;   /* ★ 新增 */
 }
 
 /* 地圖容器 (40%) */
 .map-svg-wrapper {
     flex: 4;
-    min-height: 0;
+    min-height: 250px;   /* ★ 從 0 改成 250px */
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -462,12 +463,13 @@ tr:hover td { background: #f8fafc; }
 }
 
 /* 表格容器 (60%) */
-.map-tables-container {
+..map-tables-container {
     flex: 6;
     display: flex;
     gap: 12px;
-    min-height: 0;
-    min-height: 200px;   /* ★ 保底高度，確保表格可見 */
+    min-height: 0;       /* ★ 保留這行 */
+    overflow: hidden;    /* ★ 新增 */
+    /* min-height: 200px;  ← 刪除這行 */
 }
 
 .map-table-panel {
