@@ -190,34 +190,18 @@ async function mapInit() {
         // ★ groundPts 座標與 monitor-dashboard 統一（讀取 window.mdStationX/Y）
         const MAP_Y_OFFSET = 140;
 
-        let groundPts = [];
-        segments.forEach((s, i) => {
-            const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
-                ? window.mdStationX[s]
-                : xCoords[i];
-            const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
-                ? window.mdStationY[s]
-                : baseY;
-            const gy = gyBase + MAP_Y_OFFSET;
-            groundPts.push([gx, gy]);
-
-            // 站點符號
-            const use = document.createElementNS('http://www.w3.org/2000/svg','use');
-            use.setAttribute('href', ['TC','AIAS','NLS','NP'].includes(s) ? '#stationSymbol' : '#towerSymbol');
-            use.setAttribute('transform', `translate(${gx},${gy}) scale(0.6)`);
-            mapSvg.appendChild(use);
-
-            // 站點文字
-            const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-            txt.textContent = s;
-            txt.setAttribute('x', gx);
-            txt.setAttribute('y', gy + 25);
-            txt.setAttribute('text-anchor', 'middle');
-            txt.setAttribute('class', 'label');
-            txt.setAttribute('fill', '#000');
-            txt.setAttribute('font-weight', 'bold');
-            mapSvg.appendChild(txt);
-        });
+  // ★★★ 修正：只計算 groundPts（用於纜繩），站點符號與文字由其他模組負責 ★★★
+let groundPts = [];
+segments.forEach((s, i) => {
+    const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+        ? window.mdStationX[s]
+        : xCoords[i];
+    const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
+        ? window.mdStationY[s]
+        : baseY;
+    const gy = gyBase + MAP_Y_OFFSET;
+    groundPts.push([gx, gy]);
+});
 
         const up = groundPts.map(p => [p[0], p[1]-70]);
         const down = groundPts.map(p => [p[0], p[1]+70]).reverse();
