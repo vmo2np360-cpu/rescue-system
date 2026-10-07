@@ -156,7 +156,6 @@ tr:hover td { background: #f8fafc; }
    ★ Monitor 頁面專屬樣式
    ================================================================ */
 
-/* 延遲警報橫幅 */
 #delayAlertContainer {
     display: none;
     align-items: center;
@@ -168,31 +167,13 @@ tr:hover td { background: #f8fafc; }
     flex-shrink: 0;
     animation: pulseAlert 1.5s ease-in-out infinite;
 }
-#delayAlertContainer.show {
-    display: flex;
-}
-#delayAlertContainer.warning {
-    background: rgba(234, 179, 8, 0.2);
-    border: 2px solid #eab308;
-    color: #eab308;
-}
-#delayAlertContainer.danger {
-    background: rgba(239, 68, 68, 0.2);
-    border: 2px solid #ef4444;
-    color: #ef4444;
-}
-#delayAlertContainer .alert-icon {
-    font-size: 20px;
-}
-#delayAlertContainer .alert-text {
-    white-space: nowrap;
-}
-@keyframes pulseAlert {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
+#delayAlertContainer.show { display: flex; }
+#delayAlertContainer.warning { background: rgba(234, 179, 8, 0.2); border: 2px solid #eab308; color: #eab308; }
+#delayAlertContainer.danger { background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; color: #ef4444; }
+#delayAlertContainer .alert-icon { font-size: 20px; }
+#delayAlertContainer .alert-text { white-space: nowrap; }
+@keyframes pulseAlert { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
-/* 救援建議區塊 */
 .rescue-suggestion-container {
     margin-top: 8px;
     padding-top: 8px;
@@ -228,9 +209,7 @@ tr:hover td { background: #f8fafc; }
     border-radius: 4px;
     transition: background 0.2s;
 }
-.rescue-suggestion-container .suggestion-header .toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
+.rescue-suggestion-container .suggestion-header .toggle-btn:hover { background: rgba(255, 255, 255, 0.1); }
 .rescue-suggestion-container .suggestion-content {
     overflow: hidden;
     transition: max-height 0.3s ease;
@@ -247,16 +226,9 @@ tr:hover td { background: #f8fafc; }
     overflow-y: auto;
     padding: 12px;
 }
-.rescue-suggestion-container .suggestion-content::-webkit-scrollbar {
-    width: 4px;
-    background: transparent;
-}
-.rescue-suggestion-container .suggestion-content::-webkit-scrollbar-thumb {
-    background: #2a4a6a;
-    border-radius: 2px;
-}
+.rescue-suggestion-container .suggestion-content::-webkit-scrollbar { width: 4px; background: transparent; }
+.rescue-suggestion-container .suggestion-content::-webkit-scrollbar-thumb { background: #2a4a6a; border-radius: 2px; }
 
-/* 最優先車廂卡片 */
 .top-priority-cabin {
     background: rgba(255, 215, 0, 0.08);
     border: 2px solid #ffd700;
@@ -274,49 +246,18 @@ tr:hover td { background: #f8fafc; }
     0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.2); }
     50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4); }
 }
-.top-priority-cabin .cabin-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-.top-priority-cabin .cabin-number {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #ffffff;
-}
-.top-priority-cabin .health-badge {
-    padding: 2px 12px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
+.top-priority-cabin .cabin-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.top-priority-cabin .cabin-number { font-size: 1.2rem; font-weight: 700; color: #ffffff; }
+.top-priority-cabin .health-badge { padding: 2px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
 .top-priority-cabin .health-badge.red { background: #dc2626; color: #fff; }
 .top-priority-cabin .health-badge.black { background: #1a1a1a; color: #fff; }
 .top-priority-cabin .health-badge.yellow { background: #eab308; color: #000; }
 .top-priority-cabin .health-badge.green { background: #22c55e; color: #000; }
-.top-priority-cabin .wait-time {
-    font-size: 0.85rem;
-    color: #94a3b8;
-}
-.top-priority-cabin .urgency-score {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #ffd700;
-}
-.top-priority-cabin .no-data {
-    color: #94a3b8;
-    font-size: 0.9rem;
-    padding: 8px 0;
-}
+.top-priority-cabin .wait-time { font-size: 0.85rem; color: #94a3b8; }
+.top-priority-cabin .urgency-score { font-size: 1.1rem; font-weight: 700; color: #ffd700; }
+.top-priority-cabin .no-data { color: #94a3b8; font-size: 0.9rem; padding: 8px 0; }
 
-/* 其餘車廂列表 */
-.other-cabins-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 4px 0;
-}
+.other-cabins-list { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
 .other-cabins-list .other-item {
     display: flex;
     align-items: center;
@@ -328,39 +269,27 @@ tr:hover td { background: #f8fafc; }
     gap: 8px;
     flex-wrap: wrap;
 }
-.other-cabins-list .other-item .cabin-num {
-    font-weight: 600;
-    color: #e0e0e0;
-}
-.other-cabins-list .other-item .health-badge-sm {
-    padding: 1px 10px;
-    border-radius: 10px;
-    font-size: 0.65rem;
-    font-weight: 600;
-}
+.other-cabins-list .other-item .cabin-num { font-weight: 600; color: #e0e0e0; }
+.other-cabins-list .other-item .health-badge-sm { padding: 1px 10px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
 .other-cabins-list .other-item .health-badge-sm.red { background: #dc2626; color: #fff; }
 .other-cabins-list .other-item .health-badge-sm.black { background: #1a1a1a; color: #fff; }
 .other-cabins-list .other-item .health-badge-sm.yellow { background: #eab308; color: #000; }
 .other-cabins-list .other-item .health-badge-sm.green { background: #22c55e; color: #000; }
-.other-cabins-list .other-item .score-sm {
-    font-weight: 600;
-    color: #8ab4f8;
-    font-size: 0.75rem;
-}
+.other-cabins-list .other-item .score-sm { font-weight: 600; color: #8ab4f8; font-size: 0.75rem; }
 
 /* ================================================================
    地圖區塊（#section-map）- 統一管理
    ================================================================ */
 
-/* 地圖區塊容器 */
 #section-map.active {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 110px);
-    min-height: 0;            /* ★ 新增 */
+    min-height: 0;
     background: #f0f4f8;
     padding: 0 16px;
     overflow: hidden;
+    width: 100%;                    /* ★ 修正：確保滿寬 */
 }
 
 #section-map.active .map-toolbar {
@@ -411,13 +340,14 @@ tr:hover td { background: #f8fafc; }
     flex-direction: column;
     gap: 12px;
     min-height: 0;
-    overflow: hidden;   /* ★ 新增 */
+    overflow: hidden;
+    width: 100%;                    /* ★ 修正：確保滿寬 */
 }
 
 /* 地圖容器 (40%) */
 .map-svg-wrapper {
     flex: 4;
-    min-height: 250px;   /* ★ 從 0 改成 250px */
+    min-height: 250px;
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -425,17 +355,6 @@ tr:hover td { background: #f8fafc; }
     position: relative;
 }
 
-/* ★ 修復：SVG 用絕對定位填滿容器，不受 viewBox 影響 */
-.map-svg-wrapper #map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-/* 或更簡單寫法 */
 .map-svg-wrapper #map {
     position: absolute;
     inset: 0;
@@ -451,25 +370,20 @@ tr:hover td { background: #f8fafc; }
 }
 
 /* 地圖車廂已離開（藍色） */
-.cabin.status-departed polygon {
-    fill: #3b82f6;
-    stroke: #2563eb;
-}
+.cabin.status-departed polygon { fill: #3b82f6; stroke: #2563eb; }
 
 /* 監控平台地圖車廂已離開（藍色） */
-#section-monitor .cabin.status-departed polygon {
-    fill: #3b82f6;
-    stroke: #2563eb;
-}
+#section-monitor .cabin.status-departed polygon { fill: #3b82f6; stroke: #2563eb; }
 
 /* 表格容器 (60%) */
-..map-tables-container {
+/* ★★★ 修正：原本是 ..map-tables-container（兩個點），無效選擇器，已改為單點 ★★★ */
+.map-tables-container {
     flex: 6;
     display: flex;
     gap: 12px;
-    min-height: 0;       /* ★ 保留這行 */
-    overflow: hidden;    /* ★ 新增 */
-    /* min-height: 200px;  ← 刪除這行 */
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;                    /* ★ 新增 */
 }
 
 .map-table-panel {
@@ -480,9 +394,9 @@ tr:hover td { background: #f8fafc; }
     border: 1px solid #e2e8f0;
     padding: 12px 16px;
     min-height: 0;
-    overflow: hidden;   /* ★ 新增這一行 */
+    overflow: hidden;
+    min-width: 0;                   /* ★ 新增：避免 flex 子項被內容撐開 */
 }
-
 
 .map-table-header {
     display: flex;
@@ -520,7 +434,6 @@ tr:hover td { background: #f8fafc; }
     border-color: #2563eb;
 }
 
-/* ★ 車廂號碼搜尋欄專用樣式 */
 .map-table-toolbar input[type="text"][id$="CabinSearch"] {
     border-color: #3b82f6;
     background: rgba(59, 130, 246, 0.05);
@@ -545,11 +458,8 @@ tr:hover td { background: #f8fafc; }
     gap: 4px;
 }
 
-.btn-refresh:hover {
-    background: #1d4ed8;
-}
+.btn-refresh:hover { background: #1d4ed8; }
 
-/* 表格滾動容器 */
 .map-table-panel .table-wrap {
     flex: 1;
     overflow-y: auto;
@@ -590,91 +500,33 @@ tr:hover td { background: #f8fafc; }
     color: #1e293b;
 }
 
-.map-table-panel .table-wrap tr:hover td {
-    background: #f8fafc;
-}
+.map-table-panel .table-wrap tr:hover td { background: #f8fafc; }
 
-.map-table-panel .table-wrap::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-    background: #f1f5f9;
-}
+.map-table-panel .table-wrap::-webkit-scrollbar { width: 6px; height: 6px; background: #f1f5f9; }
+.map-table-panel .table-wrap::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+.map-table-panel .table-wrap::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+.map-table-panel .table-wrap::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-.map-table-panel .table-wrap::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
-}
-
-.map-table-panel .table-wrap::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 3px;
-}
-
-.map-table-panel .table-wrap::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-}
-
-.map-table-panel .status-badge {
-    padding: 2px 10px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    font-weight: 600;
-}
-
-.map-table-panel .btn-sm {
-    padding: 2px 10px;
-    border: none;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.map-table-panel .btn-edit {
-    background: #2563eb;
-    color: white;
-}
-
-.map-table-panel .btn-edit:hover {
-    background: #1d4ed8;
-}
-
-.map-table-panel .btn-delete {
-    background: #dc2626;
-    color: white;
-}
-
-.map-table-panel .btn-delete:hover {
-    background: #b91c1c;
-}
-
-.map-table-panel .btn-process {
-    background: #22c55e;
-    color: white;
-}
-
-.map-table-panel .btn-process:hover {
-    background: #16a34a;
-}
+.map-table-panel .status-badge { padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+.map-table-panel .btn-sm { padding: 2px 10px; border: none; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-weight: 500; }
+.map-table-panel .btn-edit { background: #2563eb; color: white; }
+.map-table-panel .btn-edit:hover { background: #1d4ed8; }
+.map-table-panel .btn-delete { background: #dc2626; color: white; }
+.map-table-panel .btn-delete:hover { background: #b91c1c; }
+.map-table-panel .btn-process { background: #22c55e; color: white; }
+.map-table-panel .btn-process:hover { background: #16a34a; }
 
 /* ===== 匹配提示欄（OCC 表格內） ===== */
 #matchAlertContainer {
     flex-shrink: 0;
     margin-bottom: 6px;
-    max-height: 120px;       /* ★ 上限 120px */
-    overflow-y: auto;        /* ★ 超出可滾動 */
+    max-height: 120px;
+    overflow-y: auto;
     overflow-x: hidden;
 }
 
-#matchAlertContainer::-webkit-scrollbar {
-    width: 6px;
-    background: #f1f5f9;
-}
-
-#matchAlertContainer::-webkit-scrollbar-thumb {
-    background: #94a3b8;
-    border-radius: 3px;
-}
+#matchAlertContainer::-webkit-scrollbar { width: 6px; background: #f1f5f9; }
+#matchAlertContainer::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
 
 #matchAlertContainer .match-alert {
     background: rgba(255, 215, 0, 0.08);
@@ -691,14 +543,8 @@ tr:hover td { background: #f8fafc; }
 }
 
 @keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* ===== 表單備註欄增大 ===== */
@@ -725,11 +571,7 @@ textarea#occNotes:focus {
     box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
 }
 
-/* ===== 組別列表狀態標籤 ===== */
-#cabinGroupList .status-badge {
-    font-size: 0.8rem;
-    padding: 2px 10px;
-}
+#cabinGroupList .status-badge { font-size: 0.8rem; padding: 2px 10px; }
 
 /* ================================================================
    響應式
@@ -743,7 +585,7 @@ textarea#occNotes:focus {
     .filter-row .form-group { min-width: 100%; }
     .modal-content { padding: 20px; }
     .summary-enhanced { flex-direction: column; }
-    
+
     #section-map.active {
         height: calc(100vh - 100px);
         padding: 0 8px;
@@ -752,39 +594,22 @@ textarea#occNotes:focus {
         margin-left: 0;
         margin-right: 0;
     }
-    .map-tables-container {
-        flex-direction: column;
-    }
-    .map-table-panel {
-        min-height: 200px;
-    }
-    .map-svg-wrapper {
-        min-height: 200px;
-    }
-    .map-table-toolbar {
-        flex-wrap: wrap;
-    }
-    .map-table-toolbar input[type="text"] {
-        min-width: 100px;
-        flex: 1;
-    }
+    .map-tables-container { flex-direction: column; }
+    .map-table-panel { min-height: 200px; }
+    .map-svg-wrapper { min-height: 200px; }
+    .map-table-toolbar { flex-wrap: wrap; }
+    .map-table-toolbar input[type="text"] { min-width: 100px; flex: 1; }
 }
 
 @media (max-width: 480px) {
     .app-container { padding: 0 8px; }
     .card { padding: 16px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
-    #section-map.active .map-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    #section-map.active .map-toolbar textarea {
-        min-width: unset;
-    }
-    #section-map.active .map-toolbar input[type="text"] {
-        min-width: unset;
-    }
+    #section-map.active .map-toolbar { flex-direction: column; align-items: stretch; }
+    #section-map.active .map-toolbar textarea { min-width: unset; }
+    #section-map.active .map-toolbar input[type="text"] { min-width: unset; }
 }
+
 /* ================================================================
    Incident Toolbar
    ================================================================ */
@@ -798,12 +623,7 @@ textarea#occNotes:focus {
     overflow-x: auto;
 }
 
-.incident-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
+.incident-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .incident-label {
     font-weight: 600;
@@ -831,10 +651,7 @@ textarea#occNotes:focus {
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.incident-input-num {
-    width: 100px;
-    min-width: 80px;
-}
+.incident-input-num { width: 100px; min-width: 80px; }
 
 .incident-btn {
     padding: 6px 14px;
@@ -853,38 +670,16 @@ textarea#occNotes:focus {
 }
 
 .incident-btn:hover { background: #cbd5e1; }
-
-.incident-btn-primary {
-    background: #2563eb;
-    color: white;
-}
-
+.incident-btn-primary { background: #2563eb; color: white; }
 .incident-btn-primary:hover { background: #1d4ed8; }
-
-.incident-btn-danger {
-    background: #dc2626;
-    color: white;
-}
-
+.incident-btn-danger { background: #dc2626; color: white; }
 .incident-btn-danger:hover { background: #b91c1c; }
+.incident-sep { color: #cbd5e1; margin: 0 4px; font-weight: 300; }
 
-.incident-sep {
-    color: #cbd5e1;
-    margin: 0 4px;
-    font-weight: 300;
-}
 /* ================================================================
    GS 新模式樣式
    ================================================================ */
-
-/* 模式切換按鈕 */
-.gs-mode-switch {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-
+.gs-mode-switch { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .gs-mode-btn {
     padding: 10px 20px;
     border: 2px solid #e2e8f0;
@@ -896,23 +691,10 @@ textarea#occNotes:focus {
     transition: 0.2s;
     color: #1e293b;
 }
+.gs-mode-btn:hover:not(:disabled) { background: #f1f5f9; }
+.gs-mode-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+.gs-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.gs-mode-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-}
-
-.gs-mode-btn.active {
-    background: #2563eb;
-    color: white;
-    border-color: #2563eb;
-}
-
-.gs-mode-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* 進行中救援 Banner */
 .gs-ongoing-banner {
     background: #fef3c7;
     border: 2px solid #eab308;
@@ -920,20 +702,8 @@ textarea#occNotes:focus {
     padding: 12px 16px;
     margin-bottom: 16px;
 }
-
-.gs-ongoing-header {
-    font-weight: 700;
-    color: #92400e;
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-}
-
-.gs-ongoing-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
+.gs-ongoing-header { font-weight: 700; color: #92400e; margin-bottom: 8px; font-size: 0.95rem; }
+.gs-ongoing-list { display: flex; flex-direction: column; gap: 6px; }
 .gs-ongoing-item {
     display: flex;
     justify-content: space-between;
@@ -945,7 +715,6 @@ textarea#occNotes:focus {
     gap: 8px;
     flex-wrap: wrap;
 }
-
 .gs-ongoing-item button {
     padding: 4px 14px;
     background: #22c55e;
@@ -956,12 +725,8 @@ textarea#occNotes:focus {
     font-weight: 500;
     font-size: 0.85rem;
 }
+.gs-ongoing-item button:hover { background: #16a34a; }
 
-.gs-ongoing-item button:hover {
-    background: #16a34a;
-}
-
-/* 修改模式 Banner */
 .gs-modify-banner {
     display: flex;
     justify-content: space-between;
@@ -974,13 +739,7 @@ textarea#occNotes:focus {
     gap: 12px;
     flex-wrap: wrap;
 }
-
-.gs-modify-text {
-    color: #1e40af;
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
+.gs-modify-text { color: #1e40af; font-weight: 600; font-size: 0.95rem; }
 .gs-modify-cancel {
     padding: 6px 16px;
     background: #dc2626;
@@ -991,11 +750,8 @@ textarea#occNotes:focus {
     font-weight: 500;
     font-size: 0.85rem;
 }
+.gs-modify-cancel:hover { background: #b91c1c; }
 
-.gs-modify-cancel:hover {
-    background: #b91c1c;
-}
-/* ===== 表格內的小按鈕（覆蓋 .btn-primary 的 width:100%） ===== */
 .btn-sm {
     width: auto !important;
     padding: 4px 10px !important;
@@ -1007,6 +763,7 @@ textarea#occNotes:focus {
     margin: 2px;
     vertical-align: middle;
 }
+
 /* ================================================================
    OCC 佈局（左 4 : 右 6）
    ================================================================ */
@@ -1016,17 +773,8 @@ textarea#occNotes:focus {
     gap: 16px;
     align-items: start;
 }
-
-.occ-left,
-.occ-right {
-    min-width: 0;
-}
-
-.occ-left .card,
-.occ-right .card {
-    margin-bottom: 0;
-}
-
+.occ-left, .occ-right { min-width: 0; }
+.occ-left .card, .occ-right .card { margin-bottom: 0; }
 .occ-card-title {
     color: #1e3a5f;
     font-size: 1.05rem;
@@ -1038,20 +786,9 @@ textarea#occNotes:focus {
     padding-bottom: 8px;
     border-bottom: 2px solid #e2e8f0;
 }
+.occ-right .table-wrap { max-height: 65vh; overflow-y: auto; }
 
-.occ-right .table-wrap {
-    max-height: 65vh;
-    overflow-y: auto;
-}
-
-/* 響應式：小屏改為上下堆疊 */
 @media (max-width: 1200px) {
-    .occ-layout {
-        grid-template-columns: 1fr;
-    }
-    .occ-right .table-wrap {
-        max-height: 50vh;
-    }
+    .occ-layout { grid-template-columns: 1fr; }
+    .occ-right .table-wrap { max-height: 50vh; }
 }
-
-
