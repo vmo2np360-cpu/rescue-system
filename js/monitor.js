@@ -121,6 +121,7 @@ async function monInitMap() {
     monSvg.appendChild(defs);
 
      // ★ 深色背景（保留，作為圖片載入失敗時的底層）
+      // ★ 深色背景（保留，作為圖片載入失敗時的底層）
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
