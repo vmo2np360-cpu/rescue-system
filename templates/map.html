@@ -1,7 +1,6 @@
 <h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-map-marked-alt"></i> 救援地圖</h2>
 <div id="mapMessage" class="message"></div>
 
-<!-- ★ 置頂標籤已刪除，地圖向上移動 -->
 <!-- ===== Incident 事件資訊 ===== -->
 <div class="incident-toolbar">
     <div class="incident-row">
@@ -57,6 +56,7 @@
 
     </div>
 </div>
+
 <div class="map-toolbar">
     <textarea id="seqInput" placeholder="輸入車廂號碼 (逗號或空格分隔)"></textarea>
     <button onclick="mapApplySequences()" style="background:#2563eb;color:white;">套用</button>
@@ -107,52 +107,11 @@
                     <circle cx="0" cy="-100" r="6" fill="#616161" stroke="#222"/>
                 </g>
             </defs>
-            
-            <!-- ★ 地圖內部摘要 -->
-            <g id="svgSummary" transform="translate(700,0)">
-                <rect x="0" y="0" width="600" height="90" rx="12" fill="white" stroke="#ccc"/>
-                <g transform="translate(30, 20)">
-                    <rect x="0" y="0" width="24" height="24" fill="#dc2626" rx="4"/>
-                    <text x="32" y="18" font-size="20" fill="#333">等待救援</text>
-                    <text x="140" y="18" font-size="20" font-weight="bold" fill="#dc2626" id="mapWaitingSvg">0</text>
-                </g>
-                <g transform="translate(230, 20)">
-                    <rect x="0" y="0" width="24" height="24" fill="#eab308" rx="4"/>
-                    <text x="32" y="18" font-size="20" fill="#333">救援中</text>
-                    <text x="120" y="18" font-size="20" font-weight="bold" fill="#eab308" id="mapRescuingSvg">0</text>
-                </g>
-                <g transform="translate(430, 20)">
-                    <rect x="0" y="0" width="24" height="24" fill="#22c55e" rx="4"/>
-                    <text x="32" y="18" font-size="20" fill="#333">已著陸</text>
-                    <text x="120" y="18" font-size="20" font-weight="bold" fill="#22c55e" id="mapLandedSvg">0</text>
-                </g>
-            </g>
-            
-            <!-- ★ 圖例 -->
-            <g id="legend" transform="translate(1600,460)">
-                <rect x="0" y="0" width="320" height="280" fill="white" stroke="#333" rx="8"/>
-                <text x="160" y="40" font-size="40" font-weight="bold" text-anchor="middle">車廂狀態</text>
-                <g transform="translate(25,60)">
-                    <rect width="26" height="26" fill="#22c55e" stroke="#333"/>
-                    <text x="40" y="19" font-size="30">已著陸</text>
-                </g>
-                <g transform="translate(25,100)">
-                    <rect width="26" height="26" fill="#3b82f6" stroke="#333"/>
-                    <text x="40" y="19" font-size="30">已離開</text>
-                </g>
-                <g transform="translate(25,140)">
-                    <rect width="26" height="26" fill="#eab308" stroke="#333"/>
-                    <text x="40" y="19" font-size="30">救援中</text>
-                </g>
-                <g transform="translate(25,180)">
-                    <rect width="26" height="26" fill="#dc2626" stroke="#333"/>
-                    <text x="40" y="19" font-size="30">等待救援</text>
-                </g>
-                <g transform="translate(25,220)">
-                    <rect width="26" height="26" fill="#e2e8f0" stroke="#333"/>
-                    <text x="40" y="19" font-size="30">無組別記錄</text>
-                </g>
-            </g>
+
+            <!-- ★★★ 修正：以下 <g id="svgSummary"> 和 <g id="legend"> 已刪除 ★★★
+                 原本寫死在 HTML 內，會與 map.js 動態建立的同名元素衝突，
+                 導致 ID 重複、getElementById 抓到錯誤元素、圖示重複出現。
+                 現在全部由 map.js 的 mapInit() 統一動態建立。 -->
         </svg>
     </div>
 
