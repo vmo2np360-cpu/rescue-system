@@ -472,14 +472,7 @@ segments.forEach((s, i) => {
         await performAutoMatch();
 
         // ★★★★★ 設定表格滾動與對比結果容器 ★★★★★
-        const rescueWrap = document.getElementById('mapRescueTableWrap');
-        const occWrap = document.getElementById('mapOccTableWrap');
-        if (rescueWrap) {
-            rescueWrap.style.overflowY = 'auto';
-        }
-        if (occWrap) {
-            occWrap.style.overflowY = 'auto';
-        }
+    
         if (!document.getElementById('occComparisonResult')) {
             const container = document.createElement('div');
             container.id = 'occComparisonResult';
