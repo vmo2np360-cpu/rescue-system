@@ -284,12 +284,12 @@ tr:hover td { background: #f8fafc; }
 #section-map.active {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 110px);
-    min-height: 0;
+    height: auto;              /* ★ */
+    min-height: auto;
     background: #f0f4f8;
-    padding: 0 16px;
-    overflow: hidden;
-    width: 100%;                    /* ★ 修正：確保滿寬 */
+    padding: 0 16px 30px;
+    overflow: visible;         /* ★ */
+    width: 100%;
 }
 
 #section-map.active .map-toolbar {
@@ -335,22 +335,21 @@ tr:hover td { background: #f8fafc; }
 
 /* 地圖 + 表格容器 (4:6) */
 .map-content-container {
-    flex: 1;
+    flex: none;                /* ★ */
     display: flex;
     flex-direction: column;
     gap: 12px;
     min-height: 0;
-    overflow: hidden;
-    width: 100%;                    /* ★ 修正：確保滿寬 */
+    overflow: visible;         /* ★ */
+    width: 100%;
 }
 
 /* 地圖容器 (40%) */
 /* 地圖容器 (40%) */
 .map-svg-wrapper {
-    flex: 4;                       /* ★ 改回 flex: 4 */
-    min-height: 200px;             /* ★ 最低高度 */
-    /* ★ 刪除 aspect-ratio: 2800 / 1000; */
-    /* ★ 刪除 flex: none; */
+    flex: none;
+    width: 100%;
+    height: 400px;             /* ★ 可調整 */
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -382,10 +381,10 @@ tr:hover td { background: #f8fafc; }
 /* ★★★ 修正：原本是 ..map-tables-container（兩個點），無效選擇器，已改為單點 ★★★ */
 /* 表格容器 (60%) */
 .map-tables-container {
-    flex: 6;
+    flex: none;                /* ★ */
     display: flex;
     gap: 12px;
-    min-height: 250px;             /* ★ 從 0 改成 250px */
+    height: 500px;             /* ★ 固定高度，可調整 */
     overflow: hidden;
     width: 100%;
 }
@@ -399,7 +398,7 @@ tr:hover td { background: #f8fafc; }
     padding: 12px 16px;
     min-height: 0;
     overflow: hidden;
-    min-width: 0;                   /* ★ 新增：避免 flex 子項被內容撐開 */
+    min-width: 0;
 }
 
 .map-table-header {
@@ -465,11 +464,10 @@ tr:hover td { background: #f8fafc; }
 .btn-refresh:hover { background: #1d4ed8; }
 
 .map-table-panel .table-wrap {
-    flex: 1;
-    overflow-y: auto;
+    flex: 1;                   /* ★ 佔滿 panel */
+    overflow-y: auto;          /* ★ 內部捲動 */
     overflow-x: hidden;
     min-height: 0;
-    /* ★ 不要有 max-height */
     scrollbar-width: auto;
     scrollbar-color: #94a3b8 #f1f5f9;
 }
