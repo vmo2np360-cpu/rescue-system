@@ -1,6 +1,7 @@
 // ==================== Firebase 初始化 ====================
 const firebaseConfig = {
-    apiKey: "AIzaSyCgSaPKhaaX9cP1tY-ThykJvo_sJtVyyDcfunction showNavbar(duration = 10000) {
+    apiKey: "AIzaSyCgSaPKhaaX9cP1tY-ThykJvo_sJtVyyDc",
+    authDomain: "qrcodesystem-bceda.firebaseapp.com",
     databaseURL: "https://qrcodesystem-bceda-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "qrcodesystem-bceda",
     storageBucket: "qrcodesystem-bceda.firebasestorage.app",
@@ -21,9 +22,6 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
 
 // ================================================================
 // ★ 全域站點座標（map / monitor / monitor-dashboard 統一使用）
-// 可透過 Console 即時調整：
-//   mdSetStationX('NP', 2800)
-//   mdSetStationY('NP', 300)
 // ================================================================
 window.mdStationX = window.mdStationX || {
     'TC':   50,
@@ -79,18 +77,17 @@ const PERMISSIONS = {
         'index_rescue_map': ['admin', 'occ'],
         'recourse': ['admin', 'occ', 'gr'],
         'monitor': ['admin', 'occ', 're'],
-        'monitor_dashboard': ['admin', 'occ', 're'],   // ★ 新增這行
+        'monitor_dashboard': ['admin', 'occ', 're'],
         'audit': ['admin', 'occ'],
         'index_cabin_photos': ['admin', 'occ'],
-
     },
     collections: {
-      'guests': {
-    create: ['admin', 'gs', 'occ'],
-    read:   ['admin', 'gs', 'ap', 'occ'],
-    update: ['admin', 'gs', 'ap', 'occ'],
-    delete: ['admin', 'gs', 'occ', 'ap'],   // ★ 加入 ap
-},
+        'guests': {
+            create: ['admin', 'gs', 'occ'],
+            read:   ['admin', 'gs', 'ap', 'occ'],
+            update: ['admin', 'gs', 'ap', 'occ'],
+            delete: ['admin', 'gs', 'occ', 'ap'],
+        },
         'rescue_records': {
             create: ['admin', 'occ', 'gr'],
             read: ['admin', 'occ', 'gr'],
@@ -347,7 +344,7 @@ function hideLoader() {
 }
 
 // ================================================================
-// ★ 日誌記錄模組（方案 A + 抽象層）
+// ★ 日誌記錄模組
 // ================================================================
 
 let _logActionImpl = null;
@@ -439,7 +436,7 @@ function listenGlobalOffset(callback) {
 }
 
 // ================================================================
-// ★ 全域車廂模式同步（Firestore）【新增】
+// ★ 全域車廂模式同步（Firestore）
 // ================================================================
 
 const MAP_MODE_DOC = 'config/mapMode';
@@ -450,7 +447,7 @@ async function getGlobalModeFromFirestore() {
         if (doc.exists && doc.data().mode !== undefined) {
             return doc.data().mode;
         }
-        return 84; // 預設值
+        return 84;
     } catch (e) {
         console.warn('讀取模式失敗，使用 84:', e);
         return 84;
@@ -536,7 +533,6 @@ window.logAction = logAction;
 window.getGlobalOffsetFromFirestore = getGlobalOffsetFromFirestore;
 window.setGlobalOffsetToFirestore = setGlobalOffsetToFirestore;
 window.listenGlobalOffset = listenGlobalOffset;
-// ★ 新增模式同步函數匯出
 window.getGlobalModeFromFirestore = getGlobalModeFromFirestore;
 window.setGlobalModeToFirestore = setGlobalModeToFirestore;
 window.listenGlobalMode = listenGlobalMode;
@@ -545,12 +541,8 @@ window.listenGlobalMode = listenGlobalMode;
 // ★ 跨域協調系統：連線狀態 + 最後同步時間
 // ================================================================
 
-let _connectionState = 'unknown'; // 'online' | 'offline' | 'reconnecting'
+let _connectionState = 'unknown';
 
-/**
- * 監聽 Firebase Realtime DB 連線狀態
- * .info/connected 是 Firebase 內建的特殊路徑，會即時反映連線狀態
- */
 function initConnectionMonitor() {
     const connectedRef = firebase.database().ref('.info/connected');
 
@@ -565,7 +557,6 @@ function initConnectionMonitor() {
             _connectionState = 'online';
             el.classList.remove('offline', 'reconnecting');
             textEl.textContent = '已連線';
-            // 恢復連線時，立即更新一次同步時間
             updateLastSyncTime();
             console.log('🟢 已連線到 Firebase');
         } else {
@@ -577,7 +568,6 @@ function initConnectionMonitor() {
         }
     });
 
-    // Firestore 也有連線監聽（作為補充）
     try {
         db.enableNetwork().catch(() => {});
     } catch (e) {
@@ -585,10 +575,6 @@ function initConnectionMonitor() {
     }
 }
 
-/**
- * 更新「最後同步時間」顯示
- * 每當 Firestore / Realtime DB 有資料更新時呼叫
- */
 function updateLastSyncTime() {
     const el = document.getElementById('last-sync-time');
     if (!el) return;
@@ -597,7 +583,6 @@ function updateLastSyncTime() {
     const pad = (n) => String(n).padStart(2, '0');
     el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    // 圖示旋轉動畫
     const icon = document.getElementById('sync-icon');
     if (icon) {
         icon.classList.add('sync-spinning');
@@ -605,22 +590,16 @@ function updateLastSyncTime() {
     }
 }
 
-/**
- * 取得目前連線狀態
- */
 function getConnectionState() {
     return _connectionState;
 }
 
-// 頁面載入後啟動連線監聽
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initConnectionMonitor);
 } else {
-    // DOM 已就緒（動態載入時可能已經過了 DOMContentLoaded）
     setTimeout(initConnectionMonitor, 100);
 }
 
-// 每 30 秒檢查一次，若超過 60 秒沒同步就顯示警告
 setInterval(() => {
     const el = document.getElementById('last-sync-time');
     if (!el || _connectionState !== 'online') return;
@@ -628,18 +607,15 @@ setInterval(() => {
     const text = el.textContent;
     if (!text || text === '--:--:--') return;
 
-    // 解析 HH:MM:SS
     const [h, m, s] = text.split(':').map(Number);
     const syncTime = new Date();
     syncTime.setHours(h, m, s, 0);
 
-    // 若同步時間大於現在，代表是跨日或剛跨過午夜，忽略
     if (syncTime > new Date()) return;
 
     const diffSec = (Date.now() - syncTime.getTime()) / 1000;
 
     if (diffSec > 60) {
-        // 超過 60 秒沒同步 → 顯示警告色
         el.style.color = '#eab308';
         el.title = `已 ${Math.round(diffSec)} 秒未收到更新`;
     } else {
@@ -648,12 +624,11 @@ setInterval(() => {
     }
 }, 30000);
 
-// ★ 暴露全域
 window.updateLastSyncTime = updateLastSyncTime;
 window.getConnectionState = getConnectionState;
 window.initConnectionMonitor = initConnectionMonitor;
 
-// ★ 通用 XSS 轉義（統一版本）
+// ★ 通用 XSS 轉義
 function escapeHtml(s) {
     if (s === null || s === undefined) return '';
     return String(s).replace(/[&<>"']/g, m => ({
@@ -670,12 +645,13 @@ window.escapeHtml = escapeHtml;
 window.escapeJs = escapeJs;
 
 // ================================================================
-// ★ 手機版 Navbar：10 秒自動隱藏 + 觸控喚出
+// ★ Navbar 自動隱藏（桌機 + 手機通用）
 // ================================================================
 
 let _navbarHideTimer = null;
 let _navbarTouchStartY = 0;
 let _navbarTouchActive = false;
+let _navbarInitialized = false;
 
 /**
  * 判斷是否為手機版
@@ -685,25 +661,25 @@ function isMobileNavbar() {
 }
 
 /**
- * 顯示 Navbar 並啟動 10 秒倒數自動隱藏
- * @param {number} duration - 顯示持續時間（毫秒），預設 10000
+ * 顯示 Navbar 並啟動倒數自動隱藏
+ * @param {number} duration - 顯示持續時間（毫秒），預設 6000
  */
 function showNavbar(duration = 6000) {
     const navbar = document.getElementById('navbar');
     if (!navbar) return;
 
-    // 顯示
     navbar.classList.remove('mobile-hidden');
 
-    // 清除舊的計時器
     if (_navbarHideTimer) clearTimeout(_navbarHideTimer);
 
-    // 時間到自動隱藏
     _navbarHideTimer = setTimeout(() => {
         hideNavbar();
     }, duration);
 }
 
+/**
+ * 隱藏 Navbar（桌機 + 手機通用）
+ */
 function hideNavbar() {
     const navbar = document.getElementById('navbar');
     if (!navbar) return;
@@ -715,43 +691,6 @@ function hideNavbar() {
         _navbarHideTimer = null;
     }
 
-    // 顯示提示 3 秒
-    const hint = document.getElementById('navbar-touch-hint');
-    if (hint) {
-        hint.classList.add('show');
-        setTimeout(() => hint.classList.remove('show'), 3000);
-    }
-}
-
-    // 顯示
-    navbar.classList.remove('mobile-hidden');
-
-    // 清除舊的計時器
-    if (_navbarHideTimer) clearTimeout(_navbarHideTimer);
-
-    // 10 秒後自動隱藏
-    _navbarHideTimer = setTimeout(() => {
-        hideNavbar();
-    }, duration);
-}
-
-/**
- * 隱藏 Navbar（手機版才有效）
- */
-function hideNavbar() {
-    if (!isMobileNavbar()) return;
-
-    const navbar = document.getElementById('navbar');
-    if (!navbar) return;
-
-    navbar.classList.add('mobile-hidden');
-
-    if (_navbarHideTimer) {
-        clearTimeout(_navbarHideTimer);
-        _navbarHideTimer = null;
-    }
-
-    // 顯示提示 3 秒（告知使用者如何喚出）
     const hint = document.getElementById('navbar-touch-hint');
     if (hint) {
         hint.classList.add('show');
@@ -760,13 +699,9 @@ function hideNavbar() {
 }
 
 /**
- * 初始化手機版 Navbar 觸控監聽
+ * 初始化 Navbar（桌機 + 手機通用）
  */
-let _navbarInitialized = false;
-
 function initMobileNavbar() {
-    // ★ 移除「桌面版略過」判斷，讓桌機也初始化
-
     if (_navbarInitialized) {
         console.log('📱 Navbar 已初始化，跳過');
         const navbar = document.getElementById('navbar');
@@ -787,7 +722,6 @@ function initMobileNavbar() {
             e.stopPropagation();
             showNavbar();
         }, { passive: true });
-        // ★ 桌機：滑鼠移到頂部就喚出
         touchZone.addEventListener('mouseenter', () => showNavbar());
     }
 
@@ -817,7 +751,6 @@ function initMobileNavbar() {
     // ---- Navbar 本身：滑鼠進入取消計時，離開重新倒數 ----
     const navbar = document.getElementById('navbar');
     if (navbar) {
-        // ★ 桌機：滑鼠在 Navbar 上時，不隱藏
         navbar.addEventListener('mouseenter', () => {
             if (_navbarHideTimer) {
                 clearTimeout(_navbarHideTimer);
@@ -825,7 +758,6 @@ function initMobileNavbar() {
             }
         });
 
-        // ★ 桌機：滑鼠離開 Navbar 後，3 秒後隱藏
         navbar.addEventListener('mouseleave', () => {
             showNavbar(3000);
         });
@@ -863,7 +795,7 @@ function initMobileNavbar() {
         clearInterval(_navbarCheckInterval);
     }
 
-    // ---- 切換頁面時，重新顯示 10 秒 ----
+    // ---- 切換頁面時，重新顯示 6 秒 ----
     const originalSwitchSection = window.switchSection;
     if (typeof originalSwitchSection === 'function') {
         window.switchSection = function (sectionId) {
@@ -885,147 +817,9 @@ function initMobileNavbar() {
         }, 200);
     });
 
-    console.log('✅ Navbar 已啟動（桌機 + 手機通用，10 秒自動隱藏）');
-}
-    // ★ 若已初始化，不重複註冊事件
-    if (_navbarInitialized) {
-        console.log('📱 手機版 Navbar 已初始化，跳過');
-        // 但還是要啟動計時器（若 navbar 已顯示）
-        const navbar = document.getElementById('navbar');
-        if (navbar && navbar.style.display === 'flex' && !navbar.classList.contains('mobile-hidden')) {
-            showNavbar();
-        }
-        return;
-    }
-    _navbarInitialized = true;
-
-    console.log('📱 手機版 Navbar 初始化');
-
-    // ---- 觸控區點擊喚出 ----
-    const touchZone = document.getElementById('navbar-touch-zone');
-    if (touchZone) {
-        touchZone.addEventListener('click', () => {
-            showNavbar();
-        });
-        touchZone.addEventListener('touchstart', (e) => {
-            // 阻止瀏覽器原生下拉刷新（避免衝突）
-            e.stopPropagation();
-            showNavbar();
-        }, { passive: true });
-    }
-
-    // ---- 從頂部向下滑動喚出 ----
-    document.addEventListener('touchstart', (e) => {
-        const touch = e.touches[0];
-        // 只有在螢幕頂部 50px 內才啟動
-        if (touch.clientY < 50) {
-            _navbarTouchStartY = touch.clientY;
-            _navbarTouchActive = true;
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchmove', (e) => {
-        if (!_navbarTouchActive) return;
-        const touch = e.touches[0];
-        const deltaY = touch.clientY - _navbarTouchStartY;
-
-        // 向下滑動超過 30px 就喚出
-        if (deltaY > 30) {
-            showNavbar();
-            _navbarTouchActive = false;
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => {
-        _navbarTouchActive = false;
-    }, { passive: true });
-
-    // ---- 點擊 Navbar 內的按鈕時重置計時器 ----
-    const navbar = document.getElementById('navbar');
-    if (navbar) {
-        navbar.addEventListener('click', (e) => {
-            // 若點到導航按鈕，重置 10 秒
-            if (e.target.closest('.nav-btn') || e.target.closest('.logout-btn')) {
-                showNavbar();
-            }
-        });
-    }
-
-    // ---- 初次顯示：頁面載入後 10 秒自動隱藏 ----
-    // 等 navbar 顯示（登入後會從 display:none → flex）再啟動計時
-     // ---- 初次顯示：輪詢偵測 Navbar 從 display:none 變成 flex ----
-    // ---- 初次顯示：輪詢偵測 Navbar 從 display:none 變成 flex ----
-    let _lastNavbarDisplay = '';
-    let _navbarCheckInterval = setInterval(() => {   // ★ const → let
-        const nav = document.getElementById('navbar');
-        if (!nav) return;
-
-        const currentDisplay = nav.style.display;
-
-        // 偵測到 Navbar 從非 flex 變成 flex（登入成功）
-        if (currentDisplay === 'flex' && _lastNavbarDisplay !== 'flex') {
-            console.log('👁️ 偵測到 Navbar 顯示，啟動 10 秒倒數');
-            showNavbar();
-            clearInterval(_navbarCheckInterval);
-        }
-
-        _lastNavbarDisplay = currentDisplay;
-    }, 500);
-
-    // 保險：30 秒後仍未偵測到 navbar，強制停止輪詢
-    setTimeout(() => {
-        if (_navbarCheckInterval) {
-            clearInterval(_navbarCheckInterval);
-            _navbarCheckInterval = null;   // ✅ let 可以重新賦值
-        }
-    }, 30000);
-
-    // 立即檢查一次（處理已登入狀態）
-    if (navbar && navbar.style.display === 'flex') {
-        console.log('👁️ Navbar 已顯示，立即啟動 10 秒倒數');
-        showNavbar();
-        clearInterval(_navbarCheckInterval);
-    }
-
-    // ---- 切換頁面時，重新顯示 10 秒 ----
-    // 攔截 switchSection
-    const originalSwitchSection = window.switchSection;
-    if (typeof originalSwitchSection === 'function') {
-        window.switchSection = function (sectionId) {
-            originalSwitchSection(sectionId);
-            // 切換頁面後重新顯示
-            setTimeout(() => showNavbar(), 100);
-        };
-    }
-    
-    // ---- 視窗大小改變時，重新評估 ----
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-        if (resizeTimer) clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            const navbar = document.getElementById('navbar');
-            if (!navbar) return;
-
-            if (isMobileNavbar()) {
-                // 從桌面切到手機：啟動自動隱藏
-                if (!navbar.classList.contains('mobile-hidden')) {
-                    showNavbar();
-                }
-            } else {
-                // 從手機切到桌面：移除隱藏狀態
-                navbar.classList.remove('mobile-hidden');
-                if (_navbarHideTimer) {
-                    clearTimeout(_navbarHideTimer);
-                    _navbarHideTimer = null;
-                }
-            }
-        }, 200);
-    });
-
-    console.log('✅ 手機版 Navbar 已啟動（10 秒自動隱藏）');
+    console.log('✅ Navbar 已啟動（桌機 + 手機通用）');
 }
 
-// 頁面載入後啟動
 // 頁面載入後啟動
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -1035,12 +829,12 @@ if (document.readyState === 'loading') {
     setTimeout(initMobileNavbar, 500);
 }
 
-// ★ 修復：視窗大小改變時（例如 DevTools 切換手機模式），重新初始化
+// ★ 視窗大小改變時，重新初始化
 let _navbarResizeTimer = null;
 window.addEventListener('resize', () => {
     if (_navbarResizeTimer) clearTimeout(_navbarResizeTimer);
     _navbarResizeTimer = setTimeout(() => {
-        console.log('🔄 視窗大小改變，重新檢查手機 Navbar');
+        console.log('🔄 視窗大小改變，重新檢查 Navbar');
         initMobileNavbar();
     }, 300);
 });
@@ -1050,4 +844,4 @@ window.showNavbar = showNavbar;
 window.hideNavbar = hideNavbar;
 window.initMobileNavbar = initMobileNavbar;
 
-console.log('✅ common.js 已載入（含連線監控 + 手機 Navbar）');
+console.log('✅ common.js 已載入（含連線監控 + Navbar 自動隱藏）');
