@@ -1,7 +1,7 @@
 // ================================================================
 // Ground Support 模組
 // - 保留原有 gsCreateRecord() 流程（完整表單模式）
-// - 新增「開始救援 / 完成救援 / 修改內容 / 完全重新記錄」
+// - 新增「開始救援 / 完成救援 / 修改內容 / 完全重新記錄」function gsInitOngoingListener() {
 // ================================================================
 
 let gsCurrentDocId = null;
@@ -1026,16 +1026,37 @@ function gsInitOngoingListener() {
             const list = [];
             snap.forEach(d => {
                 const data = d.data();
+                // ★ 修正：只檢查 timeLanded，不重複檢查 status
+                // （where 已經過濾 status === 'rescuing'）
                 if (!data.timeLanded) {
                     list.push({ id: d.id, ...data });
                 }
             });
+            console.log('🔔 監聽器觸發，進行中救援:', list.length, '筆');
             gsRenderOngoingBanner(list);
-               }, err => {
-            // ★ 忽略登出時的權限錯誤（正常現象）
+        }, err => {
             if (err && err.code === 'permission-denied') return;
             console.warn('banner 監聽失敗:', err);
         });
+
+    // ★ 新增：立即手動查詢一次，確保第一次顯示就正確
+    setTimeout(() => {
+        db.collection('guests')
+            .where('status', '==', 'rescuing')
+            .get()
+            .then(snap => {
+                const list = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (!data.timeLanded) {
+                        list.push({ id: d.id, ...data });
+                    }
+                });
+                console.log('🔍 初始查詢進行中救援:', list.length, '筆');
+                gsRenderOngoingBanner(list);
+            })
+            .catch(err => console.warn('初始查詢失敗:', err));
+    }, 500);
 }
 
 function gsRenderOngoingBanner(list) {
