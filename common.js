@@ -1,7 +1,6 @@
 // ==================== Firebase 初始化 ====================
 const firebaseConfig = {
-    apiKey: "AIzaSyCgSaPKhaaX9cP1tY-ThykJvo_sJtVyyDc",
-    authDomain: "qrcodesystem-bceda.firebaseapp.com",
+    apiKey: "AIzaSyCgSaPKhaaX9cP1tY-ThykJvo_sJtVyyDcfunction showNavbar(duration = 10000) {
     databaseURL: "https://qrcodesystem-bceda-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "qrcodesystem-bceda",
     storageBucket: "qrcodesystem-bceda.firebasestorage.app",
@@ -689,11 +688,40 @@ function isMobileNavbar() {
  * 顯示 Navbar 並啟動 10 秒倒數自動隱藏
  * @param {number} duration - 顯示持續時間（毫秒），預設 10000
  */
-function showNavbar(duration = 10000) {
-    if (!isMobileNavbar()) return;
-
+function showNavbar(duration = 6000) {
     const navbar = document.getElementById('navbar');
     if (!navbar) return;
+
+    // 顯示
+    navbar.classList.remove('mobile-hidden');
+
+    // 清除舊的計時器
+    if (_navbarHideTimer) clearTimeout(_navbarHideTimer);
+
+    // 時間到自動隱藏
+    _navbarHideTimer = setTimeout(() => {
+        hideNavbar();
+    }, duration);
+}
+
+function hideNavbar() {
+    const navbar = document.getElementById('navbar');
+    if (!navbar) return;
+
+    navbar.classList.add('mobile-hidden');
+
+    if (_navbarHideTimer) {
+        clearTimeout(_navbarHideTimer);
+        _navbarHideTimer = null;
+    }
+
+    // 顯示提示 3 秒
+    const hint = document.getElementById('navbar-touch-hint');
+    if (hint) {
+        hint.classList.add('show');
+        setTimeout(() => hint.classList.remove('show'), 3000);
+    }
+}
 
     // 顯示
     navbar.classList.remove('mobile-hidden');
@@ -737,11 +765,128 @@ function hideNavbar() {
 let _navbarInitialized = false;
 
 function initMobileNavbar() {
-    if (!isMobileNavbar()) {
-        console.log('📱 桌面版，略過手機 Navbar 初始化');
-        return;   // ← 不設 _navbarInitialized，讓 resize 後能重新初始化
+    // ★ 移除「桌面版略過」判斷，讓桌機也初始化
+
+    if (_navbarInitialized) {
+        console.log('📱 Navbar 已初始化，跳過');
+        const navbar = document.getElementById('navbar');
+        if (navbar && navbar.style.display === 'flex' && !navbar.classList.contains('mobile-hidden')) {
+            showNavbar();
+        }
+        return;
+    }
+    _navbarInitialized = true;
+
+    console.log('📱 Navbar 初始化（桌機 + 手機通用）');
+
+    // ---- 觸發區：點擊 / 觸控 / 滑鼠移入 ----
+    const touchZone = document.getElementById('navbar-touch-zone');
+    if (touchZone) {
+        touchZone.addEventListener('click', () => showNavbar());
+        touchZone.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            showNavbar();
+        }, { passive: true });
+        // ★ 桌機：滑鼠移到頂部就喚出
+        touchZone.addEventListener('mouseenter', () => showNavbar());
     }
 
+    // ---- 手機：從頂部向下滑動喚出 ----
+    document.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        if (touch.clientY < 50) {
+            _navbarTouchStartY = touch.clientY;
+            _navbarTouchActive = true;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!_navbarTouchActive) return;
+        const touch = e.touches[0];
+        const deltaY = touch.clientY - _navbarTouchStartY;
+        if (deltaY > 30) {
+            showNavbar();
+            _navbarTouchActive = false;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        _navbarTouchActive = false;
+    }, { passive: true });
+
+    // ---- Navbar 本身：滑鼠進入取消計時，離開重新倒數 ----
+    const navbar = document.getElementById('navbar');
+    if (navbar) {
+        // ★ 桌機：滑鼠在 Navbar 上時，不隱藏
+        navbar.addEventListener('mouseenter', () => {
+            if (_navbarHideTimer) {
+                clearTimeout(_navbarHideTimer);
+                _navbarHideTimer = null;
+            }
+        });
+
+        // ★ 桌機：滑鼠離開 Navbar 後，3 秒後隱藏
+        navbar.addEventListener('mouseleave', () => {
+            showNavbar(3000);
+        });
+
+        navbar.addEventListener('click', (e) => {
+            if (e.target.closest('.nav-btn') || e.target.closest('.logout-btn')) {
+                showNavbar();
+            }
+        });
+    }
+
+    // ---- 初次顯示：輪詢偵測 Navbar 從 display:none → flex ----
+    let _lastNavbarDisplay = '';
+    let _navbarCheckInterval = setInterval(() => {
+        const nav = document.getElementById('navbar');
+        if (!nav) return;
+        const currentDisplay = nav.style.display;
+        if (currentDisplay === 'flex' && _lastNavbarDisplay !== 'flex') {
+            console.log('👁️ 偵測到 Navbar 顯示，啟動倒數');
+            showNavbar();
+            clearInterval(_navbarCheckInterval);
+        }
+        _lastNavbarDisplay = currentDisplay;
+    }, 500);
+
+    setTimeout(() => {
+        if (_navbarCheckInterval) {
+            clearInterval(_navbarCheckInterval);
+            _navbarCheckInterval = null;
+        }
+    }, 30000);
+
+    if (navbar && navbar.style.display === 'flex') {
+        showNavbar();
+        clearInterval(_navbarCheckInterval);
+    }
+
+    // ---- 切換頁面時，重新顯示 10 秒 ----
+    const originalSwitchSection = window.switchSection;
+    if (typeof originalSwitchSection === 'function') {
+        window.switchSection = function (sectionId) {
+            originalSwitchSection(sectionId);
+            setTimeout(() => showNavbar(), 100);
+        };
+    }
+
+    // ---- 視窗大小改變時，重新評估 ----
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            const navbar = document.getElementById('navbar');
+            if (!navbar) return;
+            if (!navbar.classList.contains('mobile-hidden')) {
+                showNavbar();
+            }
+        }, 200);
+    });
+
+    console.log('✅ Navbar 已啟動（桌機 + 手機通用，10 秒自動隱藏）');
+}
     // ★ 若已初始化，不重複註冊事件
     if (_navbarInitialized) {
         console.log('📱 手機版 Navbar 已初始化，跳過');
