@@ -475,11 +475,9 @@ segments.forEach((s, i) => {
         const rescueWrap = document.getElementById('mapRescueTableWrap');
         const occWrap = document.getElementById('mapOccTableWrap');
         if (rescueWrap) {
-            rescueWrap.style.maxHeight = '350px';
             rescueWrap.style.overflowY = 'auto';
         }
         if (occWrap) {
-            occWrap.style.maxHeight = '250px';
             occWrap.style.overflowY = 'auto';
         }
         if (!document.getElementById('occComparisonResult')) {
