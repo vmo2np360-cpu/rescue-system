@@ -1034,10 +1034,12 @@ function gsInitOngoingListener() {
     window._gsOngoingUnsub = db.collection('guests')
         .where('status', '==', 'rescuing')
         .onSnapshot(
-            { includeMetadataChanges: true },   // ★ 關鍵：包含 metadata 變更
+            { includeMetadataChanges: true },
             (snap, metadata) => {
-                // ★ 如果資料來自快取，先跳過（避免顯示過時資料）
-                if (metadata.fromCache) {
+                // ★ 修正：metadata 可能 undefined，要防護
+                const fromCache = metadata && metadata.fromCache;
+
+                if (fromCache) {
                     console.log('📦 收到快取資料，跳過（等待伺服器資料）');
                     return;
                 }
@@ -1062,7 +1064,7 @@ function gsInitOngoingListener() {
     setTimeout(() => {
         db.collection('guests')
             .where('status', '==', 'rescuing')
-            .get({ source: 'server' })   // ★ 強制從伺服器讀取
+            .get({ source: 'server' })
             .then(snap => {
                 const list = [];
                 snap.forEach(d => {
@@ -1076,7 +1078,6 @@ function gsInitOngoingListener() {
             })
             .catch(err => {
                 console.warn('初始查詢失敗，改用預設來源:', err);
-                // 若強制伺服器失敗（例如離線），改用預設
                 db.collection('guests')
                     .where('status', '==', 'rescuing')
                     .get()
