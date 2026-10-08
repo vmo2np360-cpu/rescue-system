@@ -207,15 +207,17 @@ segments.forEach((s, i) => {
     // 原本的 use 元素建立整段刪除
 
     // 站點文字（保留）
-    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.textContent = s;
-    txt.setAttribute('x', gx);
-    txt.setAttribute('y', gy + 25);
-    txt.setAttribute('text-anchor', 'middle');
-    txt.setAttribute('class', 'label');
-    txt.setAttribute('fill', '#000');
-    txt.setAttribute('font-weight', 'bold');
-    mapSvg.appendChild(txt);
+              // 站點文字（沿用 common.js 的 window.mdLabelOffset）
+            const offset = (window.mdLabelOffset && window.mdLabelOffset[s]) || { dx: 0, dy: 0 };
+            const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+            txt.textContent = s;
+            txt.setAttribute('x', gx + offset.dx);
+            txt.setAttribute('y', gy + offset.dy);
+            txt.setAttribute('text-anchor', 'middle');
+            txt.setAttribute('class', 'label');
+            txt.setAttribute('fill', '#000');
+            txt.setAttribute('font-weight', 'bold');
+            mapSvg.appendChild(txt);
 });
 
         const up = groundPts.map(p => [p[0], p[1]-70]);
