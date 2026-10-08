@@ -427,6 +427,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
     const nowISO = now.toISOString();
 
     if (docId) {
+        // 更新既有記錄
         const existingDoc = await db.collection('guests').doc(docId).get();
         const existing = existingDoc.exists ? existingDoc.data() : {};
 
@@ -445,6 +446,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
     } else {
+        // 新增記錄
         const data = {
             cabinNumber: cabin,
             groupNumber: group,
@@ -462,13 +464,17 @@ async function gsSaveStartRescue(cabin, group, docId) {
     }
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    // ★ 修復：只有在 Dashboard 已載入時才呼叫
     if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
         dbLoadRecords();
     }
 
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
+
+    // ★ 新增：立即刷新 Banner
+    if (typeof gsRefreshOngoingBanner === 'function') {
+        await gsRefreshOngoingBanner();
+    }
 }
 
 // ================================================================
@@ -609,18 +615,22 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
     await db.collection('guests').doc(docId).update(updateData);
     await logAction('guests', docId, 'update', updateData, existing || null);
 
-      gsGenerateQR(docId, formData.healthStatus || '未分類');
+    gsGenerateQR(docId, formData.healthStatus || '未分類');
     document.getElementById('gsQrResult').style.display = 'block';
     document.getElementById('gsPrintCabin').textContent = cabin;
     document.getElementById('gsPrintGroup').textContent = `第${group}組`;
-    gsScrollToQr();   // ★ 新增
+    gsScrollToQr();
 
     showMessage('gsMessage', '✅ 已完成救援', 'success');
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    // ★ 修復：只有在 Dashboard 已載入時才呼叫
     if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
         dbLoadRecords();
+    }
+
+    // ★ 新增：立即刷新 Banner
+    if (typeof gsRefreshOngoingBanner === 'function') {
+        await gsRefreshOngoingBanner();
     }
 
     gsClearForm();
@@ -1084,7 +1094,47 @@ function gsInitOngoingListener() {
             });
     }, 500);
 }
+/**
+ * ★ 手動刷新 Banner（跳過快取，直接從伺服器讀取）
+ * 用於新增 / 完成救援後，立即更新 Banner
+ */
+async function gsRefreshOngoingBanner() {
+    try {
+        const snap = await db.collection('guests')
+            .where('status', '==', 'rescuing')
+            .get({ source: 'server' });   // ★ 強制從伺服器讀取
 
+        const list = [];
+        snap.forEach(d => {
+            const data = d.data();
+            if (!data.timeLanded) {
+                list.push({ id: d.id, ...data });
+            }
+        });
+        console.log('🔄 手動刷新 Banner:', list.length, '筆');
+        gsRenderOngoingBanner(list);
+    } catch (e) {
+        console.warn('手動刷新 Banner 失敗，改用預設來源:', e);
+        // 備援：用預設來源（可能來自快取）
+        try {
+            const snap = await db.collection('guests')
+                .where('status', '==', 'rescuing')
+                .get();
+            const list = [];
+            snap.forEach(d => {
+                const data = d.data();
+                if (!data.timeLanded) {
+                    list.push({ id: d.id, ...data });
+                }
+            });
+            gsRenderOngoingBanner(list);
+        } catch (e2) {
+            console.warn('備援刷新也失敗:', e2);
+        }
+    }
+}
+
+window.gsRefreshOngoingBanner = gsRefreshOngoingBanner;
 function gsRenderOngoingBanner(list) {
     const banner = document.getElementById('gsOngoingBanner');
     const listEl = document.getElementById('gsOngoingList');
