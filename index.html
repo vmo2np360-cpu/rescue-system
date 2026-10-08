@@ -74,74 +74,74 @@
    手機版 Navbar：10 秒自動隱藏 + 觸控喚出
    ================================================================ */
     /* Navbar 過渡動畫 */
-@media (max-width: 768px) {
-    /* Navbar 過渡動畫（含高度塌陷） */
-    #navbar {
-        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                    opacity 0.35s ease,
-                    margin 0.35s ease,
-                    padding 0.35s ease,
-                    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        transform: translateY(0);
-        opacity: 1;
-        max-height: 300px;
-        overflow: hidden;
-    }
+/* ================================================================
+   Navbar 自動隱藏（桌機 + 手機通用）
+   ================================================================ */
 
-    /* 隱藏狀態：高度塌陷為 0，完全不佔位 */
-    #navbar.mobile-hidden {
-        transform: translateY(-20px);
-        opacity: 0;
-        pointer-events: none;
-        max-height: 0;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        border-width: 0 !important;
-    }
-
-    /* 頂部觸控喚出區（透明，位於畫面最頂端） */
-    #navbar-touch-zone {
-        display: block;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 24px;
-        z-index: 9998;
-        background: transparent;
-        /* 讓它可被點擊，但不影響其他元素 */
-        pointer-events: auto;
-    }
-
-    /* 喚出提示（第一次顯示用） */
-    #navbar-touch-hint {
-        display: block;
-        position: fixed;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(30, 58, 95, 0.9);
-        color: #fff;
-        font-size: 0.7rem;
-        padding: 4px 14px;
-        border-radius: 0 0 12px 12px;
-        z-index: 9999;
-        opacity: 0;
-        transition: opacity 0.4s ease;
-        pointer-events: none;
-    }
-    #navbar-touch-hint.show {
-        opacity: 1;
-    }
+/* Navbar 過渡動畫（含高度塌陷） */
+#navbar {
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.35s ease,
+                margin 0.35s ease,
+                padding 0.35s ease,
+                transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(0);
+    opacity: 1;
+    max-height: 300px;
+    overflow: hidden;
 }
 
-/* 桌面版：隱藏觸控區 */
-@media (min-width: 769px) {
-    #navbar-touch-zone,
-    #navbar-touch-hint {
-        display: none !important;
+/* 隱藏狀態：高度塌陷為 0，完全不佔位 */
+#navbar.mobile-hidden {
+    transform: translateY(-20px);
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-width: 0 !important;
+}
+
+/* 頂部觸發區（桌機 + 手機通用） */
+#navbar-touch-zone {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 24px;              /* 桌機 24px，手機可加大 */
+    z-index: 9998;
+    background: transparent;
+    pointer-events: auto;
+}
+
+/* 喚出提示 */
+#navbar-touch-hint {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 58, 95, 0.9);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 4px 14px;
+    border-radius: 0 0 12px 12px;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+#navbar-touch-hint.show {
+    opacity: 1;
+}
+
+/* 手機版：觸發區高一點，比較好點 */
+@media (max-width: 768px) {
+    #navbar-touch-zone {
+        height: 40px;
     }
 }
 </style>
