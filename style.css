@@ -346,8 +346,9 @@ tr:hover td { background: #f8fafc; }
 
 /* 地圖容器 (40%) */
 .map-svg-wrapper {
-    flex: 4;
-    min-height: 250px;
+    flex: none;                    /* ★ 改成不受 flex 控制高度 */
+    width: 100%;
+    aspect-ratio: 2800 / 1000;     /* ★ 高度自動 = 寬度 ÷ 2.8 */
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -464,8 +465,7 @@ tr:hover td { background: #f8fafc; }
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    min-height: 0;
-    max-height: 100%;
+    min-height: 0;    
     scrollbar-width: auto;
     scrollbar-color: #94a3b8 #f1f5f9;
 }
