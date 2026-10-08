@@ -110,7 +110,8 @@ async function mapInit() {
         mapCabins = [];
 
         // 設定 viewBox（與 monitor-dashboard 一致，高度 1000）
-        mapSvg.setAttribute('viewBox', '0 0 2800 1000');
+      mapSvg.setAttribute('viewBox', '0 0 2800 1000');
+mapSvg.setAttribute('preserveAspectRatio', 'xMidYMid slice');   // ★ 新增：填滿容器
 
         // ★ 從 Firestore 讀取偏移量
         mapGlobalOffset = await window.getGlobalOffsetFromFirestore();
