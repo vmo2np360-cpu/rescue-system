@@ -1020,30 +1020,39 @@ async function gsConfirmManualTime() {
 // ================================================================
 function gsInitOngoingListener() {
     if (window._gsOngoingUnsub) window._gsOngoingUnsub();
+
     window._gsOngoingUnsub = db.collection('guests')
         .where('status', '==', 'rescuing')
-        .onSnapshot(snap => {
-            const list = [];
-            snap.forEach(d => {
-                const data = d.data();
-                // ★ 修正：只檢查 timeLanded，不重複檢查 status
-                // （where 已經過濾 status === 'rescuing'）
-                if (!data.timeLanded) {
-                    list.push({ id: d.id, ...data });
+        .onSnapshot(
+            { includeMetadataChanges: true },   // ★ 關鍵：包含 metadata 變更
+            (snap, metadata) => {
+                // ★ 如果資料來自快取，先跳過（避免顯示過時資料）
+                if (metadata.fromCache) {
+                    console.log('📦 收到快取資料，跳過（等待伺服器資料）');
+                    return;
                 }
-            });
-            console.log('🔔 監聽器觸發，進行中救援:', list.length, '筆');
-            gsRenderOngoingBanner(list);
-        }, err => {
-            if (err && err.code === 'permission-denied') return;
-            console.warn('banner 監聽失敗:', err);
-        });
 
-    // ★ 新增：立即手動查詢一次，確保第一次顯示就正確
+                const list = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (!data.timeLanded) {
+                        list.push({ id: d.id, ...data });
+                    }
+                });
+                console.log('🔔 監聽器觸發（伺服器資料），進行中救援:', list.length, '筆');
+                gsRenderOngoingBanner(list);
+            },
+            err => {
+                if (err && err.code === 'permission-denied') return;
+                console.warn('banner 監聽失敗:', err);
+            }
+        );
+
+    // ★ 保險：立即手動查詢一次（跳過快取）
     setTimeout(() => {
         db.collection('guests')
             .where('status', '==', 'rescuing')
-            .get()
+            .get({ source: 'server' })   // ★ 強制從伺服器讀取
             .then(snap => {
                 const list = [];
                 snap.forEach(d => {
@@ -1052,10 +1061,27 @@ function gsInitOngoingListener() {
                         list.push({ id: d.id, ...data });
                     }
                 });
-                console.log('🔍 初始查詢進行中救援:', list.length, '筆');
+                console.log('🔍 初始查詢（伺服器）進行中救援:', list.length, '筆');
                 gsRenderOngoingBanner(list);
             })
-            .catch(err => console.warn('初始查詢失敗:', err));
+            .catch(err => {
+                console.warn('初始查詢失敗，改用預設來源:', err);
+                // 若強制伺服器失敗（例如離線），改用預設
+                db.collection('guests')
+                    .where('status', '==', 'rescuing')
+                    .get()
+                    .then(snap => {
+                        const list = [];
+                        snap.forEach(d => {
+                            const data = d.data();
+                            if (!data.timeLanded) {
+                                list.push({ id: d.id, ...data });
+                            }
+                        });
+                        gsRenderOngoingBanner(list);
+                    })
+                    .catch(e => console.warn('備援查詢失敗:', e));
+            });
     }, 500);
 }
 
