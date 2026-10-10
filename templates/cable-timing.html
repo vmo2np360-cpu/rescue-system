@@ -1,6 +1,5 @@
 <h2 class="ct-title"><i class="fas fa-clock"></i> 纜車車距計算</h2>
 
-<!-- 控制面板 -->
 <section class="ct-control-panel">
     <div class="ct-control-group">
         <label>面前車號</label>
@@ -19,6 +18,17 @@
         <select id="ct-inputMode">
             <option value="109">109</option>
             <option value="84" selected>84</option>
+        </select>
+    </div>
+    <!-- ★ 新增：站點選擇 -->
+    <div class="ct-control-group">
+        <label>站點</label>
+        <select id="ct-inputStation">
+            <option value="">— 預設（TC）—</option>
+            <option value="TC">TC（東涌）</option>
+            <option value="AIAS">AIAS</option>
+            <option value="NLS">NLS</option>
+            <option value="NP">NP（昂坪）</option>
         </select>
     </div>
     <button class="ct-btn ct-btn-primary" id="ct-btnCalculate">
