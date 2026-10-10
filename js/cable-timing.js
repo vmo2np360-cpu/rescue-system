@@ -1,9 +1,8 @@
 // ================================================================
 // 纜車車距計算 - 整合模組
-// - 控制面板 + 結果面板
-// - 視覺地圖（沿用 monitor-dashboard 樣式）
-// - 從 Realtime DB 讀取車廂序號與種類
-// - 支援「面前車號」重新排序 + 站點選擇
+// - 車廂種類從 Firestore cabin_images 讀取
+// - 面前車號 + 站點選擇 → 重新排序索道
+// - 動態字體大小，避免文字變形
 // ================================================================
 
 let _ctEngine = null;
@@ -13,33 +12,32 @@ let _ctMapCabins = [];
 let _ctCurrentOffset = 0;
 let _ctCabinMode = 84;
 let _ctRopePts = [];
-let _ctGroundPts = [];       // ★ 新增：站點座標（供站點選擇用）
-let _ctStationArcPos = {};   // ★ 新增：各站點的弧長位置
+let _ctGroundPts = [];
+let _ctStationArcPos = {};
+let _ctCabinTypeCache = {};   // ★ 車廂種類快取 { cabinSeq: cabinType }
 
 // 高亮狀態
 let _ctHighlightCurrent = null;
 let _ctHighlightTarget = null;
 
-// ★ 新增：面前車號與站點
-let _ctCurrentCabin = null;  // 面前車號（用於重新排序）
-let _ctSelectedStation = null; // 選中的站點（TC/AIAS/NLS/NP）
+// 面前車號與站點
+let _ctCurrentCabin = null;
+let _ctSelectedStation = null;
 
 // ================================================================
-// 車廂種類顏色對照
+// 車廂種類顏色對照（只影響此頁面）
 // ================================================================
 const CT_TYPE_COLORS = {
-    'standard':  { fill: '#22c55e', stroke: '#16a34a', label: '標準' },
-    'crystal':   { fill: '#3b82f6', stroke: '#2563eb', label: '水晶' },
-    'panorama':  { fill: '#eab308', stroke: '#ca8a04', label: '全景' },
-    'default':   { fill: '#ffffff', stroke: '#333333', label: '未設定' }
+    '標準車廂': { fill: '#22c55e', stroke: '#16a34a', textColor: '#ffffff' },
+    '水晶車廂': { fill: '#3b82f6', stroke: '#2563eb', textColor: '#ffffff' },
+    '全景車廂': { fill: '#eab308', stroke: '#ca8a04', textColor: '#ffffff' },
+    '工程車':   { fill: '#94a3b8', stroke: '#64748b', textColor: '#ffffff' },
+    'default':  { fill: '#ffffff', stroke: '#333333', textColor: '#111111' }
 };
 
 function ctGetTypeColor(type) {
     if (!type) return CT_TYPE_COLORS.default;
-    const t = String(type).toLowerCase();
-    if (t.includes('standard') || t.includes('標準')) return CT_TYPE_COLORS.standard;
-    if (t.includes('crystal') || t.includes('水晶')) return CT_TYPE_COLORS.crystal;
-    if (t.includes('panorama') || t.includes('全景')) return CT_TYPE_COLORS.panorama;
+    if (CT_TYPE_COLORS[type]) return CT_TYPE_COLORS[type];
     return CT_TYPE_COLORS.default;
 }
 
@@ -83,12 +81,35 @@ async function initCableTiming() {
     _ctMapSvg = document.getElementById('ct-map');
     ctBuildMap();
 
+    // ★ 先載入車廂種類，再載入車廂
+    await ctLoadCabinTypes();
     await ctLoadCabins();
 
     ctBindEvents();
 
     _ctInitialized = true;
     console.log('✅ 車距計算已初始化');
+}
+
+// ================================================================
+// ★ 載入車廂種類（從 Firestore cabin_images）
+// ================================================================
+async function ctLoadCabinTypes() {
+    _ctCabinTypeCache = {};
+    try {
+        const snap = await db.collection('cabin_images').get();
+        snap.forEach(doc => {
+            const data = doc.data();
+            const seq = String(data.cabinSeq || doc.id || '').trim();
+            const type = data.cabinType || '';
+            if (seq && type) {
+                _ctCabinTypeCache[seq] = type;
+            }
+        });
+        console.log('✅ 已載入', Object.keys(_ctCabinTypeCache).length, '筆車廂種類');
+    } catch (e) {
+        console.warn('載入車廂種類失敗:', e);
+    }
 }
 
 // ================================================================
@@ -176,28 +197,23 @@ function ctBuildMap() {
     rope.setAttribute('stroke-width', '4');
     _ctMapSvg.appendChild(rope);
 
-    // ★ 計算各站點的弧長位置（供站點選擇用）
     ctCalcStationArcPositions();
 
-    // 上下行線標示
     if (typeof window.addDirectionMarkers === 'function') {
         window.addDirectionMarkers(_ctMapSvg, _ctGroundPts);
     }
 }
 
 // ================================================================
-// ★ 計算各站點的弧長位置
-// 索道是環形：上方線（TC→NP）+ 下方線（NP→TC）
-// 站點在上方線上的弧長位置 = 從 TC 起算的距離
+// 計算各站點的弧長位置
 // ================================================================
 function ctCalcStationArcPositions() {
     _ctStationArcPos = {};
     if (_ctGroundPts.length < 2) return;
 
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
-
-    // 上方線（TC → NP）
     const upPts = _ctGroundPts.map(p => [p[0], p[1] - 70]);
+
     let acc = 0;
     for (let i = 0; i < upPts.length; i++) {
         if (i > 0) {
@@ -205,11 +221,12 @@ function ctCalcStationArcPositions() {
         }
         _ctStationArcPos[segments[i]] = acc;
     }
+
+    console.log('📍 站點弧長位置:', _ctStationArcPos);
 }
 
 // ================================================================
-// ★ 計算車廂在索道上的弧長位置
-// 根據「面前車號」和「站點選擇」重新排序
+// 計算車廂在索道上的弧長位置
 // ================================================================
 function ctCalcCabinArcPositions() {
     const total = _ctMapCabins.length;
@@ -225,22 +242,18 @@ function ctCalcCabinArcPositions() {
         if (found >= 0) anchorIdx = found;
     }
 
-    // ★ 計算「面前車」應該在索道上的位置
+    // 計算「面前車」應該在索道上的位置
     let anchorArcPos = 0;
     if (_ctSelectedStation && _ctStationArcPos[_ctSelectedStation] !== undefined) {
         anchorArcPos = _ctStationArcPos[_ctSelectedStation];
     } else {
-        anchorArcPos = 0;  // 預設 TC 位置
+        anchorArcPos = 0;
     }
 
-    // ★ 重新排序：面前車放在 anchorArcPos，其他車廂依序往後推
-    // 每台車廂間距 = 索道總長 / 車廂數
     const spacing = ropeLen / total;
 
     for (let i = 0; i < total; i++) {
-        // 計算這台車相對於面前車的偏移
         const relativeIdx = (i - anchorIdx + total) % total;
-        // 弧長位置
         let arcPos = (anchorArcPos + relativeIdx * spacing) % ropeLen;
         if (arcPos < 0) arcPos += ropeLen;
         result.push(arcPos);
@@ -250,7 +263,7 @@ function ctCalcCabinArcPositions() {
 }
 
 // ================================================================
-// 讀取車廂序號與種類，建立車廂
+// 讀取車廂序號，建立車廂
 // ================================================================
 async function ctLoadCabins() {
     if (!_ctMapSvg) return;
@@ -272,8 +285,10 @@ async function ctLoadCabins() {
         for (let i = 0; i < total; i++) {
             const cabinId = 'cabin-' + i;
             const seq = (data[cabinId] && data[cabinId].sequence) ? data[cabinId].sequence : '';
-            const type = (data[cabinId] && data[cabinId].type) ? data[cabinId].type : '';
             const seqNum = parseInt(seq, 10);
+
+            // ★ 從快取讀取車廂種類
+            const type = _ctCabinTypeCache[seq] || '';
 
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.setAttribute('class', 'ct-cabin');
@@ -300,17 +315,11 @@ async function ctLoadCabins() {
             lbl.setAttribute('y', '5');
             lbl.setAttribute('text-anchor', 'middle');
             lbl.setAttribute('dominant-baseline', 'middle');
-            // ★ 依文字長度動態調整字體，避免變形
+
+            // ★ 動態字體大小，避免文字變形
             const fontSize = ctCalcFontSize(seq, baseFontSize, size);
             lbl.setAttribute('font-size', fontSize);
-            // ★ 依種類決定文字顏色（深色底用白字）
-            const isDarkBg = ['standard', 'crystal', 'panorama'].some(t =>
-                String(type).toLowerCase().includes(t) ||
-                String(type).includes('標準') ||
-                String(type).includes('水晶') ||
-                String(type).includes('全景')
-            );
-            lbl.setAttribute('fill', isDarkBg ? '#ffffff' : '#111111');
+            lbl.setAttribute('fill', colorInfo.textColor);
             lbl.textContent = seq;
             g.appendChild(lbl);
 
@@ -323,7 +332,6 @@ async function ctLoadCabins() {
             }
         }
 
-        // ★ 依「面前車號」和「站點」佈局
         ctLayoutCabins();
 
         if (sequence.length > 0) {
@@ -343,15 +351,13 @@ async function ctLoadCabins() {
 }
 
 // ================================================================
-// ★ 依文字長度動態計算字體大小（取代 textLength）
+// 依文字長度動態計算字體大小
 // ================================================================
 function ctCalcFontSize(text, baseFontSize, cabinSize) {
     if (!text) return baseFontSize;
 
-    // 六邊形內切寬度約為 size × 1.7
     const maxWidth = cabinSize * 1.7;
 
-    // 估算文字寬度（數字約 0.55em，其他 0.6em）
     let estimatedWidth = 0;
     for (const ch of text) {
         if (ch >= '0' && ch <= '9') {
@@ -365,14 +371,12 @@ function ctCalcFontSize(text, baseFontSize, cabinSize) {
         return baseFontSize;
     }
 
-    // 縮小字體
     const scale = maxWidth / estimatedWidth;
-    const newFontSize = Math.max(10, Math.floor(baseFontSize * scale));
-    return newFontSize;
+    return Math.max(10, Math.floor(baseFontSize * scale));
 }
 
 // ================================================================
-// 車廂佈局（依「面前車號」+「站點」重新排序）
+// 車廂佈局
 // ================================================================
 function ctLayoutCabins() {
     if (!_ctRopePts || _ctRopePts.length === 0) return;
@@ -426,7 +430,7 @@ function ctBindEvents() {
         btnClear.addEventListener('click', ctClearHighlight);
     }
 
-    // ★ 面前車號變更 → 重新排序索道
+    // ★ 面前車號變更 → 重新排序
     const inputCurrent = document.getElementById('ct-inputCurrent');
     if (inputCurrent && !inputCurrent.dataset.bound) {
         inputCurrent.dataset.bound = 'true';
@@ -570,6 +574,7 @@ async function ctReloadData() {
         const modeSelect = document.getElementById('ct-inputMode');
         if (modeSelect) modeSelect.value = String(_ctCabinMode);
 
+        await ctLoadCabinTypes();
         await ctLoadCabins();
     } catch (e) {
         console.warn('重新載入資料失敗:', e);
