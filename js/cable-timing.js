@@ -149,13 +149,15 @@ function ctBuildMap() {
     _ctMapSvg.appendChild(defs);
 
     // 地形圖片
+      // 地形圖片（向下移動）
+    const CT_MAP_Y_OFFSET = 200;   // ★ 向下移動 200（可調整）
     const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     terrainImg.setAttribute('id', 'ct-terrain-img');
     terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
     terrainImg.setAttribute('href', 'assets/map-terrain.png');
     terrainImg.setAttribute('preserveAspectRatio', 'none');
     terrainImg.setAttribute('x', '0');
-    terrainImg.setAttribute('y', '-500');
+    terrainImg.setAttribute('y', String(-500 + CT_MAP_Y_OFFSET));
     terrainImg.setAttribute('width', '2800');
     terrainImg.setAttribute('height', '1334.4');
     _ctMapSvg.appendChild(terrainImg);
