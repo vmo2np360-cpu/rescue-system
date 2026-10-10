@@ -163,8 +163,20 @@ function ctBuildMap() {
     _ctMapSvg.appendChild(terrainImg);
 
     // 站點座標
+      const CT_MAP_Y_OFFSET = 200;   // ★ 與地形圖片相同
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     _ctGroundPts = [];
+
+    segments.forEach((s) => {
+        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+            ? window.mdStationX[s] : 0;
+        const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
+            ? window.mdStationY[s] : 600;
+        const gy = gyBase + CT_MAP_Y_OFFSET;   // ★ 加偏移
+        _ctGroundPts.push([gx, gy]);
+    });
+    
+    undPts = [];
 
     segments.forEach((s) => {
         const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
