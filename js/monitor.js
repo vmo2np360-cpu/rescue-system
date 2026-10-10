@@ -212,7 +212,8 @@ async function monInitMap() {
     rope.setAttribute('stroke', '#aaaaaa');
     rope.setAttribute('stroke-width', '7');
     monSvg.appendChild(rope);
-
+    // ★ 上行線 / 下行線標示
+    monAddDirectionMarkers(groundPts);
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1720, 700)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -402,7 +403,94 @@ function monBuildCabins() {
     }
     monLayoutCabins();
 }
+// ================================================================
+// ★ 上下行線標示
+// 上方線（y - 70）= 下行線（NP → TC，箭頭向左）
+// 下方線（y + 70）= 上行線（TC → NP，箭頭向右）
+// ================================================================
+function monAddDirectionMarkers(groundPts) {
+    if (!monSvg) return;
 
+    // 先移除舊的標示（避免重複）
+    monSvg.querySelectorAll('.mon-direction-marker').forEach(el => el.remove());
+
+    const topLinePts = groundPts.map(p => [p[0], p[1] - 70]);    // 上方線 = 下行
+    const bottomLinePts = groundPts.map(p => [p[0], p[1] + 70]); // 下方線 = 上行
+
+    // ===== 上方線（下行）文字標籤 =====
+    // 右側（NP 附近）：「⬅ 下行線」
+    const downLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    downLabel.setAttribute('class', 'mon-direction-marker');
+    downLabel.setAttribute('transform',
+        `translate(${topLinePts[topLinePts.length - 1][0] - 30}, ${topLinePts[topLinePts.length - 1][1] - 40})`);
+    const downText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    downText.setAttribute('font-size', '28');
+    downText.setAttribute('font-weight', 'bold');
+    downText.setAttribute('fill', '#3b82f6');
+    downText.setAttribute('stroke', '#000');
+    downText.setAttribute('stroke-width', '1');
+    downText.setAttribute('text-anchor', 'end');
+    downText.textContent = '⬅ 下行線';
+    downLabel.appendChild(downText);
+    monSvg.appendChild(downLabel);
+
+    // ===== 下方線（上行）文字標籤 =====
+    // 左側（TC 附近）：「上行線 ➡」
+    const upLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    upLabel.setAttribute('class', 'mon-direction-marker');
+    upLabel.setAttribute('transform',
+        `translate(${bottomLinePts[0][0] + 30}, ${bottomLinePts[0][1] + 50})`);
+    const upText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    upText.setAttribute('font-size', '28');
+    upText.setAttribute('font-weight', 'bold');
+    upText.setAttribute('fill', '#22c55e');
+    upText.setAttribute('stroke', '#000');
+    upText.setAttribute('stroke-width', '1');
+    upText.setAttribute('text-anchor', 'start');
+    upText.textContent = '上行線 ➡';
+    upLabel.appendChild(upText);
+    monSvg.appendChild(upLabel);
+
+    // ===== 上方線（下行）中段箭頭，方向向左 =====
+    for (let i = 0; i < topLinePts.length - 1; i += 3) {
+        const [x1, y1] = topLinePts[i];
+        const [x2, y2] = topLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        // 下行方向：從右到左（NP → TC）
+        const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'mon-direction-marker');
+        arrow.setAttribute('points', '0,-10 20,0 0,10');
+        arrow.setAttribute('fill', '#3b82f6');
+        arrow.setAttribute('opacity', '0.9');
+        arrow.setAttribute('stroke', '#000');
+        arrow.setAttribute('stroke-width', '1');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        monSvg.appendChild(arrow);
+    }
+
+    // ===== 下方線（上行）中段箭頭，方向向右 =====
+    for (let i = 0; i < bottomLinePts.length - 1; i += 3) {
+        const [x1, y1] = bottomLinePts[i];
+        const [x2, y2] = bottomLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        // 上行方向：從左到右（TC → NP）
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'mon-direction-marker');
+        arrow.setAttribute('points', '0,-10 20,0 0,10');
+        arrow.setAttribute('fill', '#22c55e');
+        arrow.setAttribute('opacity', '0.9');
+        arrow.setAttribute('stroke', '#000');
+        arrow.setAttribute('stroke-width', '1');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        monSvg.appendChild(arrow);
+    }
+}
 function monLayoutCabins() {
     if (!monMapRopePts || monMapRopePts.length === 0) {
         console.warn('monMapRopePts 尚未初始化，跳過佈局');
@@ -1205,6 +1293,32 @@ function monManualRefresh() {
         monSyncOffsetAndLayout(); 
         const totalEl = document.getElementById('monTotalCabins');
         if (totalEl) totalEl.textContent = monMapCabins.length;
+
+        // ★ 重新繪製上下行線標示
+        if (monSvg) {
+            const segments = ['TC', 'T1', 'T2A', 'AIAS', 'T2B', 'T3', 'T4', 'T5', 'NLS', 'T6', 'T7', 'NP'];
+            const slots = [2, 2, 2, 2, 10, 6, 5, 1, 2, 7, 3];
+            const startX = 50, endX = 2750;
+            const unit = (endX - startX) / 42;
+            const baseY = 600;
+            let x = startX;
+            const xCoords = [x];
+            for (let i = 0; i < slots.length; i++) {
+                x += slots[i] * unit;
+                xCoords.push(x);
+            }
+            const MON_Y_OFFSET = 140;
+            const groundPts = segments.map((s, i) => {
+                const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
+                    ? window.mdStationX[s]
+                    : xCoords[i];
+                const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
+                    ? window.mdStationY[s]
+                    : baseY;
+                return [gx, gyBase + MON_Y_OFFSET];
+            });
+            monAddDirectionMarkers(groundPts);
+        }
     }, 100);
 }
 
