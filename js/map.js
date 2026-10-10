@@ -283,7 +283,7 @@ segments.forEach((s, i) => {
         summaryGroup.setAttribute('id', 'svgSummary');
         summaryGroup.setAttribute('transform', 'translate(20, 200)');
 
-        function createStatusCard(x, y, color, label, idNum, idCabins) {
+         function createStatusCard(x, y, color, label, idNum, idCabins) {
             const g = document.createElementNS('http://www.w3.org/2000/svg','g');
             g.setAttribute('transform', `translate(${x}, ${y})`);
             const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -314,16 +314,20 @@ segments.forEach((s, i) => {
             numText.setAttribute('fill', color);
             numText.textContent = '0';
             g.appendChild(numText);
+
+            // ★ 車廂文字改用 <text> + 多個 <tspan>（支援換行）
             const cabinText = document.createElementNS('http://www.w3.org/2000/svg','text');
             cabinText.setAttribute('id', idCabins);
             cabinText.setAttribute('x', '110');
-            cabinText.setAttribute('y', '82');
-            cabinText.setAttribute('font-size', '20');
+            cabinText.setAttribute('y', '72');
+            cabinText.setAttribute('font-size', '18');
             cabinText.setAttribute('fill', '#1e293b');
             cabinText.setAttribute('font-weight', '500');
-            cabinText.setAttribute('style', 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;');
-            cabinText.textContent = '';
-            cabinText.setAttribute('title', '');
+            cabinText.setAttribute('text-anchor', 'start');
+            // ★ 加 title（滑鼠懸停顯示完整內容）
+            const title = document.createElementNS('http://www.w3.org/2000/svg','title');
+            title.textContent = '';
+            cabinText.appendChild(title);
             g.appendChild(cabinText);
             return g;
         }
@@ -1040,22 +1044,12 @@ function mapUpdateSummary() {
     const rcStr = rc.join(', ');
     const lcStr = lc.join(', ');
     const dcStr = dc.join(', ');
-    if (waitingCabinsSvg) {
-        waitingCabinsSvg.textContent = wcStr;
-        waitingCabinsSvg.setAttribute('title', wcStr);
-    }
-    if (rescuingCabinsSvg) {
-        rescuingCabinsSvg.textContent = rcStr;
-        rescuingCabinsSvg.setAttribute('title', rcStr);
-    }
-    if (landedCabinsSvg) {
-        landedCabinsSvg.textContent = lcStr;
-        landedCabinsSvg.setAttribute('title', lcStr);
-    }
-    if (departedCabinsSvg) {
-        departedCabinsSvg.textContent = dcStr;
-        departedCabinsSvg.setAttribute('title', dcStr);
-    }
+    
+    // ★ 多行顯示車廂號碼
+    updateStatusCardCabinText(waitingCabinsSvg, wcStr);
+    updateStatusCardCabinText(rescuingCabinsSvg, rcStr);
+    updateStatusCardCabinText(landedCabinsSvg, lcStr);
+    updateStatusCardCabinText(departedCabinsSvg, dcStr);
 
     // 強制觸發重繪
     waitingSvg.offsetWidth;
@@ -1070,7 +1064,134 @@ function mapUpdateSummary() {
 
     console.log('✅ 摘要更新完成，已強制重繪');
 }
+// ================================================================
+// ★ 更新狀態卡片的車廂文字（自動換行 + 動態縮小字體）
+// 使用 <tspan> 多行顯示，避免文字溢出卡片
+// ================================================================
+function updateStatusCardCabinText(el, text) {
+    if (!el) return;
 
+    // 清空舊的 tspan（保留 title）
+    const oldTitle = el.querySelector('title');
+    el.innerHTML = '';
+    if (oldTitle) {
+        oldTitle.textContent = text || '';
+        el.appendChild(oldTitle);
+    } else {
+        const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        titleEl.textContent = text || '';
+        el.appendChild(titleEl);
+    }
+
+    if (!text || text.trim() === '') return;
+
+    // 卡片可用寬度與高度
+    const maxWidth = 200;    // 卡片寬 320 - x 110 - 邊距 10
+    const maxLines = 3;      // 最多 3 行
+    const baseFontSize = 18;
+    const lineHeight = 20;   // 行高（比 fontSize 大一點）
+
+    // 嘗試不同字體大小，直到能放入 maxLines 行內
+    let fontSize = baseFontSize;
+    let lines = wrapTextByWidth(text, maxWidth, fontSize);
+
+    while (lines.length > maxLines && fontSize > 10) {
+        fontSize -= 1;
+        lines = wrapTextByWidth(text, maxWidth, fontSize);
+    }
+
+    // 設定字體
+    el.setAttribute('font-size', fontSize);
+
+    // 建立 tspan（每行一個）
+    const startY = parseFloat(el.getAttribute('y')) || 72;
+
+    // ★ 垂直置中：根據行數調整起始 Y
+    let firstLineY = startY;
+    if (lines.length === 1) {
+        firstLineY = startY;
+    } else if (lines.length === 2) {
+        firstLineY = startY - lineHeight / 2;
+    } else if (lines.length === 3) {
+        firstLineY = startY - lineHeight;
+    }
+
+    lines.forEach((lineText, i) => {
+        const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+        tspan.setAttribute('x', el.getAttribute('x'));
+        tspan.setAttribute('dy', i === 0 ? '0' : String(lineHeight));
+        tspan.setAttribute('y', i === 0 ? String(firstLineY) : '');
+        tspan.textContent = lineText;
+        el.appendChild(tspan);
+    });
+}
+
+// ================================================================
+// ★ 將文字依寬度自動分行
+// 回傳：['行1', '行2', ...]
+// ================================================================
+function wrapTextByWidth(text, maxWidth, fontSize) {
+    if (!text) return [];
+
+    // 以逗號分割車廂號碼（保留原始逗號格式）
+    // 例如 "1, 2, 3, 5, 28, 100, 109" → ["1,", "2,", "3,", "5,", "28,", "100,", "109"]
+    // 但保留逗號 + 空格
+    const tokens = [];
+    const parts = text.split(/,\s*/);
+    parts.forEach((p, i) => {
+        if (i < parts.length - 1) {
+            tokens.push(p + ',');
+        } else {
+            tokens.push(p);
+        }
+    });
+
+    const lines = [];
+    let currentLine = '';
+    let currentWidth = 0;
+
+    for (const token of tokens) {
+        const tokenWidth = estimateTextWidth(token, fontSize) + (currentLine ? estimateTextWidth(' ', fontSize) : 0);
+
+        if (currentLine && currentWidth + tokenWidth > maxWidth) {
+            // 換行
+            lines.push(currentLine);
+            currentLine = token;
+            currentWidth = estimateTextWidth(token, fontSize);
+        } else {
+            // 加在同一行
+            currentLine = currentLine ? currentLine + ' ' + token : token;
+            currentWidth += tokenWidth;
+        }
+    }
+
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    return lines;
+}
+
+// ================================================================
+// ★ 估算文字寬度（近似值）
+// ================================================================
+function estimateTextWidth(text, fontSize) {
+    let width = 0;
+    for (const ch of text) {
+        if (ch >= '0' && ch <= '9') {
+            width += fontSize * 0.55;
+        } else if (ch === ',') {
+            width += fontSize * 0.3;
+        } else if (ch === ' ') {
+            width += fontSize * 0.3;
+        } else if (ch === '-') {
+            width += fontSize * 0.4;
+        } else {
+            width += fontSize * 0.6;
+        }
+    }
+    return width;
+}
 // ---- 套用車廂序號 ----
 function mapApplySequences() {
     const seqs = document.getElementById('seqInput').value.split(/[\s,]+/).filter(s => s);
