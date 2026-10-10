@@ -890,11 +890,13 @@ function addDirectionMarkers(svg, groundPts) {
     svg.appendChild(upFlow);
 
     // ===== 下行線箭頭（藍色，向左） =====
+      // ===== 下行線箭頭（藍色，向左）=====
+    // ★ 往外移：上方線的箭頭再往上偏 40px
     for (let i = 0; i < topLinePts.length - 1; i++) {
         const [x1, y1] = topLinePts[i];
         const [x2, y2] = topLinePts[i + 1];
         const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
+        const my = (y1 + y2) / 2 - 40;   // ★ 往上移 40px（遠離索道）
         const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
 
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -905,12 +907,13 @@ function addDirectionMarkers(svg, groundPts) {
         svg.appendChild(arrow);
     }
 
-    // ===== 上行線箭頭（黃色，向右） =====
+    // ===== 上行線箭頭（黃色，向右）=====
+    // ★ 往外移：下方線的箭頭再往下偏 40px
     for (let i = 0; i < bottomLinePts.length - 1; i++) {
         const [x1, y1] = bottomLinePts[i];
         const [x2, y2] = bottomLinePts[i + 1];
         const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
+        const my = (y1 + y2) / 2 + 40;   // ★ 往下移 40px（遠離索道）
         const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
 
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
