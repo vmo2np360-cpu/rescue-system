@@ -1379,8 +1379,7 @@ function mdRebuildRopeAndLayout() {
    addDirectionMarkers(mdMapSvg, groundPts);
     console.log('✅ 站點、索道、車廂已更新');
 }
-// ========================================    // ★ 上下行線標示（共用函式）
-    ======================
+
 // 圖例位置即時調整工具
 // ================================================================
 window.mdSetLegend = function (x, y) {
