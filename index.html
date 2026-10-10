@@ -9,7 +9,6 @@
         <link rel="stylesheet" href="css/cabin-drawer.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="style.css">
    <!-- 外部庫：Firebase SDK 必須全部連續、依序，且 app 必須在最前 -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -28,6 +27,8 @@
 
 <!-- 共用庫與模組（一定在 SDK 之後） -->
 <script src="common.js"></script>
+<script src="js/cable-timing-engine.js"></script>
+<script src="js/cable-timing.js"></script>
     <script src="js/cabin-images.js"></script>  
      <script src="js/cabin-photos.js"></script>
 <script src="js/auth.js"></script>
@@ -247,6 +248,7 @@
     <div id="section-ap" class="section-container"></div>
      <div id="section-occ" class="section-container"></div>
     <div id="section-cabin-photos" class="section-container"></div>
+    <div id="section-cable-timing" class="section-container"></div>
     <div id="section-map" class="section-container"></div>
     <div id="section-dashboard" class="section-container"></div>
     <div id="section-monitor-dashboard" class="section-container"></div>
