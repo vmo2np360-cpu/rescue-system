@@ -1,0 +1,77 @@
+<h2 class="ct-title"><i class="fas fa-clock"></i> 纜車車距計算</h2>
+
+<!-- 控制面板 -->
+<section class="ct-control-panel">
+    <div class="ct-control-group">
+        <label>面前車號</label>
+        <input type="number" id="ct-inputCurrent" value="34" min="1" max="200" />
+    </div>
+    <div class="ct-control-group">
+        <label>目標車號</label>
+        <input type="number" id="ct-inputTarget" value="92" min="1" max="200" />
+    </div>
+    <div class="ct-control-group">
+        <label>繩速 (m/s)</label>
+        <input type="number" id="ct-inputSpeed" value="5.0" step="0.1" min="0" max="6" />
+    </div>
+    <div class="ct-control-group">
+        <label>模式</label>
+        <select id="ct-inputMode">
+            <option value="109">109</option>
+            <option value="84" selected>84</option>
+        </select>
+    </div>
+    <button class="ct-btn ct-btn-primary" id="ct-btnCalculate">
+        <i class="fas fa-calculator"></i> 計算行車時間
+    </button>
+    <button class="ct-btn ct-btn-secondary" id="ct-btnClearHighlight">
+        <i class="fas fa-eraser"></i> 清除高亮
+    </button>
+</section>
+
+<!-- 結果面板 -->
+<section class="ct-result-panel">
+    <div class="ct-result-item">
+        <span class="label">Gap（車距）</span>
+        <span class="value" id="ct-resGap">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">秒／車廂</span>
+        <span class="value" id="ct-resSecPerCar">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">總秒數</span>
+        <span class="value" id="ct-resTotalSec">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">行車時間</span>
+        <span class="value" id="ct-resTravelTime">—</span>
+    </div>
+    <div class="ct-result-item ct-highlight">
+        <span class="label">預計抵達</span>
+        <span class="value" id="ct-resArrival">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">面前位置</span>
+        <span class="value" id="ct-resPosCurrent">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">目標位置</span>
+        <span class="value" id="ct-resPosTarget">—</span>
+    </div>
+</section>
+
+<!-- 視覺地圖 -->
+<div class="ct-map-wrapper">
+    <svg id="ct-map" viewBox="0 0 2800 1000" preserveAspectRatio="xMidYMid meet">
+        <defs></defs>
+    </svg>
+</div>
+
+<!-- 圖例 -->
+<footer class="ct-legend">
+    <div class="ct-legend-item"><span class="ct-swatch ct-current"></span> 面前車</div>
+    <div class="ct-legend-item"><span class="ct-swatch ct-target"></span> 目標車</div>
+    <div class="ct-legend-item"><span class="ct-swatch ct-default"></span> 一般車廂</div>
+    <div class="ct-legend-item"><span class="ct-swatch ct-empty"></span> 未設定號碼</div>
+</footer>
