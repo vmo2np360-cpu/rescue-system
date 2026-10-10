@@ -2,7 +2,8 @@
 // 纜車車距計算 - 整合模組
 // - 控制面板 + 結果面板
 // - 視覺地圖（沿用 monitor-dashboard 樣式）
-// - 從 Realtime DB 讀取車廂序號
+// - 從 Realtime DB 讀取車廂序號與種類
+// - 支援「面前車號」重新排序 + 站點選擇
 // ================================================================
 
 let _ctEngine = null;
@@ -12,95 +13,35 @@ let _ctMapCabins = [];
 let _ctCurrentOffset = 0;
 let _ctCabinMode = 84;
 let _ctRopePts = [];
+let _ctGroundPts = [];       // ★ 新增：站點座標（供站點選擇用）
+let _ctStationArcPos = {};   // ★ 新增：各站點的弧長位置
 
 // 高亮狀態
 let _ctHighlightCurrent = null;
 let _ctHighlightTarget = null;
 
+// ★ 新增：面前車號與站點
+let _ctCurrentCabin = null;  // 面前車號（用於重新排序）
+let _ctSelectedStation = null; // 選中的站點（TC/AIAS/NLS/NP）
+
 // ================================================================
-// HTML 模板
+// 車廂種類顏色對照
 // ================================================================
-const CT_HTML = `
-<div class="ct-wrapper">
-    <h2 class="ct-title"><i class="fas fa-clock"></i> 纜車車距計算</h2>
+const CT_TYPE_COLORS = {
+    'standard':  { fill: '#22c55e', stroke: '#16a34a', label: '標準' },
+    'crystal':   { fill: '#3b82f6', stroke: '#2563eb', label: '水晶' },
+    'panorama':  { fill: '#eab308', stroke: '#ca8a04', label: '全景' },
+    'default':   { fill: '#ffffff', stroke: '#333333', label: '未設定' }
+};
 
-    <!-- 控制面板 -->
-    <section class="ct-control-panel">
-        <div class="ct-control-group">
-            <label>面前車號</label>
-            <input type="number" id="ct-inputCurrent" value="34" min="1" max="200" />
-        </div>
-        <div class="ct-control-group">
-            <label>目標車號</label>
-            <input type="number" id="ct-inputTarget" value="92" min="1" max="200" />
-        </div>
-        <div class="ct-control-group">
-            <label>繩速 (m/s)</label>
-            <input type="number" id="ct-inputSpeed" value="5.0" step="0.1" min="0" max="6" />
-        </div>
-        <div class="ct-control-group">
-            <label>模式</label>
-            <select id="ct-inputMode">
-                <option value="109">109</option>
-                <option value="84" selected>84</option>
-            </select>
-        </div>
-        <button class="ct-btn ct-btn-primary" id="ct-btnCalculate">
-            <i class="fas fa-calculator"></i> 計算行車時間
-        </button>
-        <button class="ct-btn ct-btn-secondary" id="ct-btnClearHighlight">
-            <i class="fas fa-eraser"></i> 清除高亮
-        </button>
-    </section>
-
-    <!-- 結果面板 -->
-    <section class="ct-result-panel">
-        <div class="ct-result-item">
-            <span class="label">Gap（車距）</span>
-            <span class="value" id="ct-resGap">—</span>
-        </div>
-        <div class="ct-result-item">
-            <span class="label">秒／車廂</span>
-            <span class="value" id="ct-resSecPerCar">—</span>
-        </div>
-        <div class="ct-result-item">
-            <span class="label">總秒數</span>
-            <span class="value" id="ct-resTotalSec">—</span>
-        </div>
-        <div class="ct-result-item">
-            <span class="label">行車時間</span>
-            <span class="value" id="ct-resTravelTime">—</span>
-        </div>
-        <div class="ct-result-item ct-highlight">
-            <span class="label">預計抵達</span>
-            <span class="value" id="ct-resArrival">—</span>
-        </div>
-        <div class="ct-result-item">
-            <span class="label">面前位置</span>
-            <span class="value" id="ct-resPosCurrent">—</span>
-        </div>
-        <div class="ct-result-item">
-            <span class="label">目標位置</span>
-            <span class="value" id="ct-resPosTarget">—</span>
-        </div>
-    </section>
-
-    <!-- 視覺地圖 -->
-    <div class="ct-map-wrapper">
-        <svg id="ct-map" viewBox="0 0 2800 1000" preserveAspectRatio="xMidYMid meet">
-            <defs></defs>
-        </svg>
-    </div>
-
-    <!-- 圖例 -->
-    <footer class="ct-legend">
-        <div class="ct-legend-item"><span class="ct-swatch ct-current"></span> 面前車</div>
-        <div class="ct-legend-item"><span class="ct-swatch ct-target"></span> 目標車</div>
-        <div class="ct-legend-item"><span class="ct-swatch ct-default"></span> 一般車廂</div>
-        <div class="ct-legend-item"><span class="ct-swatch ct-empty"></span> 未設定號碼</div>
-    </footer>
-</div>
-`;
+function ctGetTypeColor(type) {
+    if (!type) return CT_TYPE_COLORS.default;
+    const t = String(type).toLowerCase();
+    if (t.includes('standard') || t.includes('標準')) return CT_TYPE_COLORS.standard;
+    if (t.includes('crystal') || t.includes('水晶')) return CT_TYPE_COLORS.crystal;
+    if (t.includes('panorama') || t.includes('全景')) return CT_TYPE_COLORS.panorama;
+    return CT_TYPE_COLORS.default;
+}
 
 // ================================================================
 // 初始化
@@ -112,42 +53,38 @@ async function initCableTiming() {
         return;
     }
 
-    // 若已初始化，跳過 HTML 插入但重新繪製地圖
     if (_ctInitialized) {
-        console.log('車距計算已初始化，重新繪製');
+        console.log('車距計算已初始化，重新載入資料');
         await ctReloadData();
         return;
     }
 
-    // 插入 HTML
-    section.innerHTML = CT_HTML;
+    if (!document.getElementById('ct-map')) {
+        console.warn('模板尚未載入，300ms 後重試');
+        setTimeout(initCableTiming, 300);
+        return;
+    }
 
-    // 從 Firestore 讀取模式
     try {
         _ctCabinMode = await window.getGlobalModeFromFirestore();
     } catch (e) {
         _ctCabinMode = 84;
     }
 
-    // 讀取偏移量
     try {
         _ctCurrentOffset = await window.getGlobalOffsetFromFirestore();
     } catch (e) {
         _ctCurrentOffset = 0;
     }
 
-    // 設定模式下拉選單
     const modeSelect = document.getElementById('ct-inputMode');
     if (modeSelect) modeSelect.value = String(_ctCabinMode);
 
-    // 建立地圖
     _ctMapSvg = document.getElementById('ct-map');
     ctBuildMap();
 
-    // 讀取車廂序號
     await ctLoadCabins();
 
-    // 綁定事件
     ctBindEvents();
 
     _ctInitialized = true;
@@ -155,27 +92,16 @@ async function initCableTiming() {
 }
 
 // ================================================================
-// 地圖建立（沿用 monitor-dashboard 樣式）
+// 地圖建立
 // ================================================================
 function ctBuildMap() {
     if (!_ctMapSvg) return;
 
-    // 清空 SVG
+    const oldDefs = _ctMapSvg.querySelector('defs');
     while (_ctMapSvg.firstChild) _ctMapSvg.removeChild(_ctMapSvg.firstChild);
 
-    // 建立 defs（filter）
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-
-    // 高亮濾鏡（金黃色）
-    const filterGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-    filterGlow.setAttribute('id', 'ctGlow');
-    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
-    shadow.setAttribute('dx', '0');
-    shadow.setAttribute('dy', '0');
-    shadow.setAttribute('stdDeviation', '8');
-    shadow.setAttribute('flood-color', 'gold');
-    filterGlow.appendChild(shadow);
-    defs.appendChild(filterGlow);
+    const defs = oldDefs || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.innerHTML = '';
 
     // 面前車濾鏡（藍色）
     const filterCurrent = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -201,7 +127,7 @@ function ctBuildMap() {
 
     _ctMapSvg.appendChild(defs);
 
-    // 地形圖片（與 monitor-dashboard 一致）
+    // 地形圖片
     const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     terrainImg.setAttribute('id', 'ct-terrain-img');
     terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
@@ -213,20 +139,17 @@ function ctBuildMap() {
     terrainImg.setAttribute('height', '1334.4');
     _ctMapSvg.appendChild(terrainImg);
 
-    // 站點座標（從 window.mdStationX / mdStationY 讀取）
+    // 站點座標
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
-    const groundPts = [];
+    _ctGroundPts = [];
 
     segments.forEach((s) => {
         const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
-            ? window.mdStationX[s]
-            : 0;
+            ? window.mdStationX[s] : 0;
         const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
-            ? window.mdStationY[s]
-            : 600;
-        groundPts.push([gx, gy]);
+            ? window.mdStationY[s] : 600;
+        _ctGroundPts.push([gx, gy]);
 
-        // 站點文字
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         txt.textContent = s;
         const offset = (window.mdLabelOffset && window.mdLabelOffset[s]) || { dx: 0, dy: 25 };
@@ -240,9 +163,9 @@ function ctBuildMap() {
         _ctMapSvg.appendChild(txt);
     });
 
-    // 纜索（上下兩條線）
-    const up = groundPts.map(p => [p[0], p[1] - 70]);
-    const down = groundPts.map(p => [p[0], p[1] + 70]).reverse();
+    // 纜索
+    const up = _ctGroundPts.map(p => [p[0], p[1] - 70]);
+    const down = _ctGroundPts.map(p => [p[0], p[1] + 70]).reverse();
     _ctRopePts = [...up, ...down, [up[0][0], up[0][1]]];
 
     const rope = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -253,46 +176,109 @@ function ctBuildMap() {
     rope.setAttribute('stroke-width', '4');
     _ctMapSvg.appendChild(rope);
 
-    // 上下行線標示（共用函式）
+    // ★ 計算各站點的弧長位置（供站點選擇用）
+    ctCalcStationArcPositions();
+
+    // 上下行線標示
     if (typeof window.addDirectionMarkers === 'function') {
-        window.addDirectionMarkers(_ctMapSvg, groundPts);
+        window.addDirectionMarkers(_ctMapSvg, _ctGroundPts);
     }
 }
 
 // ================================================================
-// 讀取車廂序號並建立車廂
+// ★ 計算各站點的弧長位置
+// 索道是環形：上方線（TC→NP）+ 下方線（NP→TC）
+// 站點在上方線上的弧長位置 = 從 TC 起算的距離
+// ================================================================
+function ctCalcStationArcPositions() {
+    _ctStationArcPos = {};
+    if (_ctGroundPts.length < 2) return;
+
+    const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
+
+    // 上方線（TC → NP）
+    const upPts = _ctGroundPts.map(p => [p[0], p[1] - 70]);
+    let acc = 0;
+    for (let i = 0; i < upPts.length; i++) {
+        if (i > 0) {
+            acc += Math.hypot(upPts[i][0] - upPts[i-1][0], upPts[i][1] - upPts[i-1][1]);
+        }
+        _ctStationArcPos[segments[i]] = acc;
+    }
+}
+
+// ================================================================
+// ★ 計算車廂在索道上的弧長位置
+// 根據「面前車號」和「站點選擇」重新排序
+// ================================================================
+function ctCalcCabinArcPositions() {
+    const total = _ctMapCabins.length;
+    if (total === 0) return [];
+
+    const ropeLen = ctLengthOf(_ctRopePts);
+    const result = [];
+
+    // 找出「面前車」的索引
+    let anchorIdx = 0;
+    if (_ctCurrentCabin !== null) {
+        const found = _ctMapCabins.findIndex(c => c.seqNum === _ctCurrentCabin);
+        if (found >= 0) anchorIdx = found;
+    }
+
+    // ★ 計算「面前車」應該在索道上的位置
+    let anchorArcPos = 0;
+    if (_ctSelectedStation && _ctStationArcPos[_ctSelectedStation] !== undefined) {
+        anchorArcPos = _ctStationArcPos[_ctSelectedStation];
+    } else {
+        anchorArcPos = 0;  // 預設 TC 位置
+    }
+
+    // ★ 重新排序：面前車放在 anchorArcPos，其他車廂依序往後推
+    // 每台車廂間距 = 索道總長 / 車廂數
+    const spacing = ropeLen / total;
+
+    for (let i = 0; i < total; i++) {
+        // 計算這台車相對於面前車的偏移
+        const relativeIdx = (i - anchorIdx + total) % total;
+        // 弧長位置
+        let arcPos = (anchorArcPos + relativeIdx * spacing) % ropeLen;
+        if (arcPos < 0) arcPos += ropeLen;
+        result.push(arcPos);
+    }
+
+    return result;
+}
+
+// ================================================================
+// 讀取車廂序號與種類，建立車廂
 // ================================================================
 async function ctLoadCabins() {
     if (!_ctMapSvg) return;
 
     try {
-        // 從 Realtime DB 讀取車廂序號
         const snap = await realtimeDb.ref('cabins').once('value');
         const data = snap.val() || {};
 
-        // 清空舊車廂
         _ctMapCabins.forEach(c => {
             if (c.el && c.el.parentNode) c.el.parentNode.removeChild(c.el);
         });
         _ctMapCabins = [];
 
-        // 建立序列（用於 CoreEngine）
         const sequence = [];
-
         const total = _ctCabinMode;
         const size = _ctCabinMode === 109 ? 20 : 24;
         const baseFontSize = _ctCabinMode === 109 ? 22 : 26;
-        const ropeLen = ctLengthOf(_ctRopePts);
 
         for (let i = 0; i < total; i++) {
             const cabinId = 'cabin-' + i;
             const seq = (data[cabinId] && data[cabinId].sequence) ? data[cabinId].sequence : '';
+            const type = (data[cabinId] && data[cabinId].type) ? data[cabinId].type : '';
             const seqNum = parseInt(seq, 10);
 
-            // 建立車廂元素
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.setAttribute('class', 'ct-cabin');
             g.setAttribute('data-seq', seq);
+            g.setAttribute('data-type', type);
 
             const pts = [];
             for (let j = 0; j < 6; j++) {
@@ -301,67 +287,103 @@ async function ctLoadCabins() {
             }
             const hex = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
             hex.setAttribute('points', pts.join(' '));
-            hex.setAttribute('fill', '#ffffff');
-            hex.setAttribute('stroke', '#333');
+
+            // ★ 依車廂種類上色
+            const colorInfo = ctGetTypeColor(type);
+            hex.setAttribute('fill', colorInfo.fill);
+            hex.setAttribute('stroke', colorInfo.stroke);
             hex.setAttribute('stroke-width', '2.5');
             g.appendChild(hex);
 
             const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             lbl.setAttribute('class', 'ct-seq-label');
             lbl.setAttribute('y', '5');
-            lbl.setAttribute('font-size', baseFontSize);
             lbl.setAttribute('text-anchor', 'middle');
             lbl.setAttribute('dominant-baseline', 'middle');
-            lbl.setAttribute('fill', '#111');
+            // ★ 依文字長度動態調整字體，避免變形
+            const fontSize = ctCalcFontSize(seq, baseFontSize, size);
+            lbl.setAttribute('font-size', fontSize);
+            // ★ 依種類決定文字顏色（深色底用白字）
+            const isDarkBg = ['standard', 'crystal', 'panorama'].some(t =>
+                String(type).toLowerCase().includes(t) ||
+                String(type).includes('標準') ||
+                String(type).includes('水晶') ||
+                String(type).includes('全景')
+            );
+            lbl.setAttribute('fill', isDarkBg ? '#ffffff' : '#111111');
             lbl.textContent = seq;
             g.appendChild(lbl);
 
-            // ★ 防止文字溢出
-            lbl.setAttribute('textLength', String(size * 1.7));
-            lbl.setAttribute('lengthAdjust', 'spacingAndGlyphs');
-
-            const cabin = { id: cabinId, seq, seqNum, el: g, shape: hex, label: lbl };
+            const cabin = { id: cabinId, seq, seqNum, type, el: g, shape: hex, label: lbl };
             _ctMapCabins.push(cabin);
             _ctMapSvg.appendChild(g);
 
-            // 加入序列（若有號碼）
             if (seqNum && !isNaN(seqNum)) {
                 sequence.push(seqNum);
             }
         }
 
-        // 佈局車廂
+        // ★ 依「面前車號」和「站點」佈局
         ctLayoutCabins();
 
-        // 更新 CoreEngine 的序列
         if (sequence.length > 0) {
             if (!_ctEngine) {
                 _ctEngine = new CableTimingEngine(sequence);
             } else {
                 _ctEngine.updateSequence(sequence);
             }
-            console.log('✅ 車距計算引擎已更新序列，共', sequence.length, '台車廂');
+            console.log('✅ 車距計算引擎已更新，共', sequence.length, '台車廂');
         } else {
-            console.warn('⚠️ 序列為空，請先設定車廂號碼');
+            console.warn('⚠️ 序列為空');
         }
 
     } catch (e) {
-        console.error('讀取車廂序號失敗:', e);
+        console.error('讀取車廂失敗:', e);
     }
 }
 
 // ================================================================
-// 車廂佈局
+// ★ 依文字長度動態計算字體大小（取代 textLength）
+// ================================================================
+function ctCalcFontSize(text, baseFontSize, cabinSize) {
+    if (!text) return baseFontSize;
+
+    // 六邊形內切寬度約為 size × 1.7
+    const maxWidth = cabinSize * 1.7;
+
+    // 估算文字寬度（數字約 0.55em，其他 0.6em）
+    let estimatedWidth = 0;
+    for (const ch of text) {
+        if (ch >= '0' && ch <= '9') {
+            estimatedWidth += baseFontSize * 0.55;
+        } else {
+            estimatedWidth += baseFontSize * 0.6;
+        }
+    }
+
+    if (estimatedWidth <= maxWidth) {
+        return baseFontSize;
+    }
+
+    // 縮小字體
+    const scale = maxWidth / estimatedWidth;
+    const newFontSize = Math.max(10, Math.floor(baseFontSize * scale));
+    return newFontSize;
+}
+
+// ================================================================
+// 車廂佈局（依「面前車號」+「站點」重新排序）
 // ================================================================
 function ctLayoutCabins() {
     if (!_ctRopePts || _ctRopePts.length === 0) return;
-    const ropeLen = ctLengthOf(_ctRopePts);
     const total = _ctMapCabins.length;
     if (total === 0) return;
 
+    const arcPositions = ctCalcCabinArcPositions();
+
     _ctMapCabins.forEach((c, i) => {
-        const d = ((i * ropeLen / total + _ctCurrentOffset) % ropeLen + ropeLen) % ropeLen;
-        const pos = ctPointAt(_ctRopePts, d);
+        const arcPos = arcPositions[i];
+        const pos = ctPointAt(_ctRopePts, arcPos);
         if (pos) c.el.setAttribute('transform', `translate(${pos.x},${pos.y})`);
     });
 }
@@ -393,32 +415,65 @@ function ctPointAt(pts, d) {
 // ================================================================
 function ctBindEvents() {
     const btnCalc = document.getElementById('ct-btnCalculate');
-    if (btnCalc) {
+    if (btnCalc && !btnCalc.dataset.bound) {
+        btnCalc.dataset.bound = 'true';
         btnCalc.addEventListener('click', ctRunCalculation);
     }
 
     const btnClear = document.getElementById('ct-btnClearHighlight');
-    if (btnClear) {
+    if (btnClear && !btnClear.dataset.bound) {
+        btnClear.dataset.bound = 'true';
         btnClear.addEventListener('click', ctClearHighlight);
     }
 
-    // 輸入框按 Enter 也能計算
-    ['ct-inputCurrent', 'ct-inputTarget', 'ct-inputSpeed'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') ctRunCalculation();
-            });
-        }
-    });
+    // ★ 面前車號變更 → 重新排序索道
+    const inputCurrent = document.getElementById('ct-inputCurrent');
+    if (inputCurrent && !inputCurrent.dataset.bound) {
+        inputCurrent.dataset.bound = 'true';
+        inputCurrent.addEventListener('change', () => {
+            const val = parseInt(inputCurrent.value, 10);
+            _ctCurrentCabin = isNaN(val) ? null : val;
+            ctLayoutCabins();
+            ctApplyHighlight();
+        });
+        inputCurrent.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') ctRunCalculation();
+        });
+    }
 
-    // 模式切換時重新讀取模式
+    const inputTarget = document.getElementById('ct-inputTarget');
+    if (inputTarget && !inputTarget.dataset.bound) {
+        inputTarget.dataset.bound = 'true';
+        inputTarget.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') ctRunCalculation();
+        });
+    }
+
+    const inputSpeed = document.getElementById('ct-inputSpeed');
+    if (inputSpeed && !inputSpeed.dataset.bound) {
+        inputSpeed.dataset.bound = 'true';
+        inputSpeed.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') ctRunCalculation();
+        });
+    }
+
     const modeSelect = document.getElementById('ct-inputMode');
-    if (modeSelect) {
+    if (modeSelect && !modeSelect.dataset.bound) {
+        modeSelect.dataset.bound = 'true';
         modeSelect.addEventListener('change', async (e) => {
             _ctCabinMode = parseInt(e.target.value, 10);
-            // 重新讀取車廂
             await ctLoadCabins();
+        });
+    }
+
+    // ★ 站點選擇變更 → 重新排序
+    const stationSelect = document.getElementById('ct-inputStation');
+    if (stationSelect && !stationSelect.dataset.bound) {
+        stationSelect.dataset.bound = 'true';
+        stationSelect.addEventListener('change', (e) => {
+            _ctSelectedStation = e.target.value || null;
+            ctLayoutCabins();
+            ctApplyHighlight();
         });
     }
 }
@@ -442,6 +497,10 @@ function ctRunCalculation() {
         return;
     }
 
+    // ★ 更新面前車號，重新排序
+    _ctCurrentCabin = currentId;
+    ctLayoutCabins();
+
     const result = _ctEngine.calculateTravelTime(currentId, targetId, speed, mode);
 
     if (result.error) {
@@ -449,7 +508,6 @@ function ctRunCalculation() {
         return;
     }
 
-    // 更新結果面板
     document.getElementById('ct-resGap').textContent = result.gap;
     document.getElementById('ct-resSecPerCar').textContent = result.secPerCar.toFixed(3) + ' s';
     document.getElementById('ct-resTotalSec').textContent = result.totalSeconds.toFixed(1) + ' s';
@@ -458,24 +516,22 @@ function ctRunCalculation() {
     document.getElementById('ct-resPosCurrent').textContent = result.posCurrent;
     document.getElementById('ct-resPosTarget').textContent = result.posTarget;
 
-    // 高亮
     _ctHighlightCurrent = currentId;
     _ctHighlightTarget = targetId;
     ctApplyHighlight();
 }
 
 // ================================================================
-// 高亮面前車 / 目標車
+// 高亮
 // ================================================================
 function ctApplyHighlight() {
-    // 清除所有高亮
     _ctMapCabins.forEach(c => {
-        c.shape.setAttribute('stroke', '#333');
+        const colorInfo = ctGetTypeColor(c.type);
+        c.shape.setAttribute('stroke', colorInfo.stroke);
         c.shape.setAttribute('stroke-width', '2.5');
         c.shape.removeAttribute('filter');
     });
 
-    // 高亮面前車（藍色）
     if (_ctHighlightCurrent !== null) {
         const cur = _ctMapCabins.find(c => c.seqNum === _ctHighlightCurrent);
         if (cur) {
@@ -485,7 +541,6 @@ function ctApplyHighlight() {
         }
     }
 
-    // 高亮目標車（紅色）
     if (_ctHighlightTarget !== null) {
         const tgt = _ctMapCabins.find(c => c.seqNum === _ctHighlightTarget);
         if (tgt) {
@@ -499,15 +554,11 @@ function ctApplyHighlight() {
 function ctClearHighlight() {
     _ctHighlightCurrent = null;
     _ctHighlightTarget = null;
-    _ctMapCabins.forEach(c => {
-        c.shape.setAttribute('stroke', '#333');
-        c.shape.setAttribute('stroke-width', '2.5');
-        c.shape.removeAttribute('filter');
-    });
+    ctApplyHighlight();
 }
 
 // ================================================================
-// 重新載入資料（切回頁面時呼叫）
+// 重新載入資料
 // ================================================================
 async function ctReloadData() {
     if (!_ctInitialized) return;
