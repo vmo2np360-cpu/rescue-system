@@ -794,3 +794,84 @@ textarea#occNotes:focus {
     .occ-layout { grid-template-columns: 1fr; }
     .occ-right .table-wrap { max-height: 50vh; }
 }
+/* ================================================================
+   ★ 上下行線標示（map / monitor / monitor-dashboard 共用）
+   由 common.js 的 addDirectionMarkers() 產生元素
+   ================================================================ */
+
+/* ---- 文字共通 ---- */
+.direction-text {
+    font-size: 36px;
+    font-weight: bold;
+    paint-order: stroke;
+    stroke: #000;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+}
+
+/* ---- 下行線文字（藍色） ---- */
+.direction-text-down {
+    fill: #60a5fa;
+    filter: drop-shadow(0 0 8px #60a5fa);
+}
+
+/* ---- 上行線文字（黃色，綠色背景上最明顯） ---- */
+.direction-text-up {
+    fill: #facc15;
+    filter: drop-shadow(0 0 8px #facc15);
+}
+
+/* ---- 箭頭共通 ---- */
+.direction-arrow {
+    stroke: #000;
+    stroke-width: 1.5;
+    animation: directionPulse 1.8s ease-in-out infinite;
+    animation-delay: var(--anim-delay, 0s);
+}
+
+/* ---- 下行線箭頭（藍色） ---- */
+.direction-arrow-down {
+    fill: #60a5fa;
+}
+
+/* ---- 上行線箭頭（黃色） ---- */
+.direction-arrow-up {
+    fill: #facc15;
+}
+
+/* ---- 脈動動畫 ---- */
+@keyframes directionPulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+}
+
+/* ---- 深色背景加強（monitor / monitor-dashboard） ---- */
+#section-monitor .direction-text,
+#section-monitor-dashboard .direction-text {
+    stroke-width: 4px;
+}
+
+/* ================================================================
+   ★ 纜索流動虛線（可選）
+   ================================================================ */
+.direction-flow-line {
+    fill: none;
+    stroke-width: 4;
+    stroke-dasharray: 12 18;
+    opacity: 0.7;
+    animation: flowDash 1.2s linear infinite;
+}
+
+.direction-flow-down {
+    stroke: #60a5fa;
+    animation-direction: reverse;
+}
+
+.direction-flow-up {
+    stroke: #facc15;
+}
+
+@keyframes flowDash {
+    from { stroke-dashoffset: 30; }
+    to   { stroke-dashoffset: 0; }
+}
