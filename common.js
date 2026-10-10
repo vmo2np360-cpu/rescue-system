@@ -838,7 +838,92 @@ window.addEventListener('resize', () => {
         initMobileNavbar();
     }, 300);
 });
+// ================================================================
+// ★ 上下行線標示：共用函式（map / monitor / monitor-dashboard 共用）
+// 用法：addDirectionMarkers(svgElement, groundPts);
+// 上方線（y - 70）= 下行線（NP → TC，箭頭向左，藍色）
+// 下方線（y + 70）= 上行線（TC → NP，箭頭向右，黃色）
+// ================================================================
+function addDirectionMarkers(svg, groundPts) {
+    if (!svg || !groundPts || groundPts.length === 0) return;
 
+    // 先移除舊的標示
+    svg.querySelectorAll('.direction-marker').forEach(el => el.remove());
+
+    const topLinePts = groundPts.map(p => [p[0], p[1] - 70]);
+    const bottomLinePts = groundPts.map(p => [p[0], p[1] + 70]);
+
+    // ===== 下行線文字標籤（右側） =====
+    const downLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    downLabel.setAttribute('class', 'direction-marker direction-label-down');
+    downLabel.setAttribute('transform',
+        `translate(${topLinePts[topLinePts.length - 1][0] - 40}, ${topLinePts[topLinePts.length - 1][1] - 60})`);
+    const downText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    downText.setAttribute('class', 'direction-text direction-text-down');
+    downText.setAttribute('text-anchor', 'end');
+    downText.textContent = '⬅ 下行線';
+    downLabel.appendChild(downText);
+    svg.appendChild(downLabel);
+
+    // ===== 上行線文字標籤（左側） =====
+    const upLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    upLabel.setAttribute('class', 'direction-marker direction-label-up');
+    upLabel.setAttribute('transform',
+        `translate(${bottomLinePts[0][0] + 40}, ${bottomLinePts[0][1] + 70})`);
+    const upText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    upText.setAttribute('class', 'direction-text direction-text-up');
+    upText.setAttribute('text-anchor', 'start');
+    upText.textContent = '上行線 ➡';
+    upLabel.appendChild(upText);
+    svg.appendChild(upLabel);
+
+    // ===== 下行線流動虛線 =====
+    const downFlow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    downFlow.setAttribute('class', 'direction-marker direction-flow-line direction-flow-down');
+    downFlow.setAttribute('points', topLinePts.map(p => p.join(',')).join(' '));
+    svg.appendChild(downFlow);
+
+    // ===== 上行線流動虛線 =====
+    const upFlow = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    upFlow.setAttribute('class', 'direction-marker direction-flow-line direction-flow-up');
+    upFlow.setAttribute('points', bottomLinePts.map(p => p.join(',')).join(' '));
+    svg.appendChild(upFlow);
+
+    // ===== 下行線箭頭（藍色，向左） =====
+    for (let i = 0; i < topLinePts.length - 1; i++) {
+        const [x1, y1] = topLinePts[i];
+        const [x2, y2] = topLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'direction-marker direction-arrow direction-arrow-down');
+        arrow.setAttribute('points', '0,-16 32,0 0,16');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        arrow.style.setProperty('--anim-delay', `${i * 0.15}s`);
+        svg.appendChild(arrow);
+    }
+
+    // ===== 上行線箭頭（黃色，向右） =====
+    for (let i = 0; i < bottomLinePts.length - 1; i++) {
+        const [x1, y1] = bottomLinePts[i];
+        const [x2, y2] = bottomLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'direction-marker direction-arrow direction-arrow-up');
+        arrow.setAttribute('points', '0,-16 32,0 0,16');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        arrow.style.setProperty('--anim-delay', `${i * 0.15}s`);
+        svg.appendChild(arrow);
+    }
+}
+
+// ★ 暴露全域
+window.addDirectionMarkers = addDirectionMarkers;
 // ★ 暴露全域
 window.showNavbar = showNavbar;
 window.hideNavbar = hideNavbar;
