@@ -80,6 +80,7 @@ const PERMISSIONS = {
         'monitor_dashboard': ['admin', 'occ', 're'],
         'audit': ['admin', 'occ'],
         'index_cabin_photos': ['admin', 'occ'],
+        'index_cable_timing': ['admin'],
     },
     collections: {
         'guests': {
