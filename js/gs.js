@@ -1,7 +1,8 @@
 // ================================================================
 // Ground Support 模組
 // - 保留原有 gsCreateRecord() 流程（完整表單模式）
-// - 新增「開始救援 / 完成救援 / 修改內容 / 完全重新記錄」function gsInitOngoingListener() {
+// - 新增「開始救援 / 完成救援 / 修改內容 / 完全重新記錄」
+// - 新增「修改模式自動查詢」（輸入車廂 + 組別自動載入記錄）
 // ================================================================
 
 let gsCurrentDocId = null;
@@ -13,6 +14,9 @@ let gsModifyMode = false;
 let gsModifyDocId = null;
 let gsOverwritePendingDocId = null;
 // ★ _gsOngoingUnsub 改用 window._gsOngoingUnsub（見 gsInitOngoingListener）
+
+// ★ 修改模式自動查詢防抖計時器
+let _gsAutoLookupTimer = null;
 
 // ================================================================
 // 聯絡方式輔助
@@ -49,6 +53,155 @@ function toggleGsOtherRescuer() {
     if (v !== '其他') {
         document.getElementById('gsOtherRescuerInput').value = '';
     }
+}
+
+// ================================================================
+// ★ 修改模式：自動查詢（輸入車廂 + 組別後，自動載入記錄）
+// ================================================================
+function gsOnCabinOrGroupChange() {
+    // 只在修改模式啟用
+    if (!gsModifyMode) return;
+
+    // 防抖：避免每次輸入都查
+    if (_gsAutoLookupTimer) clearTimeout(_gsAutoLookupTimer);
+    _gsAutoLookupTimer = setTimeout(() => {
+        _gsAutoLookupTimer = null;
+        gsAutoLookupRecord();
+    }, 500);
+}
+
+async function gsAutoLookupRecord() {
+    if (!gsModifyMode) return;
+
+    const cabin = document.getElementById('gsCabinNumber').value.trim();
+    const group = document.getElementById('gsGroupNumber').value;
+
+    // 車廂和組別都要有值才查
+    if (!cabin || !group) return;
+
+    try {
+        const snap = await db.collection('guests')
+            .where('cabinNumber', '==', cabin)
+            .where('groupNumber', '==', group)
+            .get();
+
+        if (snap.empty) {
+            // 找不到記錄 → 不清空表單，只顯示提示
+            console.log('🔍 修改模式查詢：找不到車廂', cabin, '第', group, '組的記錄');
+            return;
+        }
+
+        // 找到記錄 → 載入到表單
+        const doc = snap.docs[0];
+        const data = doc.data();
+        gsModifyDocId = doc.id;
+
+        // ★ 保留使用者剛輸入的車廂 + 組別，其餘欄位從記錄載入
+        gsFillFormFromRecord(data, { keepCabinGroup: true });
+
+        // 更新 banner 文字
+        const banner = document.getElementById('gsModifyBanner');
+        if (banner) {
+            banner.querySelector('.gs-modify-text').textContent =
+                `✏️ 正在修改記錄（車廂 ${data.cabinNumber} 第 ${data.groupNumber} 組）`;
+        }
+
+        console.log('✅ 修改模式：已載入記錄', doc.id);
+
+    } catch (e) {
+        console.warn('自動查詢失敗:', e);
+    }
+}
+
+// ★ 將記錄資料填入表單（可選是否保留車廂 + 組別）
+function gsFillFormFromRecord(data, options = {}) {
+    const keepCabinGroup = options.keepCabinGroup === true;
+
+    if (!keepCabinGroup) {
+        document.getElementById('gsCabinNumber').value = data.cabinNumber || '';
+        document.getElementById('gsGroupNumber').value = data.groupNumber || '';
+    }
+
+    const elName = document.getElementById('gsGuestName');
+    if (elName) elName.value = data.guestName || '';
+
+    const elContact = document.getElementById('gsContactNumber');
+    if (elContact) elContact.value = data.contactNumber || '';
+
+    const elGender = document.getElementById('gsGender');
+    if (elGender) elGender.value = data.gender || '';
+
+    const elAge = document.getElementById('gsAgeRange');
+    if (elAge) elAge.value = data.ageRange || '';
+
+    const elHealth = document.getElementById('gsHealthStatus');
+    if (elHealth) elHealth.value = data.healthStatus || '未能分類';
+
+    // 救援者（含「其他」判斷）
+    const elRescued = document.getElementById('gsRescuedBy');
+    const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+    const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+    const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
+    if (elRescued) {
+        if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
+            elRescued.value = data.rescuedBy;
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+            if (elOtherRescuer) elOtherRescuer.value = '';
+        } else if (data.rescuedBy) {
+            elRescued.value = '其他';
+            if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
+        } else {
+            elRescued.value = '';
+            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+        }
+    }
+
+    const elRemarks = document.getElementById('gsRemarks');
+    if (elRemarks) elRemarks.value = data.remarks || '';
+
+    // 完成時間
+    const elLanded = document.getElementById('gsTimeLanded');
+    if (elLanded) {
+        if (data.timeLanded) {
+            try {
+                const d = data.timeLanded.toDate ? data.timeLanded.toDate() : new Date(data.timeLanded);
+                const pad = (n) => String(n).padStart(2, '0');
+                elLanded.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            } catch (e) {
+                elLanded.value = '';
+            }
+        } else {
+            elLanded.value = '';
+        }
+    }
+}
+
+// ★ 清空表單（但保留車廂 + 組別，用於修改模式手動查詢）
+function gsClearFormForModify() {
+    // 保留 gsCabinNumber、gsGroupNumber
+    const elName = document.getElementById('gsGuestName');
+    if (elName) elName.value = '';
+    const elContact = document.getElementById('gsContactNumber');
+    if (elContact) elContact.value = '';
+    const elGender = document.getElementById('gsGender');
+    if (elGender) elGender.value = '';
+    const elAge = document.getElementById('gsAgeRange');
+    if (elAge) elAge.value = '';
+    const elHealth = document.getElementById('gsHealthStatus');
+    if (elHealth) elHealth.value = '未能分類';
+    const elLanded = document.getElementById('gsTimeLanded');
+    if (elLanded) elLanded.value = '';
+    const elSms = document.getElementById('gsSmsOnly');
+    if (elSms) elSms.checked = false;
+    const elRescued = document.getElementById('gsRescuedBy');
+    if (elRescued) elRescued.value = '';
+    const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+    if (elOtherRescuer) elOtherRescuer.value = '';
+    const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+    if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+    const elRemarks = document.getElementById('gsRemarks');
+    if (elRemarks) elRemarks.value = '';
 }
 
 // ================================================================
@@ -142,6 +295,7 @@ async function gsCreateRecord() {
         showMessage('gsMessage', '檢查重複失敗: ' + e.message, 'error');
     }
 }
+
 function gsScrollToQr() {
     setTimeout(() => {
         const qrEl = document.getElementById('gsQrResult');
@@ -150,6 +304,7 @@ function gsScrollToQr() {
         }
     }, 200);
 }
+
 function gsCancelDuplicate() {
     document.getElementById('gsDuplicateWarning').style.display = 'none';
     gsPendingData = null;
@@ -224,19 +379,18 @@ async function gsSaveOrUpdateRecord(data, docId) {
         }
 
         const healthStatus = data.healthStatus || '未分類';
-             gsGenerateQR(gsCurrentDocId, healthStatus);
+        gsGenerateQR(gsCurrentDocId, healthStatus);
         document.getElementById('gsQrResult').style.display = 'block';
         document.getElementById('gsPrintCabin').textContent = data.cabinNumber;
         document.getElementById('gsPrintGroup').textContent = `第${data.groupNumber}組`;
-        gsScrollToQr();   // ★ 新增
+        gsScrollToQr();
 
         gsClearForm();
 
-         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-    // ★ 修復：只有在 Dashboard 已載入時才呼叫
-    if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
-        dbLoadRecords();
-    }
+        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
+        if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
+            dbLoadRecords();
+        }
 
     } catch (e) {
         const action = docId ? '更新' : '建立';
@@ -309,7 +463,8 @@ async function gsSavePDF() {
 // ★ 模式切換
 // ================================================================
 function gsSwitchMode(mode) {
-    if (gsModifyMode && mode !== 'complete') return;
+    // 若已經在修改模式，只允許切到 complete
+    if (gsModifyMode && mode !== 'complete' && mode !== 'full') return;
 
     gsCurrentMode = mode;
 
@@ -339,9 +494,22 @@ function gsSwitchMode(mode) {
         if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-flag-checkered"></i> 完成救援';
         if (banner && gsModifyMode) banner.style.display = 'flex';
     } else {
+        // mode === 'full'
         completeFields.forEach(el => el.style.display = 'block');
         if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> 建立/更新記錄';
-        if (banner) banner.style.display = 'none';
+
+        // ★ 進入「修改模式」（讓使用者可手動輸入車廂 + 組別查詢）
+        gsModifyMode = true;
+        gsModifyDocId = null;
+
+        // ★ 顯示修改 Banner
+        if (banner) {
+            banner.style.display = 'flex';
+            banner.querySelector('.gs-modify-text').textContent = '✏️ 請輸入車廂 + 組別以載入記錄';
+        }
+
+        // ★ 清空表單（除了車廂 + 組別）
+        gsClearFormForModify();
     }
 
     const startBtn = document.getElementById('gsModeStart');
@@ -588,6 +756,7 @@ function gsCollectCompleteFields() {
         remarks: document.getElementById('gsRemarks').value.trim()
     };
 }
+
 function gsClearQrResult() {
     const qrEl = document.getElementById('gsQrResult');
     if (qrEl) qrEl.style.display = 'none';
@@ -595,6 +764,7 @@ function gsClearQrResult() {
     if (qrCodeEl) qrCodeEl.innerHTML = '';
     window.gsQrInstance = null;
 }
+
 async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, manualTimeReachedTop) {
     const now = new Date();
     const formData = gsCollectCompleteFields();
@@ -755,50 +925,8 @@ function gsEnterModifyMode(docId, data) {
 
     gsSwitchMode('complete');
 
-    document.getElementById('gsCabinNumber').value = data.cabinNumber || '';
-    document.getElementById('gsGroupNumber').value = data.groupNumber || '';
-    const elName = document.getElementById('gsGuestName');
-    if (elName) elName.value = data.guestName || '';
-    const elContact = document.getElementById('gsContactNumber');
-    if (elContact) elContact.value = data.contactNumber || '';
-    const elGender = document.getElementById('gsGender');
-    if (elGender) elGender.value = data.gender || '';
-    const elAge = document.getElementById('gsAgeRange');
-    if (elAge) elAge.value = data.ageRange || '';
-    const elHealth = document.getElementById('gsHealthStatus');
-    if (elHealth) elHealth.value = data.healthStatus || '未能分類';
-
-    const elRescued = document.getElementById('gsRescuedBy');
-    const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
-    const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
-    const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
-    if (elRescued) {
-        if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
-            elRescued.value = data.rescuedBy;
-            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
-        } else if (data.rescuedBy) {
-            elRescued.value = '其他';
-            if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
-            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
-        } else {
-            elRescued.value = '';
-            if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
-        }
-    }
-
-    const elRemarks = document.getElementById('gsRemarks');
-    if (elRemarks) elRemarks.value = data.remarks || '';
-
-    const elLanded = document.getElementById('gsTimeLanded');
-    if (elLanded && data.timeLanded) {
-        try {
-            const d = data.timeLanded.toDate ? data.timeLanded.toDate() : new Date(data.timeLanded);
-            const pad = (n) => String(n).padStart(2, '0');
-            elLanded.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        } catch (e) {
-            elLanded.value = '';
-        }
-    }
+    // ★ 載入記錄到表單（不保留車廂 + 組別，因為是從 Modal 進入，要顯示記錄的值）
+    gsFillFormFromRecord(data, { keepCabinGroup: false });
 
     const banner = document.getElementById('gsModifyBanner');
     if (banner) {
@@ -832,7 +960,10 @@ function gsExitModifyMode() {
 }
 
 async function gsApplyModify() {
-    if (!gsModifyMode || !gsModifyDocId) return;
+    if (!gsModifyMode || !gsModifyDocId) {
+        showMessage('gsMessage', '請先輸入車廂 + 組別以載入記錄', 'error');
+        return;
+    }
 
     const timeLanded = document.getElementById('gsTimeLanded').value;
     if (!timeLanded) {
@@ -865,16 +996,15 @@ async function gsApplyModify() {
         await db.collection('guests').doc(gsModifyDocId).update(updateData);
         await logAction('guests', gsModifyDocId, 'update', updateData, existing);
 
-            gsGenerateQR(gsModifyDocId, formData.healthStatus || '未分類');
+        gsGenerateQR(gsModifyDocId, formData.healthStatus || '未分類');
         document.getElementById('gsQrResult').style.display = 'block';
         document.getElementById('gsPrintCabin').textContent = updateData.cabinNumber;
         document.getElementById('gsPrintGroup').textContent = `第${updateData.groupNumber}組`;
-        gsScrollToQr();   // ★ 新增
+        gsScrollToQr();
 
         showMessage('gsMessage', '✅ 已儲存修改', 'success');
 
-          if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-        // ★ 修復：只有在 Dashboard 已載入時才呼叫
+        if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
         if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
             dbLoadRecords();
         }
@@ -952,12 +1082,12 @@ async function gsConfirmManualTime() {
             await db.collection('guests').doc(docId).update(updateData);
             await logAction('guests', docId, 'update', updateData, existing);
 
-                    if (currentTimeLanded) {
+            if (currentTimeLanded) {
                 gsGenerateQR(docId, updateData.healthStatus || '未分類');
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
-                gsScrollToQr();   // ★ 新增
+                gsScrollToQr();
             }
 
             showMessage('gsMessage', '✅ 已完全重新記錄', 'success');
@@ -975,12 +1105,12 @@ async function gsConfirmManualTime() {
             await db.collection('guests').doc(docId).update(updateData);
             await logAction('guests', docId, 'update', updateData, existing);
 
-                   if (timeLanded) {
+            if (timeLanded) {
                 gsGenerateQR(docId, updateData.healthStatus || '未分類');
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
-                gsScrollToQr();   // ★ 新增
+                gsScrollToQr();
             }
 
             showMessage('gsMessage', '✅ 已補填開始時間', 'success');
@@ -1003,14 +1133,13 @@ async function gsConfirmManualTime() {
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
-                gsScrollToQr();   // ★ 新增
+                gsScrollToQr();
             }
 
             showMessage('gsMessage', '✅ 已建立記錄', 'success');
         }
 
         if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
-        // ★ 修復：只有在 Dashboard 已載入時才呼叫
         if (typeof dbLoadRecords === 'function' && document.getElementById('dbTableBody')) {
             dbLoadRecords();
         }
@@ -1095,6 +1224,7 @@ function gsInitOngoingListener() {
             });
     }, 500);
 }
+
 /**
  * ★ 手動刷新 Banner（跳過快取，直接從伺服器讀取）
  * 用於新增 / 完成救援後，立即更新 Banner
@@ -1136,6 +1266,7 @@ async function gsRefreshOngoingBanner() {
 }
 
 window.gsRefreshOngoingBanner = gsRefreshOngoingBanner;
+
 function gsRenderOngoingBanner(list) {
     const banner = document.getElementById('gsOngoingBanner');
     const listEl = document.getElementById('gsOngoingList');
@@ -1258,6 +1389,23 @@ function initGroundSupport() {
     gsModifyDocId = null;
     gsSwitchMode('start');
     gsInitOngoingListener();
+
+    // ★ 綁定車廂 + 組別的輸入事件（用於修改模式自動查詢）
+    const elCabin = document.getElementById('gsCabinNumber');
+    const elGroup = document.getElementById('gsGroupNumber');
+
+    if (elCabin && !elCabin.dataset.gsLookupBound) {
+        elCabin.dataset.gsLookupBound = 'true';
+        elCabin.addEventListener('input', gsOnCabinOrGroupChange);
+        elCabin.addEventListener('change', gsOnCabinOrGroupChange);
+    }
+
+    if (elGroup && !elGroup.dataset.gsLookupBound) {
+        elGroup.dataset.gsLookupBound = 'true';
+        elGroup.addEventListener('change', gsOnCabinOrGroupChange);
+    }
+
+    console.log('✅ GS 自動查詢已綁定');
 }
 
 // ================================================================
@@ -1287,4 +1435,10 @@ window.gsConfirmManualTime = gsConfirmManualTime;
 window.gsOpenCompleteFromBanner = gsOpenCompleteFromBanner;
 window.gsExitModifyMode = gsExitModifyMode;
 
-console.log('✅ gs.js 已載入 (含新模式)');
+// ★ 新增：修改模式自動查詢
+window.gsOnCabinOrGroupChange = gsOnCabinOrGroupChange;
+window.gsAutoLookupRecord = gsAutoLookupRecord;
+window.gsFillFormFromRecord = gsFillFormFromRecord;
+window.gsClearFormForModify = gsClearFormForModify;
+
+console.log('✅ gs.js 已載入 (含新模式 + 修改模式自動查詢)');
