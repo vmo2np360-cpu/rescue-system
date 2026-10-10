@@ -844,6 +844,12 @@ window.addEventListener('resize', () => {
 // 上方線（y - 70）= 下行線（NP → TC，箭頭向左，藍色）
 // 下方線（y + 70）= 上行線（TC → NP，箭頭向右，黃色）
 // ================================================================
+// ================================================================
+// ★ 上下行線標示：共用函式（map / monitor / monitor-dashboard 共用）
+// 用法：addDirectionMarkers(svgElement, groundPts);
+// 上方線（y - 70）= 下行線（NP → TC，箭頭向左，藍色）
+// 下方線（y + 70）= 上行線（TC → NP，箭頭向右，黃色）
+// ================================================================
 function addDirectionMarkers(svg, groundPts) {
     if (!svg || !groundPts || groundPts.length === 0) return;
 
@@ -889,40 +895,100 @@ function addDirectionMarkers(svg, groundPts) {
     upFlow.setAttribute('points', bottomLinePts.map(p => p.join(',')).join(' '));
     svg.appendChild(upFlow);
 
-    // ===== 下行線箭頭（藍色，向左） =====
-      // ===== 下行線箭頭（藍色，向左）=====
-    // ★ 往外移：上方線的箭頭再往上偏 40px
-    for (let i = 0; i < topLinePts.length - 1; i++) {
-        const [x1, y1] = topLinePts[i];
-        const [x2, y2] = topLinePts[i + 1];
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2 - 40;   // ★ 往上移 40px（遠離索道）
-        const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
+    // ===== 沿線平均分佈箭頭 =====
+    const ARROW_COUNT = 20;      // ★ 箭頭總數（可調整）
+    const ARROW_OFFSET = 40;     // ★ 箭頭離索道的垂直偏移
 
+    // 下行線（藍色，向左）
+    const downArrows = generateEvenlySpacedArrows(topLinePts, ARROW_COUNT, ARROW_OFFSET, true);
+    downArrows.forEach((pos, i) => {
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         arrow.setAttribute('class', 'direction-marker direction-arrow direction-arrow-down');
         arrow.setAttribute('points', '0,-16 32,0 0,16');
-        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        arrow.setAttribute('transform', `translate(${pos.x},${pos.y - ARROW_OFFSET}) rotate(${pos.angle})`);
         arrow.style.setProperty('--anim-delay', `${i * 0.15}s`);
         svg.appendChild(arrow);
-    }
+    });
 
-    // ===== 上行線箭頭（黃色，向右）=====
-    // ★ 往外移：下方線的箭頭再往下偏 40px
-    for (let i = 0; i < bottomLinePts.length - 1; i++) {
-        const [x1, y1] = bottomLinePts[i];
-        const [x2, y2] = bottomLinePts[i + 1];
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2 + 40;   // ★ 往下移 40px（遠離索道）
-        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-
+    // 上行線（黃色，向右）
+    const upArrows = generateEvenlySpacedArrows(bottomLinePts, ARROW_COUNT, ARROW_OFFSET, false);
+    upArrows.forEach((pos, i) => {
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
         arrow.setAttribute('class', 'direction-marker direction-arrow direction-arrow-up');
         arrow.setAttribute('points', '0,-16 32,0 0,16');
-        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        arrow.setAttribute('transform', `translate(${pos.x},${pos.y + ARROW_OFFSET}) rotate(${pos.angle})`);
         arrow.style.setProperty('--anim-delay', `${i * 0.15}s`);
         svg.appendChild(arrow);
+    });
+}
+
+// ================================================================
+// ★ 輔助函式：沿線平均分佈取點
+// pts: 線的座標陣列 [[x1,y1], [x2,y2], ...]
+// count: 要取幾個點
+// reverse: 是否反向（下行線要反向，因為方向是 NP → TC）
+// 回傳：[{ x, y, angle }, ...]
+// ================================================================
+function generateEvenlySpacedArrows(pts, count, offset, reverse) {
+    const result = [];
+    if (pts.length < 2 || count < 1) return result;
+
+    // 計算總長度
+    let totalLen = 0;
+    const segLens = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+        const len = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+        segLens.push(len);
+        totalLen += len;
     }
+    if (totalLen === 0) return result;
+
+    // 每個箭頭之間的距離
+    const step = totalLen / (count + 1);
+
+    for (let k = 1; k <= count; k++) {
+        const targetDist = step * k;
+
+        // 找到 targetDist 落在哪個線段
+        let acc = 0;
+        let found = false;
+        for (let i = 0; i < pts.length - 1; i++) {
+            if (acc + segLens[i] >= targetDist) {
+                const t = (targetDist - acc) / segLens[i];
+                const [x1, y1] = pts[i];
+                const [x2, y2] = pts[i + 1];
+                const x = x1 + (x2 - x1) * t;
+                const y = y1 + (y2 - y1) * t;
+
+                // 計算角度
+                let angle;
+                if (reverse) {
+                    // 反向：從 (x2,y2) 指向 (x1,y1)
+                    angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
+                } else {
+                    // 正向：從 (x1,y1) 指向 (x2,y2)
+                    angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+                }
+
+                result.push({ x, y, angle });
+                found = true;
+                break;
+            }
+            acc += segLens[i];
+        }
+
+        if (!found) {
+            // 理論上不會到這，但以防萬一
+            const last = pts[pts.length - 1];
+            const prev = pts[pts.length - 2];
+            const angle = reverse
+                ? Math.atan2(prev[1] - last[1], prev[0] - last[0]) * 180 / Math.PI
+                : Math.atan2(last[1] - prev[1], last[0] - prev[0]) * 180 / Math.PI;
+            result.push({ x: last[0], y: last[1], angle });
+        }
+    }
+
+    return result;
 }
 
 // ★ 暴露全域
