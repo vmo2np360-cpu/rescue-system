@@ -211,9 +211,9 @@ async function monInitMap() {
     rope.setAttribute('fill', 'none');
     rope.setAttribute('stroke', '#aaaaaa');
     rope.setAttribute('stroke-width', '7');
-    monSvg.appendChild(rope);
-    // ★ 上行線 / 下行線標示
-    monAddDirectionMarkers(groundPts);
+       monSvg.appendChild(rope);
+    // ★ 上下行線標示（共用函式）
+    addDirectionMarkers(monSvg, groundPts);
     const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('transform', 'translate(1720, 700)');
     const rectBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -403,8 +403,6 @@ function monBuildCabins() {
     }
     monLayoutCabins();
 }
-// ================================================================
-/
 function monLayoutCabins() {
     if (!monMapRopePts || monMapRopePts.length === 0) {
         console.warn('monMapRopePts 尚未初始化，跳過佈局');
