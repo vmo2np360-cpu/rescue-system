@@ -896,7 +896,7 @@ function addDirectionMarkers(svg, groundPts) {
     svg.appendChild(upFlow);
 
     // ===== 沿線平均分佈箭頭 =====
-    const ARROW_COUNT = 20;      // ★ 箭頭總數（可調整）
+    const ARROW_COUNT = 10;      // ★ 箭頭總數（可調整）
     const ARROW_OFFSET = 40;     // ★ 箭頭離索道的垂直偏移
 
     // 下行線（藍色，向左）
