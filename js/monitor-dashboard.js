@@ -339,7 +339,10 @@ async function mdInitMap() {
     rope.setAttribute('stroke', '#444');
     rope.setAttribute('stroke-width', '4');
     mdMapSvg.appendChild(rope);
-
+    // ★ 上行線 / 下行線標示
+    // 上方線（y - 70）= 下行線（NP → TC，箭頭向左）
+    // 下方線（y + 70）= 上行線（TC → NP，箭頭向右）
+    mdAddDirectionMarkers(groundPts);
     // 圖例
 const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     legend.setAttribute('id', 'md-legend');
@@ -370,6 +373,84 @@ const legend = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     mdCabinMode = await window.getGlobalModeFromFirestore();
     localStorage.setItem('mapCabinMode', mdCabinMode);
 
+ // ================================================================
+// ★ 上下行線標示（供 mdInitMap 和 mdRebuildRopeAndLayout 共用）
+// ================================================================
+function mdAddDirectionMarkers(groundPts) {
+    if (!mdMapSvg) return;
+
+    // 先移除舊的標示（避免重複）
+    mdMapSvg.querySelectorAll('.md-direction-marker').forEach(el => el.remove());
+
+    const topLinePts = groundPts.map(p => [p[0], p[1] - 70]);    // 上方線 = 下行
+    const bottomLinePts = groundPts.map(p => [p[0], p[1] + 70]); // 下方線 = 上行
+
+    // ===== 上方線（下行）文字標籤 =====
+    // 右側（NP 附近）：「⬅ 下行線」
+    const downLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    downLabel.setAttribute('class', 'md-direction-marker');
+    downLabel.setAttribute('transform',
+        `translate(${topLinePts[topLinePts.length - 1][0] - 30}, ${topLinePts[topLinePts.length - 1][1] - 40})`);
+    const downText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    downText.setAttribute('font-size', '24');
+    downText.setAttribute('font-weight', 'bold');
+    downText.setAttribute('fill', '#3b82f6');
+    downText.setAttribute('text-anchor', 'end');
+    downText.textContent = '⬅ 下行線';
+    downLabel.appendChild(downText);
+    mdMapSvg.appendChild(downLabel);
+
+    // ===== 下方線（上行）文字標籤 =====
+    // 左側（TC 附近）：「上行線 ➡」
+    const upLabel = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    upLabel.setAttribute('class', 'md-direction-marker');
+    upLabel.setAttribute('transform',
+        `translate(${bottomLinePts[0][0] + 30}, ${bottomLinePts[0][1] + 50})`);
+    const upText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    upText.setAttribute('font-size', '24');
+    upText.setAttribute('font-weight', 'bold');
+    upText.setAttribute('fill', '#22c55e');
+    upText.setAttribute('text-anchor', 'start');
+    upText.textContent = '上行線 ➡';
+    upLabel.appendChild(upText);
+    mdMapSvg.appendChild(upLabel);
+
+    // ===== 上方線（下行）中段箭頭，方向向左 =====
+    for (let i = 0; i < topLinePts.length - 1; i += 3) {
+        const [x1, y1] = topLinePts[i];
+        const [x2, y2] = topLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        // 下行方向：從右到左（NP → TC）
+        const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'md-direction-marker');
+        arrow.setAttribute('points', '0,-10 20,0 0,10');
+        arrow.setAttribute('fill', '#3b82f6');
+        arrow.setAttribute('opacity', '0.8');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        mdMapSvg.appendChild(arrow);
+    }
+
+    // ===== 下方線（上行）中段箭頭，方向向右 =====
+    for (let i = 0; i < bottomLinePts.length - 1; i += 3) {
+        const [x1, y1] = bottomLinePts[i];
+        const [x2, y2] = bottomLinePts[i + 1];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        // 上行方向：從左到右（TC → NP）
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        arrow.setAttribute('class', 'md-direction-marker');
+        arrow.setAttribute('points', '0,-10 20,0 0,10');
+        arrow.setAttribute('fill', '#22c55e');
+        arrow.setAttribute('opacity', '0.8');
+        arrow.setAttribute('transform', `translate(${mx},${my}) rotate(${angle})`);
+        mdMapSvg.appendChild(arrow);
+    }
+}
     mdBuildCabins();
 
     // ★ 防重複註冊偏移量監聽（Firestore onSnapshot 回傳 unsubscribe，可直接呼叫）
@@ -1369,7 +1450,8 @@ function mdRebuildRopeAndLayout() {
 
     // 車廂重新佈局
     mdLayoutCabins();
-
+    // ★ 重新繪製上下行線標示
+    mdAddDirectionMarkers(groundPts);
     console.log('✅ 站點、索道、車廂已更新');
 }
 // ================================================================
