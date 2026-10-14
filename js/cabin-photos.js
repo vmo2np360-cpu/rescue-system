@@ -7,6 +7,9 @@ let cpAllPhotos = [];
 let cpCabinOrderMode = 84;
 let cpInitialized = false;
 
+// ★ 防重複提交鎖（策略 C）
+const _cpLocks = {};
+
 // ---------- 初始化 ----------
 async function cpInit() {
     console.log('🚀 cpInit 初始化車廂照片管理頁');
@@ -481,17 +484,18 @@ function cpEscapeJs(s) {
 // ---------- 暴露全域（給 HTML onclick 用） ----------
 window.cpInit = cpInit;
 window.cpSwitchTab = cpSwitchTab;
-window.cpHandleUpload = cpHandleUpload;
-window.cpRenderPhotoList = cpRenderPhotoList;
-window.cpOpenImageModal = cpOpenImageModal;
-window.cpCloseImageModal = cpCloseImageModal;
-window.cpOpenNoteEditor = cpOpenNoteEditor;
-window.cpHandleDeletePhoto = cpHandleDeletePhoto;
-window.cpSetOrderMode = cpSetOrderMode;
-window.cpClearOrderInputs = cpClearOrderInputs;
+// ★ 加鎖（策略 C）
+window.cpHandleUpload      = withLock(_cpLocks, 'cpHandleUpload', cpHandleUpload);
+window.cpRenderPhotoList   = cpRenderPhotoList;
+window.cpOpenImageModal    = cpOpenImageModal;
+window.cpCloseImageModal   = cpCloseImageModal;
+window.cpOpenNoteEditor    = cpOpenNoteEditor;
+window.cpHandleDeletePhoto = withLock(_cpLocks, 'cpHandleDeletePhoto', cpHandleDeletePhoto);
+window.cpSetOrderMode      = withLock(_cpLocks, 'cpSetOrderMode', cpSetOrderMode);
+window.cpClearOrderInputs  = withLock(_cpLocks, 'cpClearOrderInputs', cpClearOrderInputs);
 window.cpImportOrderFromMap = cpImportOrderFromMap;
-window.cpApplyCabinOrder = cpApplyCabinOrder;
-window.cpParseCsvToInputs = cpParseCsvToInputs;
+window.cpApplyCabinOrder   = withLock(_cpLocks, 'cpApplyCabinOrder', cpApplyCabinOrder);
+window.cpParseCsvToInputs  = cpParseCsvToInputs;
 
 
 console.log('✅ cabin-photos.js 已載入');
