@@ -18,6 +18,9 @@ const CABIN_IMG_QUALITY = 0.82;
 const CABIN_IMG_MAX_UPLOAD = 2 * 1024 * 1024;   // 2MB 硬上限
 const CABIN_IMG_MAX_PER_CABIN = 30;
 
+// ★ 防重複提交鎖（策略 C）
+const _cimgLocks = {};
+
 window.CABIN_TYPES = ['標準車廂', '水晶車廂', '全景車廂', '工程車'];
 
 // ---- 壓縮圖片 ----
@@ -246,10 +249,11 @@ async function getAllCabinImages() {
 // ---- 暴露全域 ----
 window.cabinCompressImage = cabinCompressImage;
 window.cabinValidateSeq = cabinValidateSeq;
-window.uploadCabinPhoto = uploadCabinPhoto;
-window.deleteCabinPhoto = deleteCabinPhoto;
-window.updateCabinPhotoNote = updateCabinPhotoNote;
-window.updateCabinType = updateCabinType;
+// ★ 加鎖（策略 C）
+window.uploadCabinPhoto     = withLock(_cimgLocks, 'uploadCabinPhoto', uploadCabinPhoto);
+window.deleteCabinPhoto     = withLock(_cimgLocks, 'deleteCabinPhoto', deleteCabinPhoto);
+window.updateCabinPhotoNote = withLock(_cimgLocks, 'updateCabinPhotoNote', updateCabinPhotoNote);
+window.updateCabinType      = withLock(_cimgLocks, 'updateCabinType', updateCabinType);
 window.getCabinImages = getCabinImages;
 window.listenCabinImages = listenCabinImages;
 window.getAllCabinImages = getAllCabinImages;
