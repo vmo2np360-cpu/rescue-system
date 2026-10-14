@@ -423,20 +423,37 @@ async function gsSavePDF() {
     if (!canvas) return alert('無法取得 QR 碼');
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pw = pdf.internal.pageSize.getWidth();
 
-    pdf.setFontSize(24);
-    pdf.text('Guest QR Code Certificate', pw / 2, 25, { align: 'center' });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pw - 100) / 2, 40, 100, 100);
+    // ★ A4 橫向
+    const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    const pw = pdf.internal.pageSize.getWidth();   // 297
+    const ph = pdf.internal.pageSize.getHeight();  // 210
 
     const cabin = document.getElementById('gsPrintCabin').textContent;
     const groupRaw = document.getElementById('gsPrintGroup').textContent || '';
     const group = groupRaw.replace(/第|組|\{|\}/g, '').trim();
 
-    pdf.setFontSize(14);
-    pdf.text(`Cabin: ${cabin}`, 30, 160);
-    pdf.text(`Group: ${group}`, 30, 175);
+    // ★ QR Code 放大（145mm）
+    const qrSize = 145;
+    const qrX = (pw - qrSize) / 2;   // 水平置中
+    const qrY = 32;                  // QR 上方留標題空間
+
+    // ★ 標題（置中）
+    pdf.setFontSize(24);
+    pdf.text('Guest QR Code Certificate', pw / 2, 20, { align: 'center' });
+
+    // ★ QR Code（水平置中、正向）
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', qrX, qrY, qrSize, qrSize);
+
+    // ★ 底部資訊（全部置中）
+    pdf.setFontSize(16);
+    pdf.text(`Cabin: ${cabin}`, pw / 2, qrY + qrSize + 12, { align: 'center' });
+    pdf.text(`Group: ${group}`, pw / 2, qrY + qrSize + 24, { align: 'center' });
 
     const blob = pdf.output('blob');
     const fileName = `QR_${cabin}_${group}.pdf`;
