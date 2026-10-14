@@ -431,29 +431,31 @@ async function gsSavePDF() {
         format: 'a4'
     });
 
-    const pw = pdf.internal.pageSize.getWidth();   // 297
-    const ph = pdf.internal.pageSize.getHeight();  // 210
+    const pw = pdf.internal.pageSize.getWidth();   // 應為 297
+    const ph = pdf.internal.pageSize.getHeight();  // 應為 210
+
+    // ★ 驗證橫向是否生效（打開 Console 看）
+    console.log('📄 PDF 尺寸:', pw, 'x', ph, '（橫向應為 297 x 210）');
 
     const cabin = document.getElementById('gsPrintCabin').textContent;
     const groupRaw = document.getElementById('gsPrintGroup').textContent || '';
     const group = groupRaw.replace(/第|組|\{|\}/g, '').trim();
 
-    // ★ QR Code 放大（145mm）
-    const qrSize = 145;
-    const qrX = (pw - qrSize) / 2;   // 水平置中
-    const qrY = 32;                  // QR 上方留標題空間
+    // ★ QR 再增大 50%：145 → 195mm（A4 橫向高度 210mm 的極限）
+    const qrSize = 195;
+    const qrX = (pw - qrSize) / 2;   // (297 - 195) / 2 = 51，水平置中
+    const qrY = 5;                    // 上方留 5mm
 
-    // ★ 標題（置中）
-    pdf.setFontSize(24);
-    pdf.text('Guest QR Code Certificate', pw / 2, 20, { align: 'center' });
+    // 標題（極小、貼頂、置中）
+    pdf.setFontSize(9);
+    pdf.text('Guest QR Code Certificate', pw / 2, 3.5, { align: 'center' });
 
-    // ★ QR Code（水平置中、正向）
+    // ★ QR Code（水平置中、正向不旋轉）
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', qrX, qrY, qrSize, qrSize);
 
-    // ★ 底部資訊（全部置中）
-    pdf.setFontSize(16);
-    pdf.text(`Cabin: ${cabin}`, pw / 2, qrY + qrSize + 12, { align: 'center' });
-    pdf.text(`Group: ${group}`, pw / 2, qrY + qrSize + 24, { align: 'center' });
+    // 底部資訊（置中、貼底）
+    pdf.setFontSize(10);
+    pdf.text(`Cabin: ${cabin}    Group: ${group}`, pw / 2, 205, { align: 'center' });
 
     const blob = pdf.output('blob');
     const fileName = `QR_${cabin}_${group}.pdf`;
