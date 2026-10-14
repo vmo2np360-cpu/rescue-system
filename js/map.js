@@ -4,6 +4,9 @@
 
 let mapCabins = [];
 let mapRopePts = [];
+
+// ★ 防重複提交鎖（策略 C）
+const _mapLocks = {};
 let mapGlobalOffset = 0;
 let mapCabinMode = 84;
 let mapMoveMode = false;
@@ -409,7 +412,16 @@ segments.forEach((s, i) => {
         if (seqInputEl) {
             const newSeqInput = seqInputEl.cloneNode(true);
             seqInputEl.parentNode.replaceChild(newSeqInput, seqInputEl);
-            newSeqInput.addEventListener('keypress', e => { if(e.key==='Enter') mapApplySequences(); });
+                       newSeqInput.addEventListener('keypress', e => {
+                if (e.key === 'Enter') {
+                    // ★ 加鎖（策略 C）
+                    if (_mapLocks['mapApplySequences']) return;
+                    _mapLocks['mapApplySequences'] = true;
+                    Promise.resolve(mapApplySequences()).finally(() => {
+                        _mapLocks['mapApplySequences'] = false;
+                    });
+                }
+            });
         }
 
         // ★★★ 修正：mapSearchBox 改用 cloneNode 避免重複綁定 ★★★
@@ -447,9 +459,17 @@ segments.forEach((s, i) => {
         if (groupFormEl) {
             const newGroupForm = groupFormEl.cloneNode(true);
             groupFormEl.parentNode.replaceChild(newGroupForm, groupFormEl);
-            newGroupForm.addEventListener('submit', function(e) {
+                     newGroupForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                saveGroupRecord();
+                // ★ 加鎖（策略 C）
+                if (_mapLocks['saveGroupRecord']) {
+                    console.warn('⏳ [saveGroupRecord] 上一個操作仍在進行中');
+                    return;
+                }
+                _mapLocks['saveGroupRecord'] = true;
+                Promise.resolve(saveGroupRecord()).finally(() => {
+                    _mapLocks['saveGroupRecord'] = false;
+                });
             });
         }
 
@@ -2396,9 +2416,10 @@ function initMap() {
 // ---- 暴露全域 ----
 window.mapInit = mapInit;
 window.mapUpdateFromFirestore = mapUpdateFromFirestore;
-window.mapApplySequences = mapApplySequences;
+// ★ 加鎖（策略 C）
+window.mapApplySequences = withLock(_mapLocks, 'mapApplySequences', mapApplySequences);
 window.mapSearchCabin = mapSearchCabin;
-window.mapClearAll = mapClearAll;
+window.mapClearAll = withLock(_mapLocks, 'mapClearAll', mapClearAll);
 window.mapExportCSV = mapExportCSV;
 window.closeCabinModal = closeCabinModal;
 window.initMap = initMap;
@@ -2406,8 +2427,9 @@ window.mapOpenCabin = mapOpenCabin;
 window.editGroup = editGroup;
 window.loadGroupDetail = loadGroupDetail;
 window.closeGroupModal = closeGroupModal;
-window.deleteGroupRecord = deleteGroupRecord;
-window.saveGroupRecord = saveGroupRecord;
+// ★ 加鎖（策略 C）
+window.deleteGroupRecord = withLock(_mapLocks, 'deleteGroupRecord', deleteGroupRecord);
+window.saveGroupRecord   = withLock(_mapLocks, 'saveGroupRecord', saveGroupRecord);
 window.mapManualRefresh = mapManualRefresh;
 window.mapLoadTables = mapLoadTables;
 window.mapRenderRescueTable = mapRenderRescueTable;
@@ -2421,19 +2443,25 @@ window.quickHandleMatch = quickHandleMatch;
 window.dismissMatch = dismissMatch;
 window.hideMatchAlert = hideMatchAlert;
 
-// ★ 地圖專用 OCC 對比功能暴露
+// ★ 地圖專用 OCC 對比功能暴露（加鎖）
 window.mapOccCompareRecord = mapOccCompareRecord;
-window.mapOccMarkProcessed = mapOccMarkProcessed;
-window.mapOccDeleteRecord = mapOccDeleteRecord;
+window.mapOccMarkProcessed = withLock(_mapLocks, 'mapOccMarkProcessed', mapOccMarkProcessed);
+window.mapOccDeleteRecord  = withLock(_mapLocks, 'mapOccDeleteRecord', mapOccDeleteRecord);
 window.mapOccCloseComparison = mapOccCloseComparison;
 window.mapOccDisplayComparison = mapOccDisplayComparison;
 
-// ★ 兼容舊名稱（若其他頁面有引用）
+// ★ 兼容舊名稱（加鎖）
 window.occCompareRecord = mapOccCompareRecord;
-window.occMarkProcessed = mapOccMarkProcessed;
-window.occDeleteRecord = mapOccDeleteRecord;
+window.occMarkProcessed = withLock(_mapLocks, 'occMarkProcessed', mapOccMarkProcessed);
+window.occDeleteRecord  = withLock(_mapLocks, 'occDeleteRecord', mapOccDeleteRecord);
 window.occCloseComparison = mapOccCloseComparison;
 window.occDisplayComparison = mapOccDisplayComparison;
+
+// ★ 加鎖（策略 C）——Incident 事件管理
+window.incidentCreate = withLock(_mapLocks, 'incidentCreate', incidentCreate);
+window.incidentUpdateCurrent = withLock(_mapLocks, 'incidentUpdateCurrent', incidentUpdateCurrent);
+window.incidentClose = withLock(_mapLocks, 'incidentClose', incidentClose);
+window.saveGuestsOnline = withLock(_mapLocks, 'saveGuestsOnline', saveGuestsOnline);
 
 // ================================================================
 // Incident 事件管理
@@ -2795,9 +2823,9 @@ window.closeCabinDrawer = closeCabinDrawer;
 window.openCabinLightbox = openCabinLightbox;
 window.selectCabinPhoto = selectCabinPhoto;
 window.goToCabinPhotos = goToCabinPhotos;
-window.incidentCreate = incidentCreate;
-window.incidentUpdateCurrent = incidentUpdateCurrent;
-window.incidentClose = incidentClose;
-window.saveGuestsOnline = saveGuestsOnline;
+window.incidentCreate = withLock(_mapLocks, 'incidentCreate', incidentCreate);
+window.incidentUpdateCurrent = withLock(_mapLocks, 'incidentUpdateCurrent', incidentUpdateCurrent);
+window.incidentClose = withLock(_mapLocks, 'incidentClose', incidentClose);
+window.saveGuestsOnline = withLock(_mapLocks, 'saveGuestsOnline', saveGuestsOnline);
 
 console.log('✅ map.js 已載入（最終版，含 #mapMessage 建立、獨立對比功能、刪除功能）');
