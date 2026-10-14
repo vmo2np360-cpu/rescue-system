@@ -953,24 +953,32 @@ function gsCancelOverwrite() {
 // ★ 修改內容 / 完全重新記錄
 // ================================================================
 async function gsChooseModify() {
-    document.getElementById('gsOverwriteModal').style.display = 'none';
-    if (!gsOverwritePendingDocId) return;
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+    _gsSubmitting = true;
 
-    const docId = gsOverwritePendingDocId;
     try {
-        showLoader(true);
-        const doc = await db.collection('guests').doc(docId).get();
-        if (!doc.exists) {
-            showMessage('gsMessage', '找不到記錄', 'error');
-            return;
+        document.getElementById('gsOverwriteModal').style.display = 'none';
+        if (!gsOverwritePendingDocId) return;
+
+        const docId = gsOverwritePendingDocId;
+        try {
+            showLoader(true);
+            const doc = await db.collection('guests').doc(docId).get();
+            if (!doc.exists) {
+                showMessage('gsMessage', '找不到記錄', 'error');
+                return;
+            }
+            gsEnterModifyMode(docId, doc.data());
+        } catch (e) {
+            showMessage('gsMessage', '進入修改模式失敗: ' + e.message, 'error');
+        } finally {
+            hideLoader();
+            gsOverwritePendingDocId = null;
+            gsPendingData = null;
         }
-        gsEnterModifyMode(docId, doc.data());
-    } catch (e) {
-        showMessage('gsMessage', '進入修改模式失敗: ' + e.message, 'error');
     } finally {
-        hideLoader();
-        gsOverwritePendingDocId = null;
-        gsPendingData = null;
+        _gsSubmitting = false;
     }
 }
 
@@ -1074,6 +1082,9 @@ async function gsApplyModify() {
 }
 
 async function gsChooseFullRestart() {
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+
     document.getElementById('gsOverwriteModal').style.display = 'none';
     if (!gsPendingData || !gsOverwritePendingDocId) return;
     gsPendingData.mode = 'fullrestart';
