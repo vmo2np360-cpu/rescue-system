@@ -5,6 +5,9 @@
 let allGuests = [];
 window._dbAutoRefreshTimer = null;
 
+// ★ 防重複提交鎖（策略 C）
+const _dbLocks = {};
+
 // ---- 載入與統計 ----
 async function dbLoadRecords() {
     // ★ 修復：Dashboard 頁面未載入時，直接跳過
@@ -165,7 +168,17 @@ async function dbEditRecordWithModal(id) {
     const form = document.getElementById('groupForm');
     form.onsubmit = async function (e) {
         e.preventDefault();
-        await dbUpdateGuestFromGroupModal(id);
+        // ★ 加鎖（策略 C）——避免快速連點「儲存」按鈕
+        if (_dbLocks['dbUpdateGuestFromGroupModal']) {
+            console.warn('⏳ [dbUpdateGuestFromGroupModal] 上一個操作仍在進行中，忽略此次點擊');
+            return;
+        }
+        _dbLocks['dbUpdateGuestFromGroupModal'] = true;
+        try {
+            await dbUpdateGuestFromGroupModal(id);
+        } finally {
+            _dbLocks['dbUpdateGuestFromGroupModal'] = false;
+        }
     };
 }
 
@@ -325,7 +338,8 @@ function initDashboard() {
 window.dbLoadRecords = dbLoadRecords;
 window.dbFilterRecords = dbFilterRecords;
 window.dbEditRecordWithModal = dbEditRecordWithModal;
-window.dbDeleteRecord = dbDeleteRecord;
+// ★ 加鎖（策略 C）
+window.dbDeleteRecord = withLock(_dbLocks, 'dbDeleteRecord', dbDeleteRecord);
 window.dbExportCSV = dbExportCSV;
 window.initDashboard = initDashboard;
 
