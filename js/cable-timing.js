@@ -148,9 +148,10 @@ function ctBuildMap() {
 
     _ctMapSvg.appendChild(defs);
 
-    // 地形圖片
-      // 地形圖片（向下移動）
-    const CT_MAP_Y_OFFSET = 200;   // ★ 向下移動 200（可調整）
+    // ★ 地圖 Y 偏移（只宣告一次！）
+    const CT_MAP_Y_OFFSET = 200;
+
+    // 地形圖片（向下移動）
     const terrainImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
     terrainImg.setAttribute('id', 'ct-terrain-img');
     terrainImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', 'assets/map-terrain.png');
@@ -163,7 +164,6 @@ function ctBuildMap() {
     _ctMapSvg.appendChild(terrainImg);
 
     // 站點座標
-      const CT_MAP_Y_OFFSET = 200;   // ★ 與地形圖片相同
     const segments = ['TC','T1','T2A','AIAS','T2B','T3','T4','T5','NLS','T6','T7','NP'];
     _ctGroundPts = [];
 
@@ -172,17 +172,7 @@ function ctBuildMap() {
             ? window.mdStationX[s] : 0;
         const gyBase = (window.mdStationY && window.mdStationY[s] !== undefined)
             ? window.mdStationY[s] : 600;
-        const gy = gyBase + CT_MAP_Y_OFFSET;   // ★ 加偏移
-        _ctGroundPts.push([gx, gy]);
-    });
-    
-    undPts = [];
-
-    segments.forEach((s) => {
-        const gx = (window.mdStationX && window.mdStationX[s] !== undefined)
-            ? window.mdStationX[s] : 0;
-        const gy = (window.mdStationY && window.mdStationY[s] !== undefined)
-            ? window.mdStationY[s] : 600;
+        const gy = gyBase + CT_MAP_Y_OFFSET;
         _ctGroundPts.push([gx, gy]);
 
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
