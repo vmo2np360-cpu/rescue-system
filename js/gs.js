@@ -315,29 +315,37 @@ function gsCancelDuplicate() {
 }
 
 async function gsCreateAnyway() {
-    document.getElementById('gsDuplicateWarning').style.display = 'none';
-    if (!gsPendingData) return;
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+    _gsSubmitting = true;
 
-    if (gsDuplicateDocId) {
-        try {
-            const doc = await db.collection('guests').doc(gsDuplicateDocId).get();
-            if (doc.exists) {
-                const existing = doc.data();
-                if (existing.cabinNumber !== gsPendingData.cabinNumber ||
-                    existing.groupNumber !== gsPendingData.groupNumber) {
+    try {
+        document.getElementById('gsDuplicateWarning').style.display = 'none';
+        if (!gsPendingData) return;
+
+        if (gsDuplicateDocId) {
+            try {
+                const doc = await db.collection('guests').doc(gsDuplicateDocId).get();
+                if (doc.exists) {
+                    const existing = doc.data();
+                    if (existing.cabinNumber !== gsPendingData.cabinNumber ||
+                        existing.groupNumber !== gsPendingData.groupNumber) {
+                        gsDuplicateDocId = null;
+                    }
+                } else {
                     gsDuplicateDocId = null;
                 }
-            } else {
+            } catch (e) {
                 gsDuplicateDocId = null;
             }
-        } catch (e) {
-            gsDuplicateDocId = null;
         }
-    }
 
-    await gsSaveOrUpdateRecord(gsPendingData, gsDuplicateDocId);
-    gsPendingData = null;
-    gsDuplicateDocId = null;
+        await gsSaveOrUpdateRecord(gsPendingData, gsDuplicateDocId);
+        gsPendingData = null;
+        gsDuplicateDocId = null;
+    } finally {
+        _gsSubmitting = false;
+    }
 }
 
 async function gsSaveOrUpdateRecord(data, docId) {
@@ -541,10 +549,35 @@ function gsSwitchMode(mode) {
 }
 
 function gsSubmit() {
-    if (gsModifyMode) return gsApplyModify();
-    if (gsCurrentMode === 'start') return gsStartRescue();
-    if (gsCurrentMode === 'complete') return gsCompleteRescue();
-    return gsCreateRecord();
+    // ★ 防重複點擊（第一層：前端鎖）
+    if (_gsSubmitting) {
+        console.warn('⏳ 上一個操作仍在進行中，忽略此次點擊');
+        return;
+    }
+
+    const run = async () => {
+        _gsSubmitting = true;
+        const btn = document.getElementById('gsSubmitBtn');
+        const originalHtml = btn ? btn.innerHTML : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 處理中...';
+        }
+        try {
+            if (gsModifyMode) return await gsApplyModify();
+            if (gsCurrentMode === 'start') return await gsStartRescue();
+            if (gsCurrentMode === 'complete') return await gsCompleteRescue();
+            return await gsCreateRecord();
+        } finally {
+            _gsSubmitting = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+    };
+
+    run();
 }
 
 // ================================================================
@@ -1048,21 +1081,29 @@ async function gsChooseFullRestart() {
 }
 
 async function gsConfirmOngoingOverwrite() {
-    document.getElementById('gsOngoingModal').style.display = 'none';
-    if (!gsPendingData || !gsOverwritePendingDocId) return;
-
-    const docId = gsOverwritePendingDocId;
-    const { cabin, group } = gsPendingData;
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+    _gsSubmitting = true;
 
     try {
-        showLoader(true);
-        await gsSaveStartRescue(cabin, group, docId);
-    } catch (e) {
-        showMessage('gsMessage', '覆蓋失敗: ' + e.message, 'error');
+        document.getElementById('gsOngoingModal').style.display = 'none';
+        if (!gsPendingData || !gsOverwritePendingDocId) return;
+
+        const docId = gsOverwritePendingDocId;
+        const { cabin, group } = gsPendingData;
+
+        try {
+            showLoader(true);
+            await gsSaveStartRescue(cabin, group, docId);
+        } catch (e) {
+            showMessage('gsMessage', '覆蓋失敗: ' + e.message, 'error');
+        } finally {
+            hideLoader();
+            gsOverwritePendingDocId = null;
+            gsPendingData = null;
+        }
     } finally {
-        hideLoader();
-        gsOverwritePendingDocId = null;
-        gsPendingData = null;
+        _gsSubmitting = false;
     }
 }
 
@@ -1072,6 +1113,9 @@ function gsCancelManualTime() {
 }
 
 async function gsConfirmManualTime() {
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+
     const manualTime = document.getElementById('gsManualTimeReachedTop').value;
     if (!manualTime) {
         alert('請輸入開始救援時間');
@@ -1079,6 +1123,8 @@ async function gsConfirmManualTime() {
     }
 
     if (!gsPendingData) return;
+
+    _gsSubmitting = true;
 
     const { cabin, group, timeLanded, docId, formData, mode } = gsPendingData;
     document.getElementById('gsManualTimeModal').style.display = 'none';
@@ -1173,6 +1219,7 @@ async function gsConfirmManualTime() {
     } finally {
         hideLoader();
         gsPendingData = null;
+        _gsSubmitting = false;
     }
 }
 
@@ -1325,6 +1372,10 @@ function gsRenderOngoingBanner(list) {
 }
 
 function gsOpenCompleteFromBanner(docId) {
+    // ★ 防重複點擊
+    if (_gsSubmitting) return;
+    _gsSubmitting = true;
+
     db.collection('guests').doc(docId).get().then(doc => {
         if (!doc.exists) return;
         const data = doc.data();
@@ -1392,6 +1443,9 @@ function gsOpenCompleteFromBanner(docId) {
         }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).finally(() => {
+        // ★ 載入完成後解鎖
+        _gsSubmitting = false;
     });
 }
 
