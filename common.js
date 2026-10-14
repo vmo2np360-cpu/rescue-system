@@ -992,11 +992,33 @@ function generateEvenlySpacedArrows(pts, count, offset, reverse) {
     return result;
 }
 
+
+// ================================================================
+// ★ 通用防重複鎖（withLock）
+// 用法：
+//   const _xxxLocks = {};
+//   window.funcName = withLock(_xxxLocks, 'funcName', funcName);
+// ================================================================
+function withLock(lockObj, key, fn) {
+    return async function (...args) {
+        if (lockObj[key]) {
+            console.warn(`⏳ [${key}] 上一個操作仍在進行中，忽略此次點擊`);
+            return;
+        }
+        lockObj[key] = true;
+        try {
+            return await fn.apply(this, args);
+        } finally {
+            lockObj[key] = false;
+        }
+    };
+}
 // ★ 暴露全域
 window.addDirectionMarkers = addDirectionMarkers;
 // ★ 暴露全域
 window.showNavbar = showNavbar;
 window.hideNavbar = hideNavbar;
 window.initMobileNavbar = initMobileNavbar;
+window.withLock = withLock;
 
-console.log('✅ common.js 已載入（含連線監控 + Navbar 自動隱藏）');
+console.log('✅ common.js 已載入（含連線監控 + Navbar 自動隱藏 + withLock）');
