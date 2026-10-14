@@ -5,6 +5,9 @@
 let apCurrentDocId = null;
 let apScanning = false;
 
+// ★ 防重複提交鎖（策略 C）
+const _apLocks = {};
+
 // ---- 掃描器 ----
 async function startScanner() {
     const video = document.getElementById('scanner-video');
@@ -341,16 +344,16 @@ function initAssemblyPoint() {
     document.getElementById('apManualGroup').value = '';
 }
 
-// ---- 暴露 ----
 window.startScanner = startScanner;
 window.stopScanner = stopScanner;
 window.apManualSearch = apManualSearch;
 window.apClearManualSearch = apClearManualSearch;
-window.apUpdateRecord = apUpdateRecord;
+// ★ 加鎖（策略 C）
+window.apUpdateRecord    = withLock(_apLocks, 'apUpdateRecord', apUpdateRecord);
 window.toggleApAmbulance = toggleApAmbulance;
 window.toggleApOtherExit = toggleApOtherExit;
 window.initAssemblyPoint = initAssemblyPoint;
 // 暴露全域
 window.openApEditModal = openApEditModal;
 window.closeApEditModal = closeApEditModal;
-window.saveApEditModal = saveApEditModal;
+window.saveApEditModal = withLock(_apLocks, 'saveApEditModal', saveApEditModal);
