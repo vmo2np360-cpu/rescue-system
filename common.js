@@ -1021,4 +1021,21 @@ window.hideNavbar = hideNavbar;
 window.initMobileNavbar = initMobileNavbar;
 window.withLock = withLock;
 
-console.log('✅ common.js 已載入（含連線監控 + Navbar 自動隱藏 + withLock）');
+// ================================================================
+// ★ 產生「車廂 + 組別」固定 ID（第二層：根本杜絕重複）
+// 格式：guest_{cabin}_{group}
+// 會清理特殊字元，確保符合 Firestore 文件 ID 規範
+// ================================================================
+function makeGuestDocId(cabin, group) {
+    const clean = (s) => String(s || '')
+        .trim()
+        .replace(/[\/\s#\[\]*?.]/g, '_');
+    const c = clean(cabin);
+    const g = clean(group);
+    if (!c || !g) return null;
+    return `guest_${c}_${g}`;
+}
+
+window.makeGuestDocId = makeGuestDocId;
+
+console.log('✅ common.js 已載入（含連線監控 + Navbar 自動隱藏 + withLock + makeGuestDocId）');
