@@ -5,6 +5,9 @@
 let allRescueRecords = [];
 let _occComparisonTimer = null;   // ★ 新增：比對結果自動關閉計時器
 
+// ★ 防重複提交鎖（策略 C）
+const _occLocks = {};
+
 // ---- 來源切換 ----
 function occToggleOtherSource() {
     const v = document.getElementById('occSource').value;
@@ -503,15 +506,16 @@ async function occSaveEdit() {
 }
 
 window.occToggleOtherSource = occToggleOtherSource;
-window.occSaveRecord = occSaveRecord;
-window.occLoadRecords = occLoadRecords;
-window.occFilterRecords = occFilterRecords;
-window.occMarkProcessed = occMarkProcessed;
-window.occDeleteRecord = occDeleteRecord;
-window.occCompareRecord = occCompareRecord;
+// ★ 加鎖（策略 C）
+window.occSaveRecord     = withLock(_occLocks, 'occSaveRecord', occSaveRecord);
+window.occLoadRecords    = occLoadRecords;
+window.occFilterRecords  = occFilterRecords;
+window.occMarkProcessed  = withLock(_occLocks, 'occMarkProcessed', occMarkProcessed);
+window.occDeleteRecord   = withLock(_occLocks, 'occDeleteRecord', occDeleteRecord);
+window.occCompareRecord  = occCompareRecord;
 window.occCloseComparison = occCloseComparison;
 window.initOcc = initOcc;
 // ★ 新增
 window.occEditRecord = occEditRecord;
 window.occCloseEditModal = occCloseEditModal;
-window.occSaveEdit = occSaveEdit;
+window.occSaveEdit = withLock(_occLocks, 'occSaveEdit', occSaveEdit);
