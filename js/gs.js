@@ -257,12 +257,23 @@ async function gsCreateRecord() {
     gsPendingData = data;
 
     try {
-        const dup = await db.collection('guests')
-            .where('cabinNumber', '==', cabin)
-            .where('groupNumber', '==', group)
-            .get();
+              // ★ 離線優化：查詢失敗 → 降級為用固定 ID 直接更新
+        let dup = null;
+        try {
+            dup = await db.collection('guests')
+                .where('cabinNumber', '==', cabin)
+                .where('groupNumber', '==', group)
+                .get({ source: 'default' });
+        } catch (e) {
+            console.warn('⚠️ [gsCompleteRescue] 無法查詢（離線），使用固定 ID:', e.message);
+            const fixedId = window.makeGuestDocId(cabin, group);
+            if (fixedId) {
+                await gsSaveCompleteRescue(fixedId, cabin, group, timeLanded, {});
+                return;
+            }
+        }
 
-        if (!dup.empty) {
+        if (!dup || dup.empty) {
             gsDuplicateDocId = dup.docs[0].id;
             const list = document.getElementById('gsDuplicateList');
             list.innerHTML = '';
@@ -352,14 +363,18 @@ async function gsSaveOrUpdateRecord(data, docId) {
     try {
         showLoader(true);
 
-        // ★ 第二層：若無 docId，先嘗試用固定 ID 查一次
+        // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次
         if (!docId) {
             const fixedId = window.makeGuestDocId(data.cabinNumber, data.groupNumber);
             if (fixedId) {
-                const fixedSnap = await db.collection('guests').doc(fixedId).get();
-                if (fixedSnap.exists) {
-                    docId = fixedId;
-                    console.log('🔁 [gsSaveOrUpdateRecord] 固定 ID 已存在，改用更新:', fixedId);
+                try {
+                    const fixedSnap = await db.collection('guests').doc(fixedId).get({ source: 'default' });
+                    if (fixedSnap.exists) {
+                        docId = fixedId;
+                        console.log('🔁 [gsSaveOrUpdateRecord] 固定 ID 已存在，改用更新:', fixedId);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ [gsSaveOrUpdateRecord] 無法讀取固定 ID（離線），當作新記錄:', e.message);
                 }
             }
         }
@@ -368,20 +383,30 @@ async function gsSaveOrUpdateRecord(data, docId) {
         let previousData = null;
 
         if (docId) {
-            const existingDoc = await db.collection('guests').doc(docId).get();
-            if (existingDoc.exists) {
-                previousData = existingDoc.data();
+            // ★ 離線優化：讀取失敗不中斷
+            let existingExists = false;
+            let existingData = null;
+            try {
+                const existingDoc = await db.collection('guests').doc(docId).get({ source: 'default' });
+                existingExists = existingDoc.exists;
+                if (existingExists) {
+                    existingData = existingDoc.data();
+                    previousData = existingData;
+                }
+            } catch (e) {
+                console.warn('⚠️ [gsSaveOrUpdateRecord] 無法讀取舊記錄（離線），直接寫入:', e.message);
             }
 
             const updateData = { ...data };
-            if (existingDoc.exists && existingDoc.data().timeReachedTop) {
-                updateData.timeReachedTop = existingDoc.data().timeReachedTop;
+            if (existingExists && existingData && existingData.timeReachedTop) {
+                updateData.timeReachedTop = existingData.timeReachedTop;
             } else {
                 updateData.timeReachedTop = new Date().toISOString();
             }
 
             updateData.updatedAt = new Date();
-            await db.collection('guests').doc(docId).update(updateData);
+            // ★ 改用 set(merge: true) 支援離線寫入
+            await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, previousData);
 
             ref = { id: docId };
@@ -617,14 +642,21 @@ async function gsStartRescue() {
         return;
     }
 
-    try {
+      try {
         showLoader(true);
-        const dup = await db.collection('guests')
-            .where('cabinNumber', '==', cabin)
-            .where('groupNumber', '==', group)
-            .get();
 
-        if (dup.empty) {
+        // ★ 離線優化：嘗試查詢，離線時可能失敗 → 降級為直接建立
+        let dup = null;
+        try {
+            dup = await db.collection('guests')
+                .where('cabinNumber', '==', cabin)
+                .where('groupNumber', '==', group)
+                .get({ source: 'default' });
+        } catch (e) {
+            console.warn('⚠️ [gsStartRescue] 無法查詢既有記錄（離線），直接建立:', e.message);
+        }
+
+        if (!dup || dup.empty) {
             await gsSaveStartRescue(cabin, group, null);
             return;
         }
@@ -667,25 +699,39 @@ async function gsSaveStartRescue(cabin, group, docId) {
     const now = new Date();
     const nowISO = now.toISOString();
 
-    // ★ 第二層：若無 docId，先嘗試用固定 ID 查一次
+    // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次
     if (!docId) {
         const fixedId = window.makeGuestDocId(cabin, group);
         if (fixedId) {
-            const fixedSnap = await db.collection('guests').doc(fixedId).get();
-            if (fixedSnap.exists) {
-                docId = fixedId;
-                console.log('🔁 [gsSaveStartRescue] 固定 ID 已存在，改用更新:', fixedId);
+            try {
+                // ★ 使用 default source：優先快取，快取沒有才查伺服器
+                const fixedSnap = await db.collection('guests').doc(fixedId).get({ source: 'default' });
+                if (fixedSnap.exists) {
+                    docId = fixedId;
+                    console.log('🔁 [gsSaveStartRescue] 固定 ID 已存在，改用更新:', fixedId);
+                }
+            } catch (e) {
+                // ★ 離線且無快取 → 視為新記錄（固定 ID 保證不會重複）
+                console.warn('⚠️ [gsSaveStartRescue] 無法讀取固定 ID（可能離線），當作新記錄處理:', e.message);
             }
         }
     }
 
     if (docId) {
         // 更新既有記錄
-        const existingDoc = await db.collection('guests').doc(docId).get();
-        const existing = existingDoc.exists ? existingDoc.data() : {};
+        let existing = {};
+        try {
+            const existingDoc = await db.collection('guests').doc(docId).get({ source: 'default' });
+            existing = existingDoc.exists ? existingDoc.data() : {};
+        } catch (e) {
+            // ★ 離線時讀不到舊資料，仍可寫入（合併式更新）
+            console.warn('⚠️ [gsSaveStartRescue] 無法讀取舊記錄，直接寫入:', e.message);
+        }
 
         const updateData = {
             ...existing,
+            cabinNumber: cabin,
+            groupNumber: group,
             timeReachedTop: nowISO,
             timeLanded: null,
             exitTime: null,
@@ -695,7 +741,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
             updatedAt: now
         };
 
-        await db.collection('guests').doc(docId).update(updateData);
+        await db.collection('guests').doc(docId).set(updateData, { merge: true });
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
     } else {
@@ -717,9 +763,10 @@ async function gsSaveStartRescue(cabin, group, docId) {
             throw new Error('無法產生文件 ID（車廂或組別為空）');
         }
         const docRef = db.collection('guests').doc(fixedId);
+        // ★ set() 離線時會自動排隊，恢復網路後同步
         await docRef.set(data);
         await logAction('guests', fixedId, 'create', data, null);
-        showMessage('gsMessage', '✅ 已開始救援', 'success');
+        showMessage('gsMessage', '✅ 已開始救援（離線排隊中）', 'success');
     }
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
@@ -730,9 +777,13 @@ async function gsSaveStartRescue(cabin, group, docId) {
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
 
-    // ★ 新增：立即刷新 Banner
+    // ★ 立即刷新 Banner（離線時可能失敗，但不影響寫入）
     if (typeof gsRefreshOngoingBanner === 'function') {
-        await gsRefreshOngoingBanner();
+        try {
+            await gsRefreshOngoingBanner();
+        } catch (e) {
+            console.warn('Banner 刷新失敗（離線中，稍後自動更新）:', e.message);
+        }
     }
 }
 
@@ -873,7 +924,7 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
         updateData.timeReachedTop = manualTimeReachedTop;
     }
 
-    await db.collection('guests').doc(docId).update(updateData);
+                await db.collection('guests').doc(docId).set(updateData, { merge: true });
     await logAction('guests', docId, 'update', updateData, existing || null);
 
     gsGenerateQR(docId, formData.healthStatus || '未分類');
@@ -1179,8 +1230,14 @@ async function gsConfirmManualTime() {
     try {
         showLoader(true);
 
-        if (mode === 'fullrestart') {
-            const existing = (await db.collection('guests').doc(docId).get()).data();
+               if (mode === 'fullrestart') {
+            let existing = {};
+            try {
+                const snap = await db.collection('guests').doc(docId).get({ source: 'default' });
+                if (snap.exists) existing = snap.data();
+            } catch (e) {
+                console.warn('⚠️ [gsConfirmManualTime] 無法讀取舊記錄（離線）:', e.message);
+            }
             const currentFormData = gsCollectCompleteFields();
             const currentTimeLanded = document.getElementById('gsTimeLanded').value;
 
@@ -1194,7 +1251,7 @@ async function gsConfirmManualTime() {
                 updatedAt: new Date()
             };
 
-            await db.collection('guests').doc(docId).update(updateData);
+                        await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, existing);
 
             if (currentTimeLanded) {
@@ -1207,8 +1264,15 @@ async function gsConfirmManualTime() {
 
             showMessage('gsMessage', '✅ 已完全重新記錄', 'success');
 
-        } else if (docId) {
-            const existing = (await db.collection('guests').doc(docId).get()).data();
+              } else if (docId) {
+            // ★ 離線優化：讀不到舊資料時仍可寫入
+            let existing = {};
+            try {
+                const snap = await db.collection('guests').doc(docId).get({ source: 'default' });
+                if (snap.exists) existing = snap.data();
+            } catch (e) {
+                console.warn('⚠️ [gsConfirmManualTime] 無法讀取舊記錄（離線），直接寫入:', e.message);
+            }
             const updateData = {
                 ...existing,
                 timeReachedTop: manualTime,
@@ -1217,7 +1281,7 @@ async function gsConfirmManualTime() {
                 status: timeLanded ? 'landed' : (existing.status || 'rescuing'),
                 updatedAt: new Date()
             };
-            await db.collection('guests').doc(docId).update(updateData);
+                      await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, existing);
 
             if (timeLanded) {
@@ -1365,9 +1429,18 @@ function gsInitOngoingListener() {
  */
 async function gsRefreshOngoingBanner() {
     try {
-        const snap = await db.collection('guests')
-            .where('status', '==', 'rescuing')
-            .get({ source: 'server' });   // ★ 強制從伺服器讀取
+        // ★ 離線優化：先嘗試伺服器，失敗則用快取
+        let snap;
+        try {
+            snap = await db.collection('guests')
+                .where('status', '==', 'rescuing')
+                .get({ source: 'server' });
+        } catch (e) {
+            console.warn('⚠️ [gsRefreshOngoingBanner] 伺服器讀取失敗（離線），改用快取');
+            snap = await db.collection('guests')
+                .where('status', '==', 'rescuing')
+                .get({ source: 'cache' });
+        }
 
         const list = [];
         snap.forEach(d => {
