@@ -526,16 +526,12 @@ segments.forEach((s, i) => {
         }
 
         // ★ 定時刷新（備援）
-        if (window._mapRefreshTimer) clearInterval(window._mapRefreshTimer);
-        window._mapRefreshTimer = setInterval(() => {
-            const section = document.getElementById('section-map');
-            if (section && section.classList.contains('active')) {
-                console.log('🔄 定時刷新地圖 (30秒)');
-                mapUpdateFromFirestore();
-                mapLoadTables();
-                performAutoMatch();
-            }
-        }, 30000);
+         // ★ 事件驅動：已由 _mapGuestsUnsub / _mapRescueUnsub 觸發，無需定時器
+        // （若需備援，可在手動刷新按鈕中呼叫）
+        if (window._mapRefreshTimer) {
+            clearInterval(window._mapRefreshTimer);
+            window._mapRefreshTimer = null;
+        }
 
         // ★ 監聽雲端偏移量與模式
         if (window._mapOffsetUnsubscribe) window._mapOffsetUnsubscribe();
