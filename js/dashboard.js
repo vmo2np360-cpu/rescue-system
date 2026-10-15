@@ -315,14 +315,46 @@ function initDashboard() {
     console.log('✅ 監控面板初始化完成');
     dbLoadRecords();
 
-    if (window._dbAutoRefreshTimer) clearInterval(window._dbAutoRefreshTimer);
-   window._dbAutoRefreshTimer = setInterval(() => {
-        const section = document.getElementById('section-dashboard');
-        if (section && section.classList.contains('active')) {
-            console.log('🔄 監控面板自動更新 (20秒)');
-            dbLoadRecords();
+    // ★ 事件驅動：監聽 guests 集合變化
+    if (window._dbGuestsUnsub) {
+        try { window._dbGuestsUnsub(); } catch (e) {}
+    }
+    window._dbGuestsUnsub = db.collection('guests').onSnapshot(
+        (snap) => {
+            if (window.updateLastSyncTime) window.updateLastSyncTime();
+
+            // ★ 離線優化：若來自快取且資料有變動，仍更新（因為是同一裝置寫入）
+            // 這裡判斷 fromCache 是為了避免切頁時大量重複觸發
+            const fromCache = snap.metadata && snap.metadata.fromCache;
+            if (fromCache && !window._dbFirstLoadDone) {
+                // 首次載入且來自快取，還是渲染（讓 UI 快顯示）
+                console.log('📦 Dashboard 首次載入來自快取');
+            }
+
+            // 更新本地資料
+            allGuests = [];
+            snap.forEach(d => allGuests.push({ id: d.id, ...d.data() }));
+
+            // 只在頁面 active 時渲染
+            const section = document.getElementById('section-dashboard');
+            if (section && section.classList.contains('active')) {
+                dbRenderTable(allGuests);
+                dbUpdateStats(allGuests);
+            }
+
+            window._dbFirstLoadDone = true;
+        },
+        (err) => {
+            if (err && err.code === 'permission-denied') return;
+            console.warn('Dashboard 監聽失敗:', err);
         }
-    }, 20000);
+    );
+
+    // ★ 移除定時器
+    if (window._dbAutoRefreshTimer) {
+        clearInterval(window._dbAutoRefreshTimer);
+        window._dbAutoRefreshTimer = null;
+    }
 
     const refreshBtn = document.getElementById('dbRefreshBtn');
     if (refreshBtn) {
