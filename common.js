@@ -1139,6 +1139,32 @@ window.showNavbar = showNavbar;
 window.hideNavbar = hideNavbar;
 window.initMobileNavbar = initMobileNavbar;
 window.withLock = withLock;
+window.withLock = withLock;
+
+// ================================================================
+// ★ 超時工具（離線優化）
+// 讓 promise 在指定毫秒後強制返回 fallback，避免離線時卡住
+// ================================================================
+function withTimeout(promise, ms, fallbackValue) {
+    return Promise.race([
+        promise.catch(err => {
+            // 原始 promise 失敗 → 直接回傳 fallback（不拋錯）
+            console.warn('⚠️ withTimeout 捕捉到錯誤:', err.message);
+            return fallbackValue;
+        }),
+        new Promise(resolve => {
+            setTimeout(() => {
+                console.warn(`⏱️ withTimeout: ${ms}ms 逾時，使用 fallback`);
+                resolve(fallbackValue);
+            }, ms);
+        })
+    ]);
+}
+
+window.withTimeout = withTimeout;
+
+// ================================================================
+// ★ 產生「車廂 + 組別」固定 ID
 
 // ================================================================
 // ★ 產生「車廂 + 組別」固定 ID（第二層：根本杜絕重複）
