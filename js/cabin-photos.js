@@ -126,6 +126,12 @@ async function cpPopulateCabinSeqDatalist() {
 
 // ---------- 上傳 ----------
 async function cpHandleUpload() {
+    // ★ 離線優化：離線時禁止上傳（Supabase 不支援離線）
+    if (window.getConnectionState && window.getConnectionState() === 'offline') {
+        alert('⚠️ 目前離線，無法上傳圖片\n請恢復網路後再試');
+        return;
+    }
+
     const seq = document.getElementById('cp-cabin-seq').value.trim();
     const type = document.getElementById('cp-cabin-type').value;
     const note = document.getElementById('cp-photo-note').value.trim();
