@@ -74,17 +74,32 @@ async function apManualSearch() {
 
     try {
         showLoader(true);
-        const snapshot = await db.collection('guests')
-            .where('cabinNumber', '==', cabin)
-            .where('groupNumber', '==', group)
-            .get();
 
-        if (snapshot.empty) {
-            showMessage('apMessage', `找不到車廂 ${cabin} 第 ${group} 組的記錄`, 'error');
-            return;
+        // ★ 第二層：優先嘗試固定 ID
+        let doc = null;
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await db.collection('guests').doc(fixedId).get();
+            if (fixedSnap.exists) {
+                doc = fixedSnap;
+                console.log('✅ [apManualSearch] 用固定 ID 找到記錄:', fixedId);
+            }
         }
 
-        const doc = snapshot.docs[0];
+        // 回退：用查詢（保險）
+        if (!doc) {
+            const snapshot = await db.collection('guests')
+                .where('cabinNumber', '==', cabin)
+                .where('groupNumber', '==', group)
+                .get();
+            if (snapshot.empty) {
+                showMessage('apMessage', `找不到車廂 ${cabin} 第 ${group} 組的記錄`, 'error');
+                return;
+            }
+            doc = snapshot.docs[0];
+            console.log('✅ [apManualSearch] 用查詢找到記錄（備援）:', doc.id);
+        }
+
         const data = doc.data();
         apCurrentDocId = doc.id;
 
