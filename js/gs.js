@@ -1,8 +1,9 @@
 // ================================================================
-// Ground Support 模組
-// - 保留原有 gsCreateRecord() 流程（完整表單模式）
-// - 新增「開始救援 / 完成救援 / 修改內容 / 完全重新記錄」
-// - 新增「修改模式自動查詢」（輸入車廂 + 組別自動載入記錄）
+// Ground Support 模組（完整版）
+// - 三模式：開始救援 / 完成救援 / 修改記錄
+// - 第一層：前端鎖 _gsSubmitting
+// - 第二層：固定 ID guest_{車廂}_{組別}
+// - 離線優化：withTimeout + set(merge)
 // ================================================================
 
 let gsCurrentDocId = null;
@@ -13,12 +14,8 @@ let gsCurrentMode = 'start';
 let gsModifyMode = false;
 let gsModifyDocId = null;
 let gsOverwritePendingDocId = null;
-// ★ _gsOngoingUnsub 改用 window._gsOngoingUnsub（見 gsInitOngoingListener）
 
-// ★ 修改模式自動查詢防抖計時器
 let _gsAutoLookupTimer = null;
-
-// ★ 防止重複提交的全域鎖（第一層：前端鎖）
 let _gsSubmitting = false;
 
 // ================================================================
@@ -59,13 +56,10 @@ function toggleGsOtherRescuer() {
 }
 
 // ================================================================
-// ★ 修改模式：自動查詢（輸入車廂 + 組別後，自動載入記錄）
+// 修改模式：自動查詢
 // ================================================================
 function gsOnCabinOrGroupChange() {
-    // 只在修改模式啟用
     if (!gsModifyMode) return;
-
-    // 防抖：避免每次輸入都查
     if (_gsAutoLookupTimer) clearTimeout(_gsAutoLookupTimer);
     _gsAutoLookupTimer = setTimeout(() => {
         _gsAutoLookupTimer = null;
@@ -78,45 +72,54 @@ async function gsAutoLookupRecord() {
 
     const cabin = document.getElementById('gsCabinNumber').value.trim();
     const group = document.getElementById('gsGroupNumber').value;
-
-    // 車廂和組別都要有值才查
     if (!cabin || !group) return;
 
     try {
-        const snap = await db.collection('guests')
-            .where('cabinNumber', '==', cabin)
-            .where('groupNumber', '==', group)
-            .get();
-
-        if (snap.empty) {
-            // 找不到記錄 → 不清空表單，只顯示提示
-            console.log('🔍 修改模式查詢：找不到車廂', cabin, '第', group, '組的記錄');
-            return;
+        // ★ 優先固定 ID
+        let doc = null;
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await withTimeout(
+                db.collection('guests').doc(fixedId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (fixedSnap && fixedSnap.exists) doc = fixedSnap;
         }
 
-        // 找到記錄 → 載入到表單
-        const doc = snap.docs[0];
+        // 回退查詢
+        if (!doc) {
+            const snap = await withTimeout(
+                db.collection('guests')
+                    .where('cabinNumber', '==', cabin)
+                    .where('groupNumber', '==', group)
+                    .get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (!snap) return;
+            if (snap.empty) {
+                console.log('🔍 修改模式查詢：找不到', cabin, '第', group, '組');
+                return;
+            }
+            doc = snap.docs[0];
+        }
+
         const data = doc.data();
         gsModifyDocId = doc.id;
-
-        // ★ 保留使用者剛輸入的車廂 + 組別，其餘欄位從記錄載入
         gsFillFormFromRecord(data, { keepCabinGroup: true });
 
-        // 更新 banner 文字
         const banner = document.getElementById('gsModifyBanner');
         if (banner) {
             banner.querySelector('.gs-modify-text').textContent =
                 `✏️ 正在修改記錄（車廂 ${data.cabinNumber} 第 ${data.groupNumber} 組）`;
         }
-
         console.log('✅ 修改模式：已載入記錄', doc.id);
-
     } catch (e) {
         console.warn('自動查詢失敗:', e);
     }
 }
 
-// ★ 將記錄資料填入表單（可選是否保留車廂 + 組別）
 function gsFillFormFromRecord(data, options = {}) {
     const keepCabinGroup = options.keepCabinGroup === true;
 
@@ -127,20 +130,15 @@ function gsFillFormFromRecord(data, options = {}) {
 
     const elName = document.getElementById('gsGuestName');
     if (elName) elName.value = data.guestName || '';
-
     const elContact = document.getElementById('gsContactNumber');
     if (elContact) elContact.value = data.contactNumber || '';
-
     const elGender = document.getElementById('gsGender');
     if (elGender) elGender.value = data.gender || '';
-
     const elAge = document.getElementById('gsAgeRange');
     if (elAge) elAge.value = data.ageRange || '';
-
     const elHealth = document.getElementById('gsHealthStatus');
     if (elHealth) elHealth.value = data.healthStatus || '未能分類';
 
-    // 救援者（含「其他」判斷）
     const elRescued = document.getElementById('gsRescuedBy');
     const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
     const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
@@ -163,7 +161,6 @@ function gsFillFormFromRecord(data, options = {}) {
     const elRemarks = document.getElementById('gsRemarks');
     if (elRemarks) elRemarks.value = data.remarks || '';
 
-    // 完成時間
     const elLanded = document.getElementById('gsTimeLanded');
     if (elLanded) {
         if (data.timeLanded) {
@@ -180,9 +177,7 @@ function gsFillFormFromRecord(data, options = {}) {
     }
 }
 
-// ★ 清空表單（但保留車廂 + 組別，用於修改模式手動查詢）
 function gsClearFormForModify() {
-    // 保留 gsCabinNumber、gsGroupNumber
     const elName = document.getElementById('gsGuestName');
     if (elName) elName.value = '';
     const elContact = document.getElementById('gsContactNumber');
@@ -208,7 +203,7 @@ function gsClearFormForModify() {
 }
 
 // ================================================================
-// 原有：gsCreateRecord()（完整表單模式，保留原邏輯）
+// 完整表單模式：gsCreateRecord
 // ================================================================
 async function gsCreateRecord() {
     gsDuplicateDocId = null;
@@ -256,8 +251,23 @@ async function gsCreateRecord() {
 
     gsPendingData = data;
 
-     try {
-        // ★ 離線優化：加超時
+    try {
+        // ★ 優先固定 ID
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await withTimeout(
+                db.collection('guests').doc(fixedId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (fixedSnap && fixedSnap.exists) {
+                gsDuplicateDocId = fixedId;
+                gsShowDuplicateWarning([fixedSnap]);
+                return;
+            }
+        }
+
+        // 回退查詢
         const dup = await withTimeout(
             db.collection('guests')
                 .where('cabinNumber', '==', cabin)
@@ -267,91 +277,45 @@ async function gsCreateRecord() {
             null
         );
 
-        // 逾時或查無 → 直接建立
         if (!dup || dup.empty) {
             gsDuplicateDocId = null;
             await gsSaveOrUpdateRecord(data, null);
             return;
         }
 
-        // 有重複 → 顯示警告
         gsDuplicateDocId = dup.docs[0].id;
-        const list = document.getElementById('gsDuplicateList');
-        list.innerHTML = '';
-        dup.forEach(doc => {
-            const existing = doc.data();
-            const div = document.createElement('div');
-            div.style.padding = '8px 0';
-            div.style.borderBottom = '1px solid #e2e8f0';
-            const reachedTop = existing.timeReachedTop || '未記錄';
-            const landed = existing.timeLanded || '未記錄';
-            div.innerHTML = `
-                <div><strong>姓名：</strong>${existing.guestName || '未提供'}</div>
-                <div><strong>聯絡方式：</strong>${existing.contactNumber || '-'}</div>
-                <div><strong>健康狀況：</strong>${existing.healthStatus || '-'}</div>
-                <div><strong>開始救援時間：</strong>${reachedTop}</div>
-                <div><strong>完成救援時間：</strong>${landed}</div>
-                <div style="font-size:0.8rem; color:#eab308; margin-top:4px;">
-                    ⚠️ 此記錄已存在，將執行「更新」而非新增
-                </div>
-            `;
-            list.appendChild(div);
-        });
-        document.querySelector('#gsDuplicateWarning .gs-duplicate-title').textContent = '⚠️ 發現已存在的記錄 (將執行更新)';
-        document.getElementById('gsDuplicateWarning').style.display = 'block';
-        document.getElementById('gsDuplicateWarning').scrollIntoView({ behavior: 'smooth' });
-        return;
+        gsShowDuplicateWarning(dup.docs);
 
     } catch (e) {
         showMessage('gsMessage', '檢查重複失敗: ' + e.message, 'error');
     }
 }
-            2000,
-            null   // 逾時回傳 null
-        );
 
-        if (!dup || dup.empty) {
-            console.log('📝 [gsStartRescue] 無重複記錄，開始建立');
-            await gsSaveStartRescue(cabin, group, null);
-            return;
-        }
-    
-
-        if (!dup || dup.empty) {
-            gsDuplicateDocId = dup.docs[0].id;
-            const list = document.getElementById('gsDuplicateList');
-            list.innerHTML = '';
-            dup.forEach(doc => {
-                const existing = doc.data();
-                const div = document.createElement('div');
-                div.style.padding = '8px 0';
-                div.style.borderBottom = '1px solid #e2e8f0';
-                const reachedTop = existing.timeReachedTop || '未記錄';
-                const landed = existing.timeLanded || '未記錄';
-                div.innerHTML = `
-                    <div><strong>姓名：</strong>${existing.guestName || '未提供'}</div>
-                    <div><strong>聯絡方式：</strong>${existing.contactNumber || '-'}</div>
-                    <div><strong>健康狀況：</strong>${existing.healthStatus || '-'}</div>
-                    <div><strong>開始救援時間：</strong>${reachedTop}</div>
-                    <div><strong>完成救援時間：</strong>${landed}</div>
-                    <div style="font-size:0.8rem; color:#eab308; margin-top:4px;">
-                        ⚠️ 此記錄已存在，將執行「更新」而非新增
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-            document.querySelector('#gsDuplicateWarning .gs-duplicate-title').textContent = '⚠️ 發現已存在的記錄 (將執行更新)';
-            document.getElementById('gsDuplicateWarning').style.display = 'block';
-            document.getElementById('gsDuplicateWarning').scrollIntoView({ behavior: 'smooth' });
-            return;
-        }
-
-        gsDuplicateDocId = null;
-        await gsSaveOrUpdateRecord(data, null);
-
-    } catch (e) {
-        showMessage('gsMessage', '檢查重複失敗: ' + e.message, 'error');
-    }
+function gsShowDuplicateWarning(docs) {
+    const list = document.getElementById('gsDuplicateList');
+    list.innerHTML = '';
+    docs.forEach(doc => {
+        const existing = doc.data();
+        const div = document.createElement('div');
+        div.style.padding = '8px 0';
+        div.style.borderBottom = '1px solid #e2e8f0';
+        const reachedTop = existing.timeReachedTop || '未記錄';
+        const landed = existing.timeLanded || '未記錄';
+        div.innerHTML = `
+            <div><strong>姓名：</strong>${existing.guestName || '未提供'}</div>
+            <div><strong>聯絡方式：</strong>${existing.contactNumber || '-'}</div>
+            <div><strong>健康狀況：</strong>${existing.healthStatus || '-'}</div>
+            <div><strong>開始救援時間：</strong>${reachedTop}</div>
+            <div><strong>完成救援時間：</strong>${landed}</div>
+            <div style="font-size:0.8rem; color:#eab308; margin-top:4px;">
+                ⚠️ 此記錄已存在，將執行「更新」而非新增
+            </div>
+        `;
+        list.appendChild(div);
+    });
+    document.querySelector('#gsDuplicateWarning .gs-duplicate-title').textContent = '⚠️ 發現已存在的記錄 (將執行更新)';
+    document.getElementById('gsDuplicateWarning').style.display = 'block';
+    document.getElementById('gsDuplicateWarning').scrollIntoView({ behavior: 'smooth' });
 }
 
 function gsScrollToQr() {
@@ -370,31 +334,11 @@ function gsCancelDuplicate() {
 }
 
 async function gsCreateAnyway() {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
     _gsSubmitting = true;
-
     try {
         document.getElementById('gsDuplicateWarning').style.display = 'none';
         if (!gsPendingData) return;
-
-        if (gsDuplicateDocId) {
-            try {
-                const doc = await db.collection('guests').doc(gsDuplicateDocId).get();
-                if (doc.exists) {
-                    const existing = doc.data();
-                    if (existing.cabinNumber !== gsPendingData.cabinNumber ||
-                        existing.groupNumber !== gsPendingData.groupNumber) {
-                        gsDuplicateDocId = null;
-                    }
-                } else {
-                    gsDuplicateDocId = null;
-                }
-            } catch (e) {
-                gsDuplicateDocId = null;
-            }
-        }
-
         await gsSaveOrUpdateRecord(gsPendingData, gsDuplicateDocId);
         gsPendingData = null;
         gsDuplicateDocId = null;
@@ -407,8 +351,7 @@ async function gsSaveOrUpdateRecord(data, docId) {
     try {
         showLoader(true);
 
-        // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次
-         // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次（加超時）
+        // 若無 docId，嘗試用固定 ID
         if (!docId) {
             const fixedId = window.makeGuestDocId(data.cabinNumber, data.groupNumber);
             if (fixedId) {
@@ -419,64 +362,47 @@ async function gsSaveOrUpdateRecord(data, docId) {
                 );
                 if (fixedSnap && fixedSnap.exists) {
                     docId = fixedId;
-                    console.log('🔁 [gsSaveOrUpdateRecord] 固定 ID 已存在，改用更新:', fixedId);
-                } else if (!fixedSnap) {
-                    console.log('⏱️ [gsSaveOrUpdateRecord] 讀取逾時，當作新記錄處理');
+                    console.log('🔁 固定 ID 已存在，改用更新:', fixedId);
                 }
             }
         }
 
-        let ref;
         let previousData = null;
 
-            if (docId) {
-            // ★ 離線優化：加超時
-            let existingExists = false;
-            let existingData = null;
+        if (docId) {
+            // 讀取舊資料（加超時）
             const existingSnap = await withTimeout(
                 db.collection('guests').doc(docId).get({ source: 'default' }),
                 2000,
                 null
             );
-            if (existingSnap && existingSnap.exists) {
-                existingExists = true;
-                existingData = existingSnap.data();
-                previousData = existingData;
-            } else if (!existingSnap) {
-                console.warn('⏱️ [gsSaveOrUpdateRecord] 讀取舊記錄逾時，直接寫入');
-            }
 
             const updateData = { ...data };
-            if (existingExists && existingData && existingData.timeReachedTop) {
-                updateData.timeReachedTop = existingData.timeReachedTop;
+            if (existingSnap && existingSnap.exists) {
+                previousData = existingSnap.data();
+                updateData.timeReachedTop = previousData.timeReachedTop || new Date().toISOString();
             } else {
                 updateData.timeReachedTop = new Date().toISOString();
             }
 
             updateData.updatedAt = new Date();
-            // ★ 改用 set(merge: true) 支援離線寫入
             await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, previousData);
 
-            ref = { id: docId };
             gsCurrentDocId = docId;
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
 
         } else {
-            // ★ 第二層：建立時改用固定 ID
             data.timeReachedTop = new Date().toISOString();
             data.createdAt = new Date();
             data.status = data.timeLanded ? 'landed' : 'rescuing';
 
             const fixedId = window.makeGuestDocId(data.cabinNumber, data.groupNumber);
-            if (!fixedId) {
-                throw new Error('無法產生文件 ID（車廂或組別為空）');
-            }
-            const docRef = db.collection('guests').doc(fixedId);
-            await docRef.set(data);
+            if (!fixedId) throw new Error('無法產生文件 ID（車廂或組別為空）');
+
+            await db.collection('guests').doc(fixedId).set(data);
             await logAction('guests', fixedId, 'create', data, null);
 
-            ref = { id: fixedId };
             gsCurrentDocId = fixedId;
             showMessage('gsMessage', '✅ 記錄建立成功！', 'success');
         }
@@ -496,15 +422,14 @@ async function gsSaveOrUpdateRecord(data, docId) {
         }
 
     } catch (e) {
-        const action = docId ? '更新' : '建立';
-        showMessage('gsMessage', `${action}失敗: ` + e.message, 'error');
+        showMessage('gsMessage', (docId ? '更新' : '建立') + '失敗: ' + e.message, 'error');
     } finally {
         hideLoader();
     }
 }
 
 // ================================================================
-// QR / PDF（原有）
+// QR / PDF
 // ================================================================
 function gsGenerateQR(docId, health) {
     const container = document.getElementById('gsQrCode');
@@ -526,37 +451,21 @@ async function gsSavePDF() {
     if (!canvas) return alert('無法取得 QR 碼');
 
     const { jsPDF } = window.jspdf;
-
-    // ★ A4 橫向
-    const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-    });
-
-    const pw = pdf.internal.pageSize.getWidth();   // 應為 297
-    const ph = pdf.internal.pageSize.getHeight();  // 應為 210
-
-    // ★ 驗證橫向是否生效（打開 Console 看）
-    console.log('📄 PDF 尺寸:', pw, 'x', ph, '（橫向應為 297 x 210）');
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
 
     const cabin = document.getElementById('gsPrintCabin').textContent;
     const groupRaw = document.getElementById('gsPrintGroup').textContent || '';
     const group = groupRaw.replace(/第|組|\{|\}/g, '').trim();
 
-    // ★ QR 再增大 50%：145 → 195mm（A4 橫向高度 210mm 的極限）
     const qrSize = 195;
-    const qrX = (pw - qrSize) / 2;   // (297 - 195) / 2 = 51，水平置中
-    const qrY = 5;                    // 上方留 5mm
+    const qrX = (pw - qrSize) / 2;
+    const qrY = 5;
 
-    // 標題（極小、貼頂、置中）
     pdf.setFontSize(9);
     pdf.text('Guest QR Code Certificate', pw / 2, 3.5, { align: 'center' });
-
-    // ★ QR Code（水平置中、正向不旋轉）
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', qrX, qrY, qrSize, qrSize);
-
-    // 底部資訊（置中、貼底）
     pdf.setFontSize(10);
     pdf.text(`Cabin: ${cabin}    Group: ${group}`, pw / 2, 205, { align: 'center' });
 
@@ -567,11 +476,7 @@ async function gsSavePDF() {
     const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
     if (canShareFiles) {
         try {
-            await navigator.share({
-                files: [file],
-                title: 'Guest QR Code',
-                text: `Cabin ${cabin} / Group ${group}`
-            });
+            await navigator.share({ files: [file], title: 'Guest QR Code', text: `Cabin ${cabin} / Group ${group}` });
             return;
         } catch (err) {
             if (err && err.name === 'AbortError') return;
@@ -582,15 +487,13 @@ async function gsSavePDF() {
 }
 
 // ================================================================
-// ★ 模式切換
+// 模式切換
 // ================================================================
 function gsSwitchMode(mode) {
-    // 若已經在修改模式，只允許切到 complete
     if (gsModifyMode && mode !== 'complete' && mode !== 'full') return;
 
     gsCurrentMode = mode;
 
-    // ★ 切換模式時清空 QR 結果
     const qrEl = document.getElementById('gsQrResult');
     if (qrEl) qrEl.style.display = 'none';
     const qrCodeEl = document.getElementById('gsQrCode');
@@ -616,21 +519,16 @@ function gsSwitchMode(mode) {
         if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-flag-checkered"></i> 完成救援';
         if (banner && gsModifyMode) banner.style.display = 'flex';
     } else {
-        // mode === 'full'
         completeFields.forEach(el => el.style.display = 'block');
         if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save"></i> 建立/更新記錄';
 
-        // ★ 進入「修改模式」（讓使用者可手動輸入車廂 + 組別查詢）
         gsModifyMode = true;
         gsModifyDocId = null;
 
-        // ★ 顯示修改 Banner
         if (banner) {
             banner.style.display = 'flex';
             banner.querySelector('.gs-modify-text').textContent = '✏️ 請輸入車廂 + 組別以載入記錄';
         }
-
-        // ★ 清空表單（除了車廂 + 組別）
         gsClearFormForModify();
     }
 
@@ -641,7 +539,6 @@ function gsSwitchMode(mode) {
 }
 
 function gsSubmit() {
-    // ★ 防重複點擊（第一層：前端鎖）
     if (_gsSubmitting) {
         console.warn('⏳ 上一個操作仍在進行中，忽略此次點擊');
         return;
@@ -668,15 +565,13 @@ function gsSubmit() {
             }
         }
     };
-
     run();
 }
 
 // ================================================================
-// ★ 開始救援
+// 開始救援
 // ================================================================
 async function gsStartRescue() {
-    // ★ 清空上一次的 QR
     const qrEl = document.getElementById('gsQrResult');
     if (qrEl) qrEl.style.display = 'none';
     const qrCodeEl = document.getElementById('gsQrCode');
@@ -691,10 +586,43 @@ async function gsStartRescue() {
         return;
     }
 
-      try {
+    try {
         showLoader(true);
 
-          // ★ 離線優化：加超時
+        // 優先固定 ID
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await withTimeout(
+                db.collection('guests').doc(fixedId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (fixedSnap && fixedSnap.exists) {
+                const existing = fixedSnap.data();
+                const hasReached = !!existing.timeReachedTop;
+                const hasLanded = !!existing.timeLanded;
+
+                if (hasReached && hasLanded) {
+                    gsPendingData = { cabin, group, docId: fixedId };
+                    gsOverwritePendingDocId = fixedId;
+                    showGsOverwriteModal(fixedId, existing);
+                    return;
+                }
+                if (hasReached && !hasLanded) {
+                    gsPendingData = { cabin, group, docId: fixedId };
+                    gsOverwritePendingDocId = fixedId;
+                    showGsOngoingModal(fixedId, existing);
+                    return;
+                }
+                if (!hasReached && hasLanded) {
+                    gsPendingData = { cabin, group, docId: fixedId };
+                    showGsManualTimeModal('missing_start');
+                    return;
+                }
+            }
+        }
+
+        // 回退查詢
         const dup = await withTimeout(
             db.collection('guests')
                 .where('cabinNumber', '==', cabin)
@@ -704,8 +632,6 @@ async function gsStartRescue() {
             null
         );
 
-        // 逾時或查無 → 用固定 ID 直接更新
-        // 逾時或查無 → 直接建立
         if (!dup || dup.empty) {
             await gsSaveStartRescue(cabin, group, null);
             return;
@@ -722,14 +648,12 @@ async function gsStartRescue() {
             showGsOverwriteModal(doc.id, existing);
             return;
         }
-
         if (hasReached && !hasLanded) {
             gsPendingData = { cabin, group, docId: doc.id };
             gsOverwritePendingDocId = doc.id;
             showGsOngoingModal(doc.id, existing);
             return;
         }
-
         if (!hasReached && hasLanded) {
             gsPendingData = { cabin, group, docId: doc.id };
             showGsManualTimeModal('missing_start');
@@ -749,8 +673,6 @@ async function gsSaveStartRescue(cabin, group, docId) {
     const now = new Date();
     const nowISO = now.toISOString();
 
-    // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次
-       // ★ 第二層 + 離線優化：若無 docId，嘗試用固定 ID 查一次（加超時）
     if (!docId) {
         const fixedId = window.makeGuestDocId(cabin, group);
         if (fixedId) {
@@ -759,28 +681,18 @@ async function gsSaveStartRescue(cabin, group, docId) {
                 2000,
                 null
             );
-            if (fixedSnap && fixedSnap.exists) {
-                docId = fixedId;
-                console.log('🔁 [gsSaveStartRescue] 固定 ID 已存在，改用更新:', fixedId);
-            } else if (!fixedSnap) {
-                console.log('⏱️ [gsSaveStartRescue] 讀取逾時（可能離線），當作新記錄處理');
-            }
+            if (fixedSnap && fixedSnap.exists) docId = fixedId;
         }
     }
 
-     if (docId) {
-        // 更新既有記錄（加超時）
+    if (docId) {
         let existing = {};
         const existingSnap = await withTimeout(
             db.collection('guests').doc(docId).get({ source: 'default' }),
             2000,
             null
         );
-        if (existingSnap && existingSnap.exists) {
-            existing = existingSnap.data();
-        } else if (!existingSnap) {
-            console.warn('⏱️ [gsSaveStartRescue] 讀取舊記錄逾時，直接寫入');
-        }
+        if (existingSnap && existingSnap.exists) existing = existingSnap.data();
 
         const updateData = {
             ...existing,
@@ -799,7 +711,6 @@ async function gsSaveStartRescue(cabin, group, docId) {
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
     } else {
-        // ★ 第二層：建立時改用固定 ID
         const data = {
             cabinNumber: cabin,
             groupNumber: group,
@@ -811,16 +722,11 @@ async function gsSaveStartRescue(cabin, group, docId) {
             createdAt: now,
             updatedAt: now
         };
-
         const fixedId = window.makeGuestDocId(cabin, group);
-        if (!fixedId) {
-            throw new Error('無法產生文件 ID（車廂或組別為空）');
-        }
-        const docRef = db.collection('guests').doc(fixedId);
-        // ★ set() 離線時會自動排隊，恢復網路後同步
-        await docRef.set(data);
+        if (!fixedId) throw new Error('無法產生文件 ID');
+        await db.collection('guests').doc(fixedId).set(data);
         await logAction('guests', fixedId, 'create', data, null);
-        showMessage('gsMessage', '✅ 已開始救援（離線排隊中）', 'success');
+        showMessage('gsMessage', '✅ 已開始救援', 'success');
     }
 
     if (typeof mapUpdateFromFirestore === 'function') mapUpdateFromFirestore();
@@ -831,20 +737,15 @@ async function gsSaveStartRescue(cabin, group, docId) {
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
 
-    // ★ 立即刷新 Banner（離線時可能失敗，但不影響寫入）
-    // ★ 立即刷新 Banner（離線優化：fire-and-forget，不阻塞主流程）
     if (typeof gsRefreshOngoingBanner === 'function') {
-        gsRefreshOngoingBanner().catch(e => {
-            console.warn('Banner 刷新失敗（不影響寫入）:', e.message);
-        });
+        gsRefreshOngoingBanner().catch(e => console.warn('Banner 刷新失敗:', e.message));
     }
 }
 
 // ================================================================
-// ★ 完成救援
+// 完成救援
 // ================================================================
 async function gsCompleteRescue() {
-    // ★ 清空上一次的 QR
     const qrEl = document.getElementById('gsQrResult');
     if (qrEl) qrEl.style.display = 'none';
     const qrCodeEl = document.getElementById('gsQrCode');
@@ -866,8 +767,32 @@ async function gsCompleteRescue() {
 
     try {
         showLoader(true);
-        const dup = await db.collection('guests')
-                   const dup = await withTimeout(
+
+        // 優先固定 ID
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await withTimeout(
+                db.collection('guests').doc(fixedId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (fixedSnap && fixedSnap.exists) {
+                const existing = fixedSnap.data();
+                if (existing.status === 'rescuing' || (!!existing.timeReachedTop && !existing.timeLanded)) {
+                    await gsSaveCompleteRescue(fixedId, cabin, group, timeLanded, existing);
+                    return;
+                }
+                if (existing.timeReachedTop && existing.timeLanded) {
+                    gsPendingData = { cabin, group, timeLanded, formData: gsCollectCompleteFields(), docId: fixedId };
+                    gsOverwritePendingDocId = fixedId;
+                    showGsOverwriteModal(fixedId, existing);
+                    return;
+                }
+            }
+        }
+
+        // 回退查詢
+        const dup = await withTimeout(
             db.collection('guests')
                 .where('cabinNumber', '==', cabin)
                 .where('groupNumber', '==', group)
@@ -876,22 +801,8 @@ async function gsCompleteRescue() {
             null
         );
 
-        if (!dup) {
-            console.warn('⏱️ [gsCompleteRescue] 查詢逾時，使用固定 ID 直接更新');
-            const fixedId = window.makeGuestDocId(cabin, group);
-            if (fixedId) {
-                await gsSaveCompleteRescue(fixedId, cabin, group, timeLanded, {});
-                return;
-            }
-        } .where('cabinNumber', '==', cabin)
-            .where('groupNumber', '==', group)
-            .get();
-
-        if (dup.empty) {
-            gsPendingData = {
-                cabin, group, timeLanded,
-                formData: gsCollectCompleteFields()
-            };
+        if (!dup || dup.empty) {
+            gsPendingData = { cabin, group, timeLanded, formData: gsCollectCompleteFields() };
             showGsManualTimeModal('no_record');
             return;
         }
@@ -901,42 +812,27 @@ async function gsCompleteRescue() {
         const hasReached = !!existing.timeReachedTop;
         const hasLanded = !!existing.timeLanded;
 
-        // ★★★ 優先判斷：進行中（status === 'rescuing'）直接更新
         if (existing.status === 'rescuing') {
             await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
             return;
         }
 
-        // 已有完整記錄（且非進行中）→ 2 選項
         if (hasReached && hasLanded) {
-            gsPendingData = {
-                cabin, group, timeLanded,
-                formData: gsCollectCompleteFields(),
-                docId: doc.id
-            };
+            gsPendingData = { cabin, group, timeLanded, formData: gsCollectCompleteFields(), docId: doc.id };
             gsOverwritePendingDocId = doc.id;
             showGsOverwriteModal(doc.id, existing);
             return;
         }
-
-        // 有開始、無完成 → 正常更新
         if (hasReached && !hasLanded) {
             await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
             return;
         }
-
-        // 有完成、無開始 → 手動補填開始時間
         if (!hasReached && hasLanded) {
-            gsPendingData = {
-                cabin, group, timeLanded,
-                formData: gsCollectCompleteFields(),
-                docId: doc.id
-            };
+            gsPendingData = { cabin, group, timeLanded, formData: gsCollectCompleteFields(), docId: doc.id };
             showGsManualTimeModal('missing_start');
             return;
         }
 
-        // 理論上不會到這
         await gsSaveCompleteRescue(doc.id, cabin, group, timeLanded, existing);
 
     } catch (e) {
@@ -968,14 +864,6 @@ function gsCollectCompleteFields() {
     };
 }
 
-function gsClearQrResult() {
-    const qrEl = document.getElementById('gsQrResult');
-    if (qrEl) qrEl.style.display = 'none';
-    const qrCodeEl = document.getElementById('gsQrCode');
-    if (qrCodeEl) qrCodeEl.innerHTML = '';
-    window.gsQrInstance = null;
-}
-
 async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, manualTimeReachedTop) {
     const now = new Date();
     const formData = gsCollectCompleteFields();
@@ -993,7 +881,7 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
         updateData.timeReachedTop = manualTimeReachedTop;
     }
 
-                await db.collection('guests').doc(docId).set(updateData, { merge: true });
+    await db.collection('guests').doc(docId).set(updateData, { merge: true });
     await logAction('guests', docId, 'update', updateData, existing || null);
 
     gsGenerateQR(docId, formData.healthStatus || '未分類');
@@ -1009,9 +897,8 @@ async function gsSaveCompleteRescue(docId, cabin, group, timeLanded, existing, m
         dbLoadRecords();
     }
 
-    // ★ 新增：立即刷新 Banner
     if (typeof gsRefreshOngoingBanner === 'function') {
-        await gsRefreshOngoingBanner();
+        gsRefreshOngoingBanner().catch(e => console.warn('Banner 刷新失敗:', e.message));
     }
 
     gsClearForm();
@@ -1045,16 +932,12 @@ function gsClearForm() {
 }
 
 // ================================================================
-// ★ Modal 顯示
+// Modal 顯示
 // ================================================================
 function showGsOverwriteModal(docId, existing) {
     const infoEl = document.getElementById('gsOverwriteInfo');
-    const reached = existing.timeReachedTop
-        ? new Date(existing.timeReachedTop).toLocaleString('zh-TW')
-        : '—';
-    const landed = existing.timeLanded
-        ? new Date(existing.timeLanded).toLocaleString('zh-TW')
-        : '—';
+    const reached = existing.timeReachedTop ? new Date(existing.timeReachedTop).toLocaleString('zh-TW') : '—';
+    const landed = existing.timeLanded ? new Date(existing.timeLanded).toLocaleString('zh-TW') : '—';
 
     infoEl.innerHTML = `
         <div>車廂：${existing.cabinNumber || '-'}</div>
@@ -1067,9 +950,7 @@ function showGsOverwriteModal(docId, existing) {
 
 function showGsOngoingModal(docId, existing) {
     const infoEl = document.getElementById('gsOngoingInfo');
-    const reached = existing.timeReachedTop
-        ? new Date(existing.timeReachedTop).toLocaleString('zh-TW')
-        : '—';
+    const reached = existing.timeReachedTop ? new Date(existing.timeReachedTop).toLocaleString('zh-TW') : '—';
 
     infoEl.innerHTML = `
         <div>車廂：${existing.cabinNumber || '-'}</div>
@@ -1106,13 +987,11 @@ function gsCancelOverwrite() {
 }
 
 // ================================================================
-// ★ 修改內容 / 完全重新記錄
+// 修改內容 / 完全重新記錄
 // ================================================================
 async function gsChooseModify() {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
     _gsSubmitting = true;
-
     try {
         document.getElementById('gsOverwriteModal').style.display = 'none';
         if (!gsOverwritePendingDocId) return;
@@ -1120,8 +999,12 @@ async function gsChooseModify() {
         const docId = gsOverwritePendingDocId;
         try {
             showLoader(true);
-            const doc = await db.collection('guests').doc(docId).get();
-            if (!doc.exists) {
+            const doc = await withTimeout(
+                db.collection('guests').doc(docId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (!doc || !doc.exists) {
                 showMessage('gsMessage', '找不到記錄', 'error');
                 return;
             }
@@ -1143,8 +1026,6 @@ function gsEnterModifyMode(docId, data) {
     gsModifyDocId = docId;
 
     gsSwitchMode('complete');
-
-    // ★ 載入記錄到表單（不保留車廂 + 組別，因為是從 Modal 進入，要顯示記錄的值）
     gsFillFormFromRecord(data, { keepCabinGroup: false });
 
     const banner = document.getElementById('gsModifyBanner');
@@ -1192,7 +1073,15 @@ async function gsApplyModify() {
 
     try {
         showLoader(true);
-        const existing = (await db.collection('guests').doc(gsModifyDocId).get()).data();
+
+        let existing = {};
+        const snap = await withTimeout(
+            db.collection('guests').doc(gsModifyDocId).get({ source: 'default' }),
+            2000,
+            null
+        );
+        if (snap && snap.exists) existing = snap.data();
+
         const formData = gsCollectCompleteFields();
 
         const updateData = {
@@ -1204,15 +1093,10 @@ async function gsApplyModify() {
             updatedAt: new Date()
         };
 
-        // 修改模式：沒填 rescuedBy / remarks → 保留舊值
-        if (!updateData.rescuedBy && existing.rescuedBy) {
-            updateData.rescuedBy = existing.rescuedBy;
-        }
-        if (!updateData.remarks && existing.remarks) {
-            updateData.remarks = existing.remarks;
-        }
+        if (!updateData.rescuedBy && existing.rescuedBy) updateData.rescuedBy = existing.rescuedBy;
+        if (!updateData.remarks && existing.remarks) updateData.remarks = existing.remarks;
 
-        await db.collection('guests').doc(gsModifyDocId).update(updateData);
+        await db.collection('guests').doc(gsModifyDocId).set(updateData, { merge: true });
         await logAction('guests', gsModifyDocId, 'update', updateData, existing);
 
         gsGenerateQR(gsModifyDocId, formData.healthStatus || '未分類');
@@ -1238,9 +1122,7 @@ async function gsApplyModify() {
 }
 
 async function gsChooseFullRestart() {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
-
     document.getElementById('gsOverwriteModal').style.display = 'none';
     if (!gsPendingData || !gsOverwritePendingDocId) return;
     gsPendingData.mode = 'fullrestart';
@@ -1248,10 +1130,8 @@ async function gsChooseFullRestart() {
 }
 
 async function gsConfirmOngoingOverwrite() {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
     _gsSubmitting = true;
-
     try {
         document.getElementById('gsOngoingModal').style.display = 'none';
         if (!gsPendingData || !gsOverwritePendingDocId) return;
@@ -1280,7 +1160,6 @@ function gsCancelManualTime() {
 }
 
 async function gsConfirmManualTime() {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
 
     const manualTime = document.getElementById('gsManualTimeReachedTop').value;
@@ -1288,7 +1167,6 @@ async function gsConfirmManualTime() {
         alert('請輸入開始救援時間');
         return;
     }
-
     if (!gsPendingData) return;
 
     _gsSubmitting = true;
@@ -1299,14 +1177,15 @@ async function gsConfirmManualTime() {
     try {
         showLoader(true);
 
-               if (mode === 'fullrestart') {
+        if (mode === 'fullrestart') {
             let existing = {};
-            try {
-                const snap = await db.collection('guests').doc(docId).get({ source: 'default' });
-                if (snap.exists) existing = snap.data();
-            } catch (e) {
-                console.warn('⚠️ [gsConfirmManualTime] 無法讀取舊記錄（離線）:', e.message);
-            }
+            const snap = await withTimeout(
+                db.collection('guests').doc(docId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (snap && snap.exists) existing = snap.data();
+
             const currentFormData = gsCollectCompleteFields();
             const currentTimeLanded = document.getElementById('gsTimeLanded').value;
 
@@ -1320,7 +1199,7 @@ async function gsConfirmManualTime() {
                 updatedAt: new Date()
             };
 
-                        await db.collection('guests').doc(docId).set(updateData, { merge: true });
+            await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, existing);
 
             if (currentTimeLanded) {
@@ -1333,15 +1212,15 @@ async function gsConfirmManualTime() {
 
             showMessage('gsMessage', '✅ 已完全重新記錄', 'success');
 
-              } else if (docId) {
-            // ★ 離線優化：讀不到舊資料時仍可寫入
+        } else if (docId) {
             let existing = {};
-            try {
-                const snap = await db.collection('guests').doc(docId).get({ source: 'default' });
-                if (snap.exists) existing = snap.data();
-            } catch (e) {
-                console.warn('⚠️ [gsConfirmManualTime] 無法讀取舊記錄（離線），直接寫入:', e.message);
-            }
+            const snap = await withTimeout(
+                db.collection('guests').doc(docId).get({ source: 'default' }),
+                2000,
+                null
+            );
+            if (snap && snap.exists) existing = snap.data();
+
             const updateData = {
                 ...existing,
                 timeReachedTop: manualTime,
@@ -1350,7 +1229,8 @@ async function gsConfirmManualTime() {
                 status: timeLanded ? 'landed' : (existing.status || 'rescuing'),
                 updatedAt: new Date()
             };
-                      await db.collection('guests').doc(docId).set(updateData, { merge: true });
+
+            await db.collection('guests').doc(docId).set(updateData, { merge: true });
             await logAction('guests', docId, 'update', updateData, existing);
 
             if (timeLanded) {
@@ -1362,7 +1242,8 @@ async function gsConfirmManualTime() {
             }
 
             showMessage('gsMessage', '✅ 已補填開始時間', 'success');
-             } else {
+
+        } else {
             const newData = {
                 cabinNumber: cabin,
                 groupNumber: group,
@@ -1374,29 +1255,11 @@ async function gsConfirmManualTime() {
                 ...(formData || {})
             };
 
-            // ★ 第二層：改用固定 ID
             const fixedId = window.makeGuestDocId(cabin, group);
-            if (!fixedId) {
-                throw new Error('無法產生文件 ID（車廂或組別為空）');
-            }
-              const docRef = db.collection('guests').doc(fixedId);
+            if (!fixedId) throw new Error('無法產生文件 ID');
 
-            // ★ 離線優化：加超時
-            const existingSnap = await withTimeout(
-                docRef.get({ source: 'default' }),
-                2000,
-                null
-            );
-
-            if (existingSnap && existingSnap.exists) {
-                const existing = existingSnap.data();
-                await docRef.set(newData, { merge: true });
-                await logAction('guests', fixedId, 'update', newData, existing);
-                console.log('🔁 [gsConfirmManualTime] 固定 ID 已存在，改用更新:', fixedId);
-            } else {
-                await docRef.set(newData);
-                await logAction('guests', fixedId, 'create', newData, null);
-            }
+            await db.collection('guests').doc(fixedId).set(newData);
+            await logAction('guests', fixedId, 'create', newData, null);
 
             if (timeLanded) {
                 gsGenerateQR(fixedId, newData.healthStatus || '未分類');
@@ -1426,7 +1289,7 @@ async function gsConfirmManualTime() {
 }
 
 // ================================================================
-// ★ Banner：進行中救援
+// Banner：進行中救援
 // ================================================================
 function gsInitOngoingListener() {
     if (window._gsOngoingUnsub) window._gsOngoingUnsub();
@@ -1436,14 +1299,11 @@ function gsInitOngoingListener() {
         .onSnapshot(
             { includeMetadataChanges: true },
             (snap, metadata) => {
-                // ★ 修正：metadata 可能 undefined，要防護
                 const fromCache = metadata && metadata.fromCache;
-
                 if (fromCache) {
                     console.log('📦 收到快取資料，跳過（等待伺服器資料）');
                     return;
                 }
-
                 const list = [];
                 snap.forEach(d => {
                     const data = d.data();
@@ -1460,69 +1320,50 @@ function gsInitOngoingListener() {
             }
         );
 
-    // ★ 保險：立即手動查詢一次（跳過快取）
-    setTimeout(() => {
-        db.collection('guests')
-            .where('status', '==', 'rescuing')
-            .get({ source: 'server' })
-            .then(snap => {
-                const list = [];
-                snap.forEach(d => {
-                    const data = d.data();
-                    if (!data.timeLanded) {
-                        list.push({ id: d.id, ...data });
-                    }
-                });
-                console.log('🔍 初始查詢（伺服器）進行中救援:', list.length, '筆');
-                gsRenderOngoingBanner(list);
-            })
-            .catch(err => {
-                console.warn('初始查詢失敗，改用預設來源:', err);
+    // 保險：立即查詢一次（加超時）
+    setTimeout(async () => {
+        try {
+            const snap = await withTimeout(
                 db.collection('guests')
                     .where('status', '==', 'rescuing')
-                    .get()
-                    .then(snap => {
-                        const list = [];
-                        snap.forEach(d => {
-                            const data = d.data();
-                            if (!data.timeLanded) {
-                                list.push({ id: d.id, ...data });
-                            }
-                        });
-                        gsRenderOngoingBanner(list);
-                    })
-                    .catch(e => console.warn('備援查詢失敗:', e));
-            });
+                    .get({ source: 'server' }),
+                3000,
+                null
+            );
+            if (!snap) {
+                console.warn('⏱️ 初始查詢逾時，改用快取');
+                const cacheSnap = await withTimeout(
+                    db.collection('guests').where('status', '==', 'rescuing').get({ source: 'cache' }),
+                    2000,
+                    null
+                );
+                if (cacheSnap) gsRenderOngoingBannerFromSnap(cacheSnap);
+                return;
+            }
+            gsRenderOngoingBannerFromSnap(snap);
+        } catch (e) {
+            console.warn('初始查詢失敗:', e);
+        }
     }, 500);
 }
 
-/**
- * ★ 手動刷新 Banner（跳過快取，直接從伺服器讀取）
- * 用於新增 / 完成救援後，立即更新 Banner
- */
 async function gsRefreshOngoingBanner() {
     try {
-        // ★ 離線優化：加超時，最多等 3 秒
         const snap = await withTimeout(
-            db.collection('guests')
-                .where('status', '==', 'rescuing')
-                .get({ source: 'server' }),
+            db.collection('guests').where('status', '==', 'rescuing').get({ source: 'server' }),
             3000,
-            null   // 逾時回傳 null
+            null
         );
 
         if (!snap) {
-            // 逾時了 → 改用快取
             console.warn('⏱️ [gsRefreshOngoingBanner] 伺服器讀取逾時，改用快取');
             const cacheSnap = await withTimeout(
-                db.collection('guests')
-                    .where('status', '==', 'rescuing')
-                    .get({ source: 'cache' }),
+                db.collection('guests').where('status', '==', 'rescuing').get({ source: 'cache' }),
                 2000,
                 null
             );
             if (!cacheSnap) {
-                console.warn('⏱️ [gsRefreshOngoingBanner] 快取也逾時，跳過刷新');
+                console.warn('⏱️ 快取也逾時，跳過刷新');
                 return;
             }
             gsRenderOngoingBannerFromSnap(cacheSnap);
@@ -1535,7 +1376,6 @@ async function gsRefreshOngoingBanner() {
     }
 }
 
-// ★ 新增：從 snapshot 渲染 Banner（抽出邏輯）
 function gsRenderOngoingBannerFromSnap(snap) {
     const list = [];
     snap.forEach(d => {
@@ -1573,7 +1413,6 @@ function gsRenderOngoingBanner(list) {
         const startTime = item.timeReachedTop
             ? new Date(item.timeReachedTop).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })
             : '—';
-        // ★ 加 escape 防 XSS
         const cabinEsc = escapeHtml(item.cabinNumber || '');
         const groupEsc = escapeHtml(item.groupNumber || '');
         const idEsc = escapeJs(item.id || '');
@@ -1586,81 +1425,79 @@ function gsRenderOngoingBanner(list) {
 }
 
 function gsOpenCompleteFromBanner(docId) {
-    // ★ 防重複點擊
     if (_gsSubmitting) return;
     _gsSubmitting = true;
 
-    db.collection('guests').doc(docId).get().then(doc => {
-        if (!doc.exists) return;
-        const data = doc.data();
+    db.collection('guests').doc(docId).get()
+        .then(doc => {
+            if (!doc.exists) return;
+            const data = doc.data();
 
-        // ★ 清空上一次的 QR 結果
-        const qrEl = document.getElementById('gsQrResult');
-        if (qrEl) qrEl.style.display = 'none';
-        const qrCodeEl = document.getElementById('gsQrCode');
-        if (qrCodeEl) qrCodeEl.innerHTML = '';
-        window.gsQrInstance = null;
+            const qrEl = document.getElementById('gsQrResult');
+            if (qrEl) qrEl.style.display = 'none';
+            const qrCodeEl = document.getElementById('gsQrCode');
+            if (qrCodeEl) qrCodeEl.innerHTML = '';
+            window.gsQrInstance = null;
 
-        gsSwitchMode('complete');
+            gsSwitchMode('complete');
 
-        const elCabin = document.getElementById('gsCabinNumber');
-        const elGroup = document.getElementById('gsGroupNumber');
-        if (elCabin) elCabin.value = data.cabinNumber || '';
-        if (elGroup) elGroup.value = data.groupNumber || '';
+            const elCabin = document.getElementById('gsCabinNumber');
+            const elGroup = document.getElementById('gsGroupNumber');
+            if (elCabin) elCabin.value = data.cabinNumber || '';
+            if (elGroup) elGroup.value = data.groupNumber || '';
 
-        const elName = document.getElementById('gsGuestName');
-        if (elName) elName.value = data.guestName || '';
-        const elContact = document.getElementById('gsContactNumber');
-        if (elContact) elContact.value = data.contactNumber || '';
-        const elGender = document.getElementById('gsGender');
-        if (elGender) elGender.value = data.gender || '';
-        const elAge = document.getElementById('gsAgeRange');
-        if (elAge) elAge.value = data.ageRange || '';
-        const elHealth = document.getElementById('gsHealthStatus');
-        if (elHealth) elHealth.value = data.healthStatus || '未能分類';
+            const elName = document.getElementById('gsGuestName');
+            if (elName) elName.value = data.guestName || '';
+            const elContact = document.getElementById('gsContactNumber');
+            if (elContact) elContact.value = data.contactNumber || '';
+            const elGender = document.getElementById('gsGender');
+            if (elGender) elGender.value = data.gender || '';
+            const elAge = document.getElementById('gsAgeRange');
+            if (elAge) elAge.value = data.ageRange || '';
+            const elHealth = document.getElementById('gsHealthStatus');
+            if (elHealth) elHealth.value = data.healthStatus || '未能分類';
 
-        const elRescued = document.getElementById('gsRescuedBy');
-        const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
-        const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
-        const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
-        if (elRescued) {
-            if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
-                elRescued.value = data.rescuedBy;
-                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
-            } else if (data.rescuedBy) {
-                elRescued.value = '其他';
-                if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
-                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
-            } else {
-                elRescued.value = '';
-                if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+            const elRescued = document.getElementById('gsRescuedBy');
+            const elOtherRescuer = document.getElementById('gsOtherRescuerInput');
+            const elOtherRescuerContainer = document.getElementById('gsOtherRescuerContainer');
+            const knownRescuers = ['消防員', '民安隊', '警察', 'NP360職員'];
+            if (elRescued) {
+                if (data.rescuedBy && knownRescuers.includes(data.rescuedBy)) {
+                    elRescued.value = data.rescuedBy;
+                    if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+                } else if (data.rescuedBy) {
+                    elRescued.value = '其他';
+                    if (elOtherRescuer) elOtherRescuer.value = data.rescuedBy;
+                    if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'block';
+                } else {
+                    elRescued.value = '';
+                    if (elOtherRescuerContainer) elOtherRescuerContainer.style.display = 'none';
+                }
             }
-        }
 
-        const elRemarks = document.getElementById('gsRemarks');
-        if (elRemarks) elRemarks.value = data.remarks || '';
+            const elRemarks = document.getElementById('gsRemarks');
+            if (elRemarks) elRemarks.value = data.remarks || '';
 
-        // ★ 若舊記錄有 timeLanded，帶入表單
-        const elLanded = document.getElementById('gsTimeLanded');
-        if (elLanded) {
-            if (data.timeLanded) {
-                try {
-                    const d = data.timeLanded.toDate ? data.timeLanded.toDate() : new Date(data.timeLanded);
-                    const pad = (n) => String(n).padStart(2, '0');
-                    elLanded.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-                } catch (e) {
+            const elLanded = document.getElementById('gsTimeLanded');
+            if (elLanded) {
+                if (data.timeLanded) {
+                    try {
+                        const d = data.timeLanded.toDate ? data.timeLanded.toDate() : new Date(data.timeLanded);
+                        const pad = (n) => String(n).padStart(2, '0');
+                        elLanded.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    } catch (e) {
+                        elLanded.value = '';
+                    }
+                } else {
                     elLanded.value = '';
                 }
-            } else {
-                elLanded.value = '';
             }
-        }
 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }).finally(() => {
-        // ★ 載入完成後解鎖
-        _gsSubmitting = false;
-    });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .finally(() => {
+            _gsSubmitting = false;
+        });
 }
 
 // ================================================================
@@ -1680,7 +1517,6 @@ function initGroundSupport() {
     gsSwitchMode('start');
     gsInitOngoingListener();
 
-    // ★ 綁定車廂 + 組別的輸入事件（用於修改模式自動查詢）
     const elCabin = document.getElementById('gsCabinNumber');
     const elGroup = document.getElementById('gsGroupNumber');
 
@@ -1725,10 +1561,9 @@ window.gsConfirmManualTime = gsConfirmManualTime;
 window.gsOpenCompleteFromBanner = gsOpenCompleteFromBanner;
 window.gsExitModifyMode = gsExitModifyMode;
 
-// ★ 新增：修改模式自動查詢
 window.gsOnCabinOrGroupChange = gsOnCabinOrGroupChange;
 window.gsAutoLookupRecord = gsAutoLookupRecord;
 window.gsFillFormFromRecord = gsFillFormFromRecord;
 window.gsClearFormForModify = gsClearFormForModify;
 
-console.log('✅ gs.js 已載入 (含新模式 + 修改模式自動查詢)');
+console.log('✅ gs.js 已載入（完整版）');
