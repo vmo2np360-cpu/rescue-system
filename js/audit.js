@@ -199,15 +199,49 @@ function auditExportCSV() {
 function initAudit() {
     console.log('✅ 日誌審計模組初始化完成');
     auditLoadLogs();
-    
-    if (window._auditAutoRefreshTimer) clearInterval(window._auditAutoRefreshTimer);
-    window._auditAutoRefreshTimer = setInterval(() => {
-        const section = document.getElementById('section-audit');
-        if (section && section.classList.contains('active')) {
-            console.log('🔄 日誌自動更新 (30秒)');
-            auditLoadLogs();
+
+    // ★ 事件驅動：監聽 audit_log 最新 100 筆
+    if (window._auditLogUnsub) {
+        try { window._auditLogUnsub(); } catch (e) {}
+    }
+    window._auditLogUnsub = db.collection('audit_log')
+        .orderBy('timestamp', 'desc')
+        .limit(100)
+        .onSnapshot(
+            (snap) => {
+                if (window.updateLastSyncTime) window.updateLastSyncTime();
+
+                allLogs = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    let timestamp = data.timestamp;
+                    if (timestamp && timestamp.toDate) {
+                        timestamp = timestamp.toDate();
+                    }
+                    allLogs.push({ id: d.id, ...data, timestamp });
+                });
+
+                const section = document.getElementById('section-audit');
+                if (section && section.classList.contains('active')) {
+                    auditRenderTable(allLogs);
+                    auditUpdateStats(allLogs);
+                }
+            },
+            (err) => {
+                if (err && err.code === 'permission-denied') return;
+                console.warn('Audit 監聽失敗:', err);
+            }
+        );
+
+    // ★ 移除定時器
+    // ★ 新增：清理 Audit 定時器 + 監聽器
+    if (nextSectionId !== 'section-audit') {
+        if (window._auditAutoRefreshTimer) { clearInterval(window._auditAutoRefreshTimer); window._auditAutoRefreshTimer = null; }
+        if (window._auditLogUnsub) {
+            try { window._auditLogUnsub(); } catch (e) {}
+            window._auditLogUnsub = null;
         }
-    }, 30000);
+    }
 }
 
 // ---- 暴露全域 ----
