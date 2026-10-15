@@ -326,8 +326,14 @@ function cleanupSectionListeners(nextSectionId) {
     // ★ 新增：清理 Dashboard 定時器
         // ★ 新增：清理 Dashboard 定時器
     // ★ 新增：清理 Dashboard 定時器
+     // ★ 新增：清理 Dashboard 定時器 + 監聽器
     if (nextSectionId !== 'section-dashboard') {
         if (window._dbAutoRefreshTimer) { clearInterval(window._dbAutoRefreshTimer); window._dbAutoRefreshTimer = null; }
+        if (window._dbGuestsUnsub) {
+            try { window._dbGuestsUnsub(); } catch (e) {}
+            window._dbGuestsUnsub = null;
+        }
+        window._dbFirstLoadDone = false;
     }
 
     // ★ 新增：清理車廂管理模式監聽
