@@ -1322,15 +1322,11 @@ async function monInit() {
     await monInitMap();
     await monLoadAllData();
 
-    if (window._monAutoRefreshTimer) clearInterval(window._monAutoRefreshTimer);
-    window._monAutoRefreshTimer = setInterval(() => {
-        const section = document.getElementById('section-monitor');
-        if (section && section.classList.contains('active')) {
-            console.log('🔄 監控平台自動更新 (20秒)');
-            monLoadAllData();
-            monCheckModeChange(false);
-        }
-    }, 20000);
+    // ★ 事件驅動：已由 guests / rescue_records 的 onSnapshot 觸發
+    if (window._monAutoRefreshTimer) {
+        clearInterval(window._monAutoRefreshTimer);
+        window._monAutoRefreshTimer = null;
+    }
 }
 
 // ================================================================
