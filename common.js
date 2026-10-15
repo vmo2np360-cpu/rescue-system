@@ -21,6 +21,26 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .catch(err => console.warn('Persistence setting failed:', err));
 
 // ================================================================
+// ★ 離線優化：啟用 Firestore IndexedDB 持久化
+// synchronizeTabs: true → 多分頁共享同一份快取，避免衝突
+// ================================================================
+db.enablePersistence({ synchronizeTabs: true })
+    .then(() => {
+        console.log('✅ Firestore 持久化已啟用（IndexedDB）');
+    })
+    .catch(err => {
+        if (err.code === 'failed-precondition') {
+            // 多個分頁同時開啟，或 IndexedDB 被鎖定
+            console.warn('⚠️ 持久化無法啟用（多分頁衝突）:', err.message);
+        } else if (err.code === 'unimplemented') {
+            // 瀏覽器不支援（例如 Safari 無痕模式）
+            console.warn('⚠️ 瀏覽器不支援持久化:', err.message);
+        } else {
+            console.warn('⚠️ 持久化啟用失敗:', err);
+        }
+    });
+
+// ================================================================
 // ★ 全域站點座標（map / monitor / monitor-dashboard 統一使用）
 // ================================================================
 window.mdStationX = window.mdStationX || {
