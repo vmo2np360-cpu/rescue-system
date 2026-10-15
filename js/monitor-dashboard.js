@@ -160,14 +160,11 @@ async function mdInit() {
         if (_mdTimeTimer) clearInterval(_mdTimeTimer);
         window._mdTimeTimer = setInterval(mdUpdateCurrentTime, 1000);
 
-        if (window._mdAutoRefreshTimer) clearInterval(window._mdAutoRefreshTimer);
-        window._mdAutoRefreshTimer = setInterval(() => {
-            const sec = document.getElementById('section-monitor-dashboard');
-            if (sec && sec.classList.contains('active')) {
-                console.log('🔄 Monitor Dashboard 自動更新 (20秒)');
-                mdLoadAllData();
-            }
-        }, 20000);
+         // ★ 事件驅動：已由 guests / rescue_records 的 onSnapshot 觸發
+        if (window._mdAutoRefreshTimer) {
+            clearInterval(window._mdAutoRefreshTimer);
+            window._mdAutoRefreshTimer = null;
+        }
 
         // 天氣：每 10 分鐘
         mdFetchWeather();
