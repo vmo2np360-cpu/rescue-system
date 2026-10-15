@@ -585,11 +585,28 @@ segments.forEach((s, i) => {
 
         // ★ 監聽 guests 和 rescue_records 變更（即時更新表格）
         if (window._mapGuestsUnsub) window._mapGuestsUnsub();
-        window._mapGuestsUnsub = db.collection('guests').onSnapshot(() => {
-            if (window.updateLastSyncTime) window.updateLastSyncTime();  // ★
+               window._mapGuestsUnsub = db.collection('guests').onSnapshot((snap) => {
+            if (window.updateLastSyncTime) window.updateLastSyncTime();
+
+            // ★ 離線優化：分辨快取 / 伺服器
+            const fromCache = snap.metadata && snap.metadata.fromCache;
+            if (fromCache) {
+                // 快取觸發時，僅在首次載入時渲染
+                if (!window._mapFirstLoadDone) {
+                    console.log('📦 Map guests 首次載入來自快取');
+                    if (document.getElementById('section-map')?.classList.contains('active')) {
+                        mapLoadTables();
+                    }
+                    window._mapFirstLoadDone = true;
+                }
+                return;
+            }
+
+            // 伺服器資料 → 正常更新
             if (document.getElementById('section-map')?.classList.contains('active')) {
                 mapLoadTables();
             }
+            window._mapFirstLoadDone = true;
         });
 
         if (window._mapRescueUnsub) window._mapRescueUnsub();
