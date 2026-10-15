@@ -352,6 +352,18 @@ async function gsSaveOrUpdateRecord(data, docId) {
     try {
         showLoader(true);
 
+        // ★ 第二層：若無 docId，先嘗試用固定 ID 查一次
+        if (!docId) {
+            const fixedId = window.makeGuestDocId(data.cabinNumber, data.groupNumber);
+            if (fixedId) {
+                const fixedSnap = await db.collection('guests').doc(fixedId).get();
+                if (fixedSnap.exists) {
+                    docId = fixedId;
+                    console.log('🔁 [gsSaveOrUpdateRecord] 固定 ID 已存在，改用更新:', fixedId);
+                }
+            }
+        }
+
         let ref;
         let previousData = null;
 
@@ -377,15 +389,21 @@ async function gsSaveOrUpdateRecord(data, docId) {
             showMessage('gsMessage', '✅ 記錄更新成功！', 'success');
 
         } else {
+            // ★ 第二層：建立時改用固定 ID
             data.timeReachedTop = new Date().toISOString();
             data.createdAt = new Date();
             data.status = data.timeLanded ? 'landed' : 'rescuing';
 
-            const newRef = await db.collection('guests').add(data);
-            await logAction('guests', newRef.id, 'create', data, null);
+            const fixedId = window.makeGuestDocId(data.cabinNumber, data.groupNumber);
+            if (!fixedId) {
+                throw new Error('無法產生文件 ID（車廂或組別為空）');
+            }
+            const docRef = db.collection('guests').doc(fixedId);
+            await docRef.set(data);
+            await logAction('guests', fixedId, 'create', data, null);
 
-            ref = newRef;
-            gsCurrentDocId = newRef.id;
+            ref = { id: fixedId };
+            gsCurrentDocId = fixedId;
             showMessage('gsMessage', '✅ 記錄建立成功！', 'success');
         }
 
@@ -649,6 +667,18 @@ async function gsSaveStartRescue(cabin, group, docId) {
     const now = new Date();
     const nowISO = now.toISOString();
 
+    // ★ 第二層：若無 docId，先嘗試用固定 ID 查一次
+    if (!docId) {
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (fixedId) {
+            const fixedSnap = await db.collection('guests').doc(fixedId).get();
+            if (fixedSnap.exists) {
+                docId = fixedId;
+                console.log('🔁 [gsSaveStartRescue] 固定 ID 已存在，改用更新:', fixedId);
+            }
+        }
+    }
+
     if (docId) {
         // 更新既有記錄
         const existingDoc = await db.collection('guests').doc(docId).get();
@@ -669,7 +699,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
     } else {
-        // 新增記錄
+        // ★ 第二層：建立時改用固定 ID
         const data = {
             cabinNumber: cabin,
             groupNumber: group,
@@ -681,8 +711,14 @@ async function gsSaveStartRescue(cabin, group, docId) {
             createdAt: now,
             updatedAt: now
         };
-        const ref = await db.collection('guests').add(data);
-        await logAction('guests', ref.id, 'create', data, null);
+
+        const fixedId = window.makeGuestDocId(cabin, group);
+        if (!fixedId) {
+            throw new Error('無法產生文件 ID（車廂或組別為空）');
+        }
+        const docRef = db.collection('guests').doc(fixedId);
+        await docRef.set(data);
+        await logAction('guests', fixedId, 'create', data, null);
         showMessage('gsMessage', '✅ 已開始救援', 'success');
     }
 
@@ -1193,7 +1229,7 @@ async function gsConfirmManualTime() {
             }
 
             showMessage('gsMessage', '✅ 已補填開始時間', 'success');
-        } else {
+             } else {
             const newData = {
                 cabinNumber: cabin,
                 groupNumber: group,
@@ -1204,11 +1240,29 @@ async function gsConfirmManualTime() {
                 updatedAt: new Date(),
                 ...(formData || {})
             };
-            const ref = await db.collection('guests').add(newData);
-            await logAction('guests', ref.id, 'create', newData, null);
+
+            // ★ 第二層：改用固定 ID
+            const fixedId = window.makeGuestDocId(cabin, group);
+            if (!fixedId) {
+                throw new Error('無法產生文件 ID（車廂或組別為空）');
+            }
+            const docRef = db.collection('guests').doc(fixedId);
+            const existingSnap = await docRef.get();
+
+            if (existingSnap.exists) {
+                // 已存在 → 更新
+                const existing = existingSnap.data();
+                await docRef.update(newData);
+                await logAction('guests', fixedId, 'update', newData, existing);
+                console.log('🔁 [gsConfirmManualTime] 固定 ID 已存在，改用更新:', fixedId);
+            } else {
+                // 不存在 → 建立
+                await docRef.set(newData);
+                await logAction('guests', fixedId, 'create', newData, null);
+            }
 
             if (timeLanded) {
-                gsGenerateQR(ref.id, newData.healthStatus || '未分類');
+                gsGenerateQR(fixedId, newData.healthStatus || '未分類');
                 document.getElementById('gsQrResult').style.display = 'block';
                 document.getElementById('gsPrintCabin').textContent = cabin;
                 document.getElementById('gsPrintGroup').textContent = `第${group}組`;
