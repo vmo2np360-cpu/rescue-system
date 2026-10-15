@@ -566,11 +566,16 @@ let _connectionState = 'unknown';
 
 function initConnectionMonitor() {
     const connectedRef = firebase.database().ref('.info/connected');
+    let _firstConnect = true;
+    let _wasOffline = false;
 
     connectedRef.on('value', (snap) => {
         const isConnected = snap.val() === true;
         const el = document.getElementById('connection-status');
         const textEl = document.getElementById('connection-text');
+        const banner = document.getElementById('offlineBanner');
+        const bannerText = document.getElementById('offlineBannerText');
+        const bannerIcon = document.getElementById('offlineBannerIcon');
 
         if (!el || !textEl) return;
 
@@ -579,22 +584,116 @@ function initConnectionMonitor() {
             el.classList.remove('offline', 'reconnecting');
             textEl.textContent = '已連線';
             updateLastSyncTime();
-            console.log('🟢 已連線到 Firebase');
+
+            if (_firstConnect) {
+                console.log('🟢 已連線到 Firebase');
+                _firstConnect = false;
+            } else if (_wasOffline) {
+                // ★ 從離線恢復 → 顯示通知
+                console.log('🟢 網路已恢復');
+                showToast('✅ 已恢復連線，資料同步中', 'success');
+                _wasOffline = false;
+            }
+
+            // ★ 隱藏離線橫幅
+            if (banner) banner.style.display = 'none';
+
         } else {
             _connectionState = 'offline';
             el.classList.remove('reconnecting');
             el.classList.add('offline');
             textEl.textContent = '離線中';
-            console.warn('🔴 已離線');
+
+            if (_firstConnect) {
+                console.log('⏳ Firebase 尚未建立連線（初始化中）');
+            } else {
+                console.warn('🔴 已離線');
+                _wasOffline = true;
+
+                // ★ 顯示離線橫幅
+                if (banner) banner.style.display = 'block';
+                if (bannerText) {
+                    bannerText.textContent = '目前離線，操作會自動排隊，恢復網路後同步';
+                }
+                if (bannerIcon) {
+                    bannerIcon.textContent = '⚠️';
+                }
+            }
         }
     });
 
     try {
         db.enableNetwork().catch(() => {});
-    } catch (e) {
-        // 忽略
+    } catch (e) {}
+}
+
+// ================================================================
+// ★ Toast 通知工具
+// ================================================================
+function showToast(message, type = 'info', duration = 3000) {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            pointer-events: none;
+        `;
+        document.body.appendChild(container);
+    }
+
+    const colors = {
+        success: { bg: '#22c55e', text: '#fff' },
+        error:   { bg: '#dc2626', text: '#fff' },
+        warning: { bg: '#eab308', text: '#000' },
+        info:    { bg: '#2563eb', text: '#fff' }
+    };
+    const c = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        background: ${c.bg};
+        color: ${c.text};
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+        pointer-events: auto;
+        max-width: 90vw;
+    `;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // 進場動畫
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    // 自動消失
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
     }
 }
+
+// ★ 暴露全域
+window.showToast = showToast;
 
 function updateLastSyncTime() {
     const el = document.getElementById('last-sync-time');
