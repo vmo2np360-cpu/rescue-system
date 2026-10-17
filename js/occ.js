@@ -504,7 +504,112 @@ async function occSaveEdit() {
         hideLoader();
     }
 }
+// ================================================================
+// ★ 匯出 CSV
+// ================================================================
+function occExportCSV() {
+    if (!allRescueRecords || allRescueRecords.length === 0) {
+        alert('無資料可匯出');
+        return;
+    }
 
+    // ★ 檢查當前篩選條件
+    const search = (document.getElementById('occSearch')?.value || '').trim();
+    const src = document.getElementById('occFilterSource')?.value || '';
+    const stat = document.getElementById('occFilterStatus')?.value || '';
+    const hasFilter = !!(search || src || stat);
+
+    let records = allRescueRecords;
+
+    if (hasFilter) {
+        const filterDesc = [];
+        if (search) filterDesc.push(`搜尋：${search}`);
+        if (src) filterDesc.push(`來源：${src}`);
+        if (stat) filterDesc.push(`狀態：${stat === 'pending' ? '待處理' : '已處理'}`);
+
+        const useFilter = confirm(
+            `當前有篩選條件：\n` +
+            filterDesc.map(d => `  • ${d}`).join('\n') +
+            `\n\n按「確定」→ 匯出【當前篩選結果】\n按「取消」→ 匯出【全部資料】`
+        );
+
+        if (useFilter) {
+            records = allRescueRecords.filter(r => {
+                if (search) {
+                    const s = search.toLowerCase();
+                    const cabin = (r.cabinNumber || '').toLowerCase();
+                    const name = (r.guestName || '').toLowerCase();
+                    if (!cabin.includes(s) && !name.includes(s)) return false;
+                }
+                if (src && r.source !== src) return false;
+                if (stat === 'pending' && r.processed) return false;
+                if (stat === 'processed' && !r.processed) return false;
+                return true;
+            });
+        }
+    }
+
+    if (records.length === 0) {
+        alert('篩選結果為空，無資料可匯出');
+        return;
+    }
+
+    // ★ 組裝 CSV（加 BOM 讓 Excel 正確顯示中文）
+    const BOM = '\uFEFF';
+    const headers = [
+        '車廂', '姓名', '聯絡方式', '性別', '年齡',
+        '健康狀況', '資料來源', '狀態', '備註', '建立時間', '處理時間'
+    ];
+    let csv = BOM + headers.map(occCsvEscape).join(',') + '\n';
+
+    records.forEach(r => {
+        const status = r.processed ? '已處理' : '待處理';
+        const createdAt = r.createdAt
+            ? (window.formatTimestamp ? window.formatTimestamp(r.createdAt) : '')
+            : '-';
+        const processedAt = r.processedAt
+            ? (window.formatTimestamp ? window.formatTimestamp(r.processedAt) : '')
+            : '-';
+
+        const row = [
+            r.cabinNumber || '',
+            r.guestName || '',
+            r.contactNumber || '',
+            r.gender || '',
+            r.ageRange || '',
+            r.healthStatus || '',
+            r.source || '',
+            status,
+            r.notes || '',
+            createdAt,
+            processedAt
+        ].map(occCsvEscape).join(',');
+
+        csv += row + '\n';
+    });
+
+    // ★ 觸發下載
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `OCC求助記錄_${ts}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    console.log(`✅ OCC 匯出 CSV：${records.length} 筆`);
+    showMessage('occMessage', `✅ 已匯出 ${records.length} 筆求助記錄`, 'success', 3000);
+}
+
+// ★ CSV 欄位轉義（處理逗號、雙引號、換行）
+function occCsvEscape(value) {
+    const str = String(value === null || value === undefined ? '' : value);
+    if (/[",\n\r]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
 window.occToggleOtherSource = occToggleOtherSource;
 // ★ 加鎖（策略 C）
 window.occSaveRecord     = withLock(_occLocks, 'occSaveRecord', occSaveRecord);
@@ -519,3 +624,5 @@ window.initOcc = initOcc;
 window.occEditRecord = occEditRecord;
 window.occCloseEditModal = occCloseEditModal;
 window.occSaveEdit = withLock(_occLocks, 'occSaveEdit', occSaveEdit);
+// ★ 新增：CSV 匯出
+window.occExportCSV = occExportCSV;
