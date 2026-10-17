@@ -552,12 +552,25 @@ function gsSubmit() {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 處理中...';
         }
+
+        // ★★★ 安全超時：10 秒後強制解鎖，防止任何卡住 ★★★
+        const safetyTimer = setTimeout(() => {
+            console.warn('🚨 [安全機制] 操作超過 10 秒，強制解鎖按鈕（可能離線中）');
+            _gsSubmitting = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+            try { hideLoader(); } catch (e) {}
+        }, 10000);
+
         try {
             if (gsModifyMode) return await gsApplyModify();
             if (gsCurrentMode === 'start') return await gsStartRescue();
             if (gsCurrentMode === 'complete') return await gsCompleteRescue();
             return await gsCreateRecord();
         } finally {
+            clearTimeout(safetyTimer);
             _gsSubmitting = false;
             if (btn) {
                 btn.disabled = false;
@@ -565,6 +578,7 @@ function gsSubmit() {
             }
         }
     };
+
     run();
 }
 
@@ -588,15 +602,19 @@ async function gsStartRescue() {
 
     try {
         showLoader(true);
+        console.log('🔍 [gsStartRescue] 開始，車廂:', cabin, '組別:', group);
 
         // 優先固定 ID
         const fixedId = window.makeGuestDocId(cabin, group);
+        console.log('🔍 [gsStartRescue] fixedId:', fixedId);
         if (fixedId) {
+            console.log('🔍 [gsStartRescue] 讀取固定 ID（最多等 2 秒）...');
             const fixedSnap = await withTimeout(
                 db.collection('guests').doc(fixedId).get({ source: 'default' }),
                 2000,
                 null
             );
+            console.log('🔍 [gsStartRescue] 固定 ID 讀取完成:', fixedSnap ? 'found' : 'timeout');
             if (fixedSnap && fixedSnap.exists) {
                 const existing = fixedSnap.data();
                 const hasReached = !!existing.timeReachedTop;
@@ -623,6 +641,8 @@ async function gsStartRescue() {
         }
 
         // 回退查詢
+        // 回退查詢
+        console.log('🔍 [gsStartRescue] 回退查詢（最多等 2 秒）...');
         const dup = await withTimeout(
             db.collection('guests')
                 .where('cabinNumber', '==', cabin)
@@ -631,9 +651,12 @@ async function gsStartRescue() {
             2000,
             null
         );
+        console.log('🔍 [gsStartRescue] 回退查詢完成:', dup ? 'found' : 'timeout');
 
         if (!dup || dup.empty) {
+            console.log('🔍 [gsStartRescue] 呼叫 gsSaveStartRescue');
             await gsSaveStartRescue(cabin, group, null);
+            console.log('🔍 [gsStartRescue] gsSaveStartRescue 返回');
             return;
         }
 
@@ -684,7 +707,10 @@ async function gsSaveStartRescue(cabin, group, docId) {
             if (fixedSnap && fixedSnap.exists) docId = fixedId;
         }
     }
-
+async function gsSaveStartRescue(cabin, group, docId) {
+    console.log('🔍 [gsSaveStartRescue] 進入，cabin:', cabin, 'group:', group, 'docId:', docId);
+    const now = new Date();
+    const nowISO = now.toISOString();
     if (docId) {
         let existing = {};
         const existingSnap = await withTimeout(
@@ -710,7 +736,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
         await db.collection('guests').doc(docId).set(updateData, { merge: true });
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
-    } else {
+       } else {
         const data = {
             cabinNumber: cabin,
             groupNumber: group,
@@ -724,8 +750,15 @@ async function gsSaveStartRescue(cabin, group, docId) {
         };
         const fixedId = window.makeGuestDocId(cabin, group);
         if (!fixedId) throw new Error('無法產生文件 ID');
+
+        console.log('🔍 [gsSaveStartRescue] 執行 set()...');
         await db.collection('guests').doc(fixedId).set(data);
+        console.log('🔍 [gsSaveStartRescue] set() 完成');
+
+        console.log('🔍 [gsSaveStartRescue] 執行 logAction...');
         await logAction('guests', fixedId, 'create', data, null);
+        console.log('🔍 [gsSaveStartRescue] logAction 完成');
+
         showMessage('gsMessage', '✅ 已開始救援', 'success');
     }
 
@@ -737,9 +770,11 @@ async function gsSaveStartRescue(cabin, group, docId) {
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
 
+     console.log('🔍 [gsSaveStartRescue] 準備刷新 Banner（不阻塞）');
     if (typeof gsRefreshOngoingBanner === 'function') {
         gsRefreshOngoingBanner().catch(e => console.warn('Banner 刷新失敗:', e.message));
     }
+    console.log('🔍 [gsSaveStartRescue] 函式結束');
 }
 
 // ================================================================
