@@ -693,9 +693,11 @@ async function gsStartRescue() {
 }
 
 async function gsSaveStartRescue(cabin, group, docId) {
+    console.log('🔍 [gsSaveStartRescue] 進入，cabin:', cabin, 'group:', group, 'docId:', docId);
     const now = new Date();
     const nowISO = now.toISOString();
 
+    // ★ 若 docId 為空，先查固定 ID 看是否已存在
     if (!docId) {
         const fixedId = window.makeGuestDocId(cabin, group);
         if (fixedId) {
@@ -704,14 +706,15 @@ async function gsSaveStartRescue(cabin, group, docId) {
                 2000,
                 null
             );
-            if (fixedSnap && fixedSnap.exists) docId = fixedId;
+            if (fixedSnap && fixedSnap.exists) {
+                docId = fixedId;
+                console.log('🔁 [gsSaveStartRescue] 固定 ID 已存在，改用更新:', fixedId);
+            }
         }
     }
-async function gsSaveStartRescue(cabin, group, docId) {
-    console.log('🔍 [gsSaveStartRescue] 進入，cabin:', cabin, 'group:', group, 'docId:', docId);
-    const now = new Date();
-    const nowISO = now.toISOString();
+
     if (docId) {
+        // 更新既有記錄
         let existing = {};
         const existingSnap = await withTimeout(
             db.collection('guests').doc(docId).get({ source: 'default' }),
@@ -736,7 +739,8 @@ async function gsSaveStartRescue(cabin, group, docId) {
         await db.collection('guests').doc(docId).set(updateData, { merge: true });
         await logAction('guests', docId, 'update', updateData, existing);
         showMessage('gsMessage', '✅ 已覆蓋並開始新救援', 'success');
-       } else {
+    } else {
+        // 建立新記錄
         const data = {
             cabinNumber: cabin,
             groupNumber: group,
@@ -770,7 +774,7 @@ async function gsSaveStartRescue(cabin, group, docId) {
     document.getElementById('gsCabinNumber').value = '';
     document.getElementById('gsGroupNumber').value = '';
 
-     console.log('🔍 [gsSaveStartRescue] 準備刷新 Banner（不阻塞）');
+    console.log('🔍 [gsSaveStartRescue] 準備刷新 Banner（不阻塞）');
     if (typeof gsRefreshOngoingBanner === 'function') {
         gsRefreshOngoingBanner().catch(e => console.warn('Banner 刷新失敗:', e.message));
     }
