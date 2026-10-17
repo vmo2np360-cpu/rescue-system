@@ -375,9 +375,20 @@ function setLogImplementation(impl) {
 }
 
 async function logAction(collection, docId, operation, data, previousData) {
+    // ★ 離線優化：離線時跳過日誌（避免排隊卡住主流程）
+    if (window.getConnectionState && window.getConnectionState() === 'offline') {
+        console.log('[日誌] 離線中，跳過日誌記錄:', operation, collection, docId);
+        return;
+    }
+
     if (typeof _logActionImpl === 'function') {
         try {
-            await _logActionImpl(collection, docId, operation, data, previousData);
+            // ★ 加超時：最多等 3 秒
+            await withTimeout(
+                _logActionImpl(collection, docId, operation, data, previousData),
+                3000,
+                null
+            );
         } catch (e) {
             console.warn('日誌記錄失敗（非關鍵錯誤）:', e);
         }
