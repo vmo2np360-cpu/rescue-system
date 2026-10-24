@@ -1462,6 +1462,148 @@ window.mdResetLabelOffset = function () {
     console.log('✅ 已重置文字偏移為預設值');
 };
 // ================================================================
+// ★ 信息區 Tab 切換
+// ================================================================
+function mdSwitchInfoTab(tabName) {
+    document.querySelectorAll('.md-info-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.md-info-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.panel === tabName);
+    });
+    // 切到對應 tab 時載入資料
+    if (tabName === 'rescue') mdLoadRescueTable();
+    else if (tabName === 'occ') mdLoadOccTable();
+}
+
+// ================================================================
+// ★ 載入救援記錄（從 mdGuestRecords）
+// ================================================================
+function mdLoadRescueTable() {
+    const tbody = document.getElementById('mdRescueTableBody');
+    if (!tbody) return;
+
+    if (!mdGuestRecords || mdGuestRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="md-info-empty">暫無救援記錄</td></tr>';
+        return;
+    }
+
+    const sorted = [...mdGuestRecords].sort((a, b) => {
+        const tA = a.timeReachedTop || a.createdAt || '';
+        const tB = b.timeReachedTop || b.createdAt || '';
+        return new Date(tB) - new Date(tA);
+    });
+
+    const statusMap = {
+        departed: { text: '已離開', cls: 'departed' },
+        landed:   { text: '已著陸', cls: 'landed' },
+        rescuing: { text: '救援中', cls: 'rescuing' },
+        waiting:  { text: '等待救援', cls: 'waiting' }
+    };
+
+    let html = '';
+    sorted.forEach(rec => {
+        const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
+        const s = statusMap[status] || statusMap.waiting;
+        html += `
+            <tr>
+                <td>${mdEsc(rec.cabinNumber || '-')}</td>
+                <td>${rec.groupNumber ? '第' + rec.groupNumber + '組' : '-'}</td>
+                <td>${mdEsc(rec.guestName || '-')}</td>
+                <td>${mdEsc(rec.healthStatus || '-')}</td>
+                <td><span class="md-info-badge ${s.cls}">${s.text}</span></td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+// ================================================================
+// ★ 載入求助記錄（從 mdRescueRecords）
+// ================================================================
+function mdLoadOccTable() {
+    const tbody = document.getElementById('mdOccTableBody');
+    if (!tbody) return;
+
+    if (!mdRescueRecords || mdRescueRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="md-info-empty">暫無求助記錄</td></tr>';
+        return;
+    }
+
+    const sorted = [...mdRescueRecords].sort((a, b) => {
+        const tA = a.createdAt || '';
+        const tB = b.createdAt || '';
+        return new Date(tB) - new Date(tA);
+    });
+
+    let html = '';
+    sorted.forEach(rec => {
+        const s = rec.processed
+            ? { text: '已處理', cls: 'processed' }
+            : { text: '待處理', cls: 'pending' };
+        html += `
+            <tr>
+                <td>${mdEsc(rec.cabinNumber || '-')}</td>
+                <td>${mdEsc(rec.guestName || '-')}</td>
+                <td>${mdEsc(rec.healthStatus || '-')}</td>
+                <td>${mdEsc(rec.source || '-')}</td>
+                <td><span class="md-info-badge ${s.cls}">${s.text}</span></td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+}
+
+// ================================================================
+// ★ 搜索車廂（參考 monitor.js 的 monSearchCabin）
+// ================================================================
+function mdSearchCabin() {
+    const input = document.getElementById('mdMapSearchBox');
+    if (!input) return;
+
+    const q = input.value.trim();
+    if (!q) {
+        mdShowToast('請輸入車廂號碼');
+        return;
+    }
+
+    const cabin = mdMapCabins.find(c => c.fields.sequence === q);
+    if (!cabin) {
+        mdShowToast('找不到車廂: ' + q);
+        return;
+    }
+
+    // 清除所有高亮
+    mdMapCabins.forEach(c => {
+        c.shape.setAttribute('stroke', '');
+        c.shape.setAttribute('stroke-width', '');
+        c.shape.removeAttribute('filter');
+    });
+
+    // 高亮目標
+    cabin.shape.setAttribute('stroke', 'gold');
+    cabin.shape.setAttribute('stroke-width', '6');
+    cabin.shape.setAttribute('filter', 'url(#mdHighlightGlow)');
+
+    mdShowToast(`✅ 已定位車廂 ${q}`);
+
+    // 5 秒後自動清除
+    clearTimeout(window._mdSearchHighlightTimer);
+    window._mdSearchHighlightTimer = setTimeout(() => {
+        cabin.shape.setAttribute('stroke', '');
+        cabin.shape.setAttribute('stroke-width', '');
+        cabin.shape.removeAttribute('filter');
+    }, 5000);
+}
+
+// ================================================================
+// ★ 暴露全域
+// ================================================================
+window.mdSwitchInfoTab = mdSwitchInfoTab;
+window.mdLoadRescueTable = mdLoadRescueTable;
+window.mdLoadOccTable = mdLoadOccTable;
+window.mdSearchCabin = mdSearchCabin;
+// ================================================================
 // 全域暴露
 // ================================================================
 window.mdInit = mdInit;
