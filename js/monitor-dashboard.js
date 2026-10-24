@@ -1500,7 +1500,7 @@ function mdLoadRescueTable() {
     if (!tbody) return;
 
     if (!mdGuestRecords || mdGuestRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="md-info-empty">暫無救援記錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="md-info-empty">暫無救援記錄</td></tr>';
         return;
     }
 
@@ -1517,16 +1517,49 @@ function mdLoadRescueTable() {
         waiting:  { text: '等待救援', cls: 'waiting' }
     };
 
+    // 只顯示 HH:MM，跨日時顯示 MM/DD HH:MM
+    const fmtTime = (t) => {
+        if (!t) return '-';
+        let d;
+        try {
+            if (t.toDate) d = t.toDate();
+            else if (t.seconds) d = new Date(t.seconds * 1000);
+            else d = new Date(t);
+            if (isNaN(d.getTime())) return '-';
+        } catch { return '-'; }
+
+        const now = new Date();
+        const sameDay = d.getFullYear() === now.getFullYear()
+                     && d.getMonth() === now.getMonth()
+                     && d.getDate() === now.getDate();
+        const pad = (n) => String(n).padStart(2, '0');
+        const hhmm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return sameDay ? hhmm : `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${hhmm}`;
+    };
+
     let html = '';
     sorted.forEach(rec => {
         const status = window.getGroupStatus ? window.getGroupStatus(rec) : 'waiting';
         const s = statusMap[status] || statusMap.waiting;
+
+        const startTime = fmtTime(rec.timeReachedTop);
+        let endTime;
+        if (rec.timeLanded) {
+            endTime = fmtTime(rec.timeLanded);
+        } else if (rec.timeReachedTop) {
+            endTime = '⏳ 進行中';
+        } else {
+            endTime = '-';
+        }
+
         html += `
             <tr>
                 <td>${mdEsc(rec.cabinNumber || '-')}</td>
                 <td>${rec.groupNumber ? '第' + rec.groupNumber + '組' : '-'}</td>
                 <td>${mdEsc(rec.guestName || '-')}</td>
                 <td>${mdEsc(rec.healthStatus || '-')}</td>
+                <td>${startTime}</td>
+                <td>${endTime}</td>
                 <td><span class="md-info-badge ${s.cls}">${s.text}</span></td>
             </tr>
         `;
