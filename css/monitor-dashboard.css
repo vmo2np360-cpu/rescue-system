@@ -165,66 +165,108 @@
 /* ================================================================
    ★ 小屏（< 1200px）：单列 + 页面整体滚动，所有内容完整
    ================================================================ */
+/* ================================================================
+   ★ 小屏（< 1200px）：彻底流式布局 + 页面整体滚动
+   grid 全部改 flex，绕开 grid 高度塌缩
+   ================================================================ */
 @media (max-width: 1200px) {
 
-    /* 1. section 解除高度锁定，允许内容撑开 */
+    /* ===== 0. html/body 允许滚动 ===== */
+    html, body {
+        height: auto !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    .app-container {
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* ===== 1. section：解除 100vh 锁定 ===== */
+    #section-monitor-dashboard,
     #section-monitor-dashboard.active {
+        display: block !important;          /* ★ 不用 flex，避免高度链 */
         height: auto !important;
-        max-height: none !important;
         min-height: 100vh !important;
+        max-height: none !important;
         overflow: visible !important;
     }
 
-    /* 2. md-app 解除高度锁定，行高改 auto auto */
+    /* ===== 2. md-app：grid → flex column ===== */
     #md-app {
+        display: flex !important;           /* ★ 关键：grid 改 flex */
+        flex-direction: column !important;
         height: auto !important;
-        max-height: none !important;
         min-height: 100vh !important;
-        grid-template-rows: auto auto !important;  /* ★ 关键：不用 1fr */
+        max-height: none !important;
         overflow: visible !important;
+        gap: 10px;
+        padding: 10px;
+        grid-template-rows: none !important; /* ★ 取消 grid 行 */
     }
 
-    /* 3. main 单列 + 解除压缩 */
+    /* ===== 3. md-main：grid → flex column ===== */
     #md-main {
-        grid-template-columns: 1fr !important;
-        min-height: auto !important;               /* ★ 关键 */
+        display: flex !important;           /* ★ 关键：grid 改 flex */
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: auto !important;
+        gap: 10px;
+        grid-template-columns: none !important; /* ★ 取消 grid 列 */
     }
 
-    /* 4. 左栏解除压缩 */
-    .md-left-col {
-        min-height: auto !important;               /* ★ 关键 */
-    }
-
-    /* 5. 右栏解除压缩 + 解除裁剪 */
+    /* ===== 4. 左栏 / 右栏：解除压缩 ===== */
+    .md-left-col,
     #md-side-panel {
-        min-height: auto !important;               /* ★ 关键 */
-        overflow: visible !important;              /* ★ 关键 */
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        flex: 0 0 auto !important;          /* ★ 不收缩 */
     }
 
-    /* 6. 地图固定高度 */
+    /* ===== 5. 地图：固定 300px ===== */
     #md-map-area {
-        aspect-ratio: auto !important;
-        height: 300px !important;
         flex: 0 0 300px !important;
+        height: 300px !important;
+        min-height: 300px !important;
+        max-height: 300px !important;
+        aspect-ratio: auto !important;
     }
 
-    /* 7. 状态卡 2 列 */
+    /* ===== 6. 状态卡：2 列 ===== */
     #md-status-cards {
         grid-template-columns: repeat(2, 1fr) !important;
     }
 
-    /* 8. 信息区固定高度 */
+    /* ===== 7. 信息区：固定 260px ===== */
     #md-info-area {
         flex: 0 0 260px !important;
         height: 260px !important;
         min-height: 260px !important;
+        max-height: 260px !important;
     }
 
-    /* 9. 雷达图固定高度 */
+    /* ===== 8. 雷达：固定 360px ===== */
     #md-radar {
         flex: 0 0 360px !important;
         height: 360px !important;
         min-height: 360px !important;
+        max-height: 360px !important;
+    }
+
+    /* ===== 9. 搜索栏按钮缩小 ===== */
+    #md-map-search-bar {
+        padding: 6px 10px;
+    }
+
+    #md-map-search-bar button {
+        padding: 8px 14px;
+        font-size: 0.85rem;
     }
 }
 
