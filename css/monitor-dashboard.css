@@ -97,7 +97,6 @@
     width: 40px;
     height: 40px;
     object-fit: contain;
-    /* 不加 background */
 }
 
 .md-weather-text {
@@ -148,7 +147,7 @@
     min-height: 0;
 }
 
-/* 左欄：地圖 + 四卡 */
+/* 左欄：搜索欄 + 地圖 + 四卡 + 信息區 */
 .md-left-col {
     display: flex;
     flex-direction: column;
@@ -210,9 +209,7 @@
     transition: all 0.2s;
 }
 
-#mdMapSearchBox::placeholder {
-    color: #5a7a9a;
-}
+#mdMapSearchBox::placeholder { color: #5a7a9a; }
 
 #mdMapSearchBox:focus {
     border-color: rgba(0, 243, 255, 0.6);
@@ -251,10 +248,11 @@
     background: rgba(34, 197, 94, 0.35);
     box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
 }
+
 /* ===== 地圖容器：鎖 2.8:1，不撐滿 ===== */
 #md-map-area {
     flex: 0 0 auto;
-    aspect-ratio: 2800 / 1000;   /* viewBox 高度仍是 1000，比例不變 */
+    aspect-ratio: 2800 / 1000;
     width: 100%;
     min-width: 0;
     display: flex;
@@ -289,7 +287,6 @@
 #md-side-panel .md-card {
     flex-shrink: 0;
 }
-
 
 .md-info-row {
     display: flex;
@@ -410,8 +407,6 @@
 .md-rescued .md-status-number { color: #22c55e; }
 .md-closed .md-status-number { color: #3b82f6; }
 
-/* ===== 右下角雷達圖 ===== */
-/* ===== 右側面板內的雷達圖 ===== */
 /* ===== 右側面板內的雷達圖（撐滿剩餘高度） ===== */
 #md-radar {
     flex: 1;
@@ -501,6 +496,7 @@
     .md-radar-tabs button { font-size: 0.55rem; padding: 2px 6px; }
     .md-radar-title { font-size: 0.7rem; }
 }
+
 /* ===== Incident Status 燈號 ===== */
 .md-status-alert {
     display: flex;
@@ -531,9 +527,9 @@
     border-radius: 50%;
     background: #22c55e;
     box-shadow: 0 0 10px #22c55e;
-    /* 無動畫 */
     animation: none;
 }
+
 /* ===== 全屏按鈕 ===== */
 .md-fullscreen-btn {
     background: rgba(0, 243, 255, 0.15);
@@ -555,9 +551,7 @@
     background: rgba(0, 243, 255, 0.3);
     box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
 }
-/* ================================================================
-   ★ 信息區（左欄最下方，吃掉剩餘空間）
-   ================================================================ */
+
 /* ================================================================
    ★ 信息區（Tab 切換版，方向 2 + 4 結合）
    ================================================================ */
@@ -567,7 +561,7 @@
     background: rgba(15, 30, 55, 0.85);
     border: 1px solid rgba(0, 200, 255, 0.15);
     border-radius: 10px;
-    padding: 0;                       /* ★ tab 貼邊 */
+    padding: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -588,7 +582,7 @@
     border: none;
     border-bottom: 3px solid transparent;
     color: #7aa8c8;
-    font-size: 1rem;                   /* ★ 方向 4：放大 */
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -639,9 +633,7 @@
     min-height: 0;
 }
 
-.md-info-panel.active {
-    display: flex;
-}
+.md-info-panel.active { display: flex; }
 
 /* 監控操作面板：內容垂直居中（方向 2） */
 .md-info-panel[data-panel="actions"] {
@@ -660,9 +652,9 @@
     background: rgba(0, 200, 255, 0.1);
     border: 1px solid rgba(0, 200, 255, 0.25);
     color: #7aa8c8;
-    padding: 14px 24px;                /* ★ 方向 4：放大 */
+    padding: 14px 24px;
     border-radius: 8px;
-    font-size: 1rem;                   /* ★ 方向 4：放大 */
+    font-size: 1rem;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
@@ -684,7 +676,7 @@
     gap: 24px;
     flex-wrap: wrap;
     justify-content: center;
-    font-size: 0.95rem;                /* ★ 方向 4：放大 */
+    font-size: 0.95rem;
     color: #b0d0ff;
 }
 
@@ -695,7 +687,7 @@
 }
 
 .md-legend-dot {
-    width: 16px;                       /* ★ 方向 4：放大 */
+    width: 16px;
     height: 16px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.3);
