@@ -183,10 +183,78 @@
     gap: 8px;
 }
 
+/* ================================================================
+   ★ 地圖上方搜索欄
+   ================================================================ */
+#md-map-search-bar {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: rgba(15, 30, 55, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(4px);
+}
+
+#mdMapSearchBox {
+    flex: 1;
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 200, 255, 0.25);
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+#mdMapSearchBox::placeholder {
+    color: #5a7a9a;
+}
+
+#mdMapSearchBox:focus {
+    border-color: rgba(0, 243, 255, 0.6);
+    background: rgba(0, 200, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(0, 243, 255, 0.1);
+}
+
+#md-map-search-bar button {
+    padding: 10px 20px;
+    background: rgba(0, 200, 255, 0.2);
+    border: 1px solid rgba(0, 200, 255, 0.4);
+    color: #00f3ff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#md-map-search-bar button:hover {
+    background: rgba(0, 200, 255, 0.35);
+    box-shadow: 0 0 12px rgba(0, 243, 255, 0.3);
+}
+
+#md-map-search-bar button.md-search-refresh {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #22c55e;
+}
+
+#md-map-search-bar button.md-search-refresh:hover {
+    background: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
 /* ===== 地圖容器：鎖 2.8:1，不撐滿 ===== */
 #md-map-area {
-    flex: 0 0 auto;                  /* ★ 不用 flex:1 */
-    aspect-ratio: 2800 / 1000;       /* ★ 容器比例 = viewBox 比例 */
+    flex: 0 0 auto;
+    aspect-ratio: 2800 / 1000;   /* viewBox 高度仍是 1000，比例不變 */
     width: 100%;
     min-width: 0;
     display: flex;
@@ -204,7 +272,7 @@
     width: 100%;
     height: 100%;
     display: block;
-    background: #0a1428;             /* ★ 深色，與監控主題融合 */
+    background: #0a1428;
     border-radius: 6px;
 }
 
@@ -490,96 +558,236 @@
 /* ================================================================
    ★ 信息區（左欄最下方，吃掉剩餘空間）
    ================================================================ */
+/* ================================================================
+   ★ 信息區（Tab 切換版，方向 2 + 4 結合）
+   ================================================================ */
 #md-info-area {
-    flex: 1;                         /* ★ 吃掉地圖 + 狀態卡之後的剩餘空間 */
+    flex: 1;
     min-height: 0;
     background: rgba(15, 30, 55, 0.85);
     border: 1px solid rgba(0, 200, 255, 0.15);
     border-radius: 10px;
-    padding: 14px 18px;
+    padding: 0;                       /* ★ tab 貼邊 */
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    overflow: auto;
+    overflow: hidden;
     backdrop-filter: blur(4px);
 }
 
-.md-info-header {
+/* Tab 按鈕列 */
+.md-info-tabs {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-shrink: 0;
     border-bottom: 1px solid rgba(0, 200, 255, 0.15);
-    padding-bottom: 8px;
 }
 
-.md-info-title {
-    font-size: 0.85rem;
-    color: #00d4ff;
+.md-info-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #7aa8c8;
+    font-size: 1rem;                   /* ★ 方向 4：放大 */
     font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
 }
 
+.md-info-tab:hover {
+    color: #b0d0ff;
+    background: rgba(0, 200, 255, 0.05);
+}
+
+.md-info-tab.active {
+    color: #00f3ff;
+    border-bottom-color: #00f3ff;
+    background: rgba(0, 200, 255, 0.08);
+}
+
+/* Tab 內容容器 */
+.md-info-content {
+    flex: 1;
+    min-height: 0;
+    padding: 16px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.md-info-content::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+}
+
+.md-info-content::-webkit-scrollbar-thumb {
+    background: #2a4a6a;
+    border-radius: 3px;
+}
+
+/* 面板 */
+.md-info-panel {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+}
+
+.md-info-panel.active {
+    display: flex;
+}
+
+/* 監控操作面板：內容垂直居中（方向 2） */
+.md-info-panel[data-panel="actions"] {
+    justify-content: center;
+}
+
+/* 按鈕組（方向 4：放大） */
 .md-info-buttons {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .md-toolbar-btn {
     background: rgba(0, 200, 255, 0.1);
     border: 1px solid rgba(0, 200, 255, 0.25);
     color: #7aa8c8;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 14px 24px;                /* ★ 方向 4：放大 */
+    border-radius: 8px;
+    font-size: 1rem;                   /* ★ 方向 4：放大 */
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .md-toolbar-btn:hover {
     background: rgba(0, 200, 255, 0.25);
     color: #00f3ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 243, 255, 0.2);
 }
 
+/* 圖例（方向 4：放大） */
 .md-info-legend {
     display: flex;
-    gap: 16px;
+    gap: 24px;
     flex-wrap: wrap;
-    font-size: 0.78rem;
+    justify-content: center;
+    font-size: 0.95rem;                /* ★ 方向 4：放大 */
     color: #b0d0ff;
 }
 
 .md-legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .md-legend-dot {
-    width: 12px;
-    height: 12px;
+    width: 16px;                       /* ★ 方向 4：放大 */
+    height: 16px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
+/* 提示（方向 4：放大） */
 .md-info-hint {
-    font-size: 0.72rem;
+    font-size: 0.85rem;
     color: #5a7a9a;
-    margin-top: auto;
     text-align: center;
-    padding-top: 8px;
+    padding-top: 12px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 表格面板 */
+.md-info-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 6px;
+}
+
+.md-info-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+}
+
+.md-info-table-wrap::-webkit-scrollbar-thumb {
+    background: #2a4a6a;
+    border-radius: 3px;
+}
+
+.md-info-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.md-info-table th {
+    background: rgba(0, 200, 255, 0.08);
+    color: #00d4ff;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid rgba(0, 200, 255, 0.2);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.md-info-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #d0d8e0;
+    white-space: nowrap;
+}
+
+.md-info-table tbody tr:hover td {
+    background: rgba(0, 243, 255, 0.04);
+}
+
+/* 狀態徽章 */
+.md-info-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.md-info-badge.waiting  { background: #dc2626; color: #fff; }
+.md-info-badge.rescuing { background: #eab308; color: #000; }
+.md-info-badge.landed   { background: #22c55e; color: #000; }
+.md-info-badge.departed { background: #3b82f6; color: #fff; }
+.md-info-badge.pending  { background: #f59e0b; color: #000; }
+.md-info-badge.processed{ background: #64748b; color: #fff; }
+
+/* 空狀態 */
+.md-info-empty {
+    text-align: center;
+    padding: 40px 20px !important;
+    color: #5a7a9a;
+    font-size: 0.95rem;
 }
 
 /* 小屏保護 */
 @media (max-width: 1400px) {
-    #md-info-area { padding: 10px 14px; gap: 8px; }
-    .md-toolbar-btn { padding: 6px 12px; font-size: 0.72rem; }
+    .md-info-tab { padding: 10px 12px; font-size: 0.9rem; }
+    .md-toolbar-btn { padding: 10px 16px; font-size: 0.85rem; }
     .md-info-hint { display: none; }
+    .md-info-legend { font-size: 0.85rem; gap: 16px; }
+    #md-map-search-bar button { padding: 8px 14px; font-size: 0.85rem; }
 }
