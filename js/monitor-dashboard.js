@@ -822,6 +822,12 @@ async function mdUpdateFromFirestore() {
     mdUpdateSummary();
     mdUpdateOperationalImpact();
     mdUpdateLastUpdated();
+     // ★ 如果信息區 tab 處於激活狀態，刷新對應表格
+    const activeTab = document.querySelector('.md-info-tab.active');
+    if (activeTab) {
+        if (activeTab.dataset.tab === 'rescue') mdLoadRescueTable();
+        else if (activeTab.dataset.tab === 'occ') mdLoadOccTable();
+    }
 }
 
 function mdUpdateSummary() {
