@@ -220,6 +220,16 @@ async function mdInitMap() {
         <filter id="mdHighlightGlow">
             <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="gold"/>
         </filter>
+            <filter id="mdSearchGlow" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="12" result="blur"/>
+        <feFlood flood-color="#00f3ff" flood-opacity="1"/>
+        <feComposite in2="blur" operator="in" result="coloredBlur"/>
+        <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+    </filter>
         <g id="mdTowerSymbol">
             <line x1="-20" y1="0" x2="0" y2="-100" stroke="#444" stroke-width="6"/>
             <line x1="20" y1="0" x2="0" y2="-100" stroke="#444" stroke-width="6"/>
@@ -1579,27 +1589,60 @@ function mdSearchCabin() {
         return;
     }
 
-    // 清除所有高亮
+    // 清除所有舊高亮（包括脈衝環）
     mdMapCabins.forEach(c => {
         c.shape.setAttribute('stroke', '');
         c.shape.setAttribute('stroke-width', '');
         c.shape.removeAttribute('filter');
+        const oldRing = c.el.querySelector('.md-search-pulse-ring');
+        if (oldRing) oldRing.remove();
     });
 
-    // 高亮目標
-    cabin.shape.setAttribute('stroke', 'gold');
-    cabin.shape.setAttribute('stroke-width', '6');
-    cabin.shape.setAttribute('filter', 'url(#mdHighlightGlow)');
+    // ★ 強力高亮：青色粗邊 + 大範圍光暈
+    cabin.shape.setAttribute('stroke', '#00f3ff');
+    cabin.shape.setAttribute('stroke-width', '8');
+    cabin.shape.setAttribute('filter', 'url(#mdSearchGlow)');
+
+    // ★ 脈衝環：從 r=28 擴散到 r=68，同時淡出
+    const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    ring.setAttribute('class', 'md-search-pulse-ring');
+    ring.setAttribute('cx', '0');
+    ring.setAttribute('cy', '0');
+    ring.setAttribute('r', '28');
+    ring.setAttribute('fill', 'none');
+    ring.setAttribute('stroke', '#00f3ff');
+    ring.setAttribute('stroke-width', '4');
+    ring.setAttribute('opacity', '1');
+
+    const animateR = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+    animateR.setAttribute('attributeName', 'r');
+    animateR.setAttribute('from', '28');
+    animateR.setAttribute('to', '68');
+    animateR.setAttribute('dur', '1.4s');
+    animateR.setAttribute('repeatCount', 'indefinite');
+    ring.appendChild(animateR);
+
+    const animateOp = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+    animateOp.setAttribute('attributeName', 'opacity');
+    animateOp.setAttribute('from', '1');
+    animateOp.setAttribute('to', '0');
+    animateOp.setAttribute('dur', '1.4s');
+    animateOp.setAttribute('repeatCount', 'indefinite');
+    ring.appendChild(animateOp);
+
+    cabin.el.appendChild(ring);
 
     mdShowToast(`✅ 已定位車廂 ${q}`);
 
-    // 5 秒後自動清除
+    // ★ 延長到 8 秒後自動清除
     clearTimeout(window._mdSearchHighlightTimer);
     window._mdSearchHighlightTimer = setTimeout(() => {
         cabin.shape.setAttribute('stroke', '');
         cabin.shape.setAttribute('stroke-width', '');
         cabin.shape.removeAttribute('filter');
-    }, 5000);
+        const r = cabin.el.querySelector('.md-search-pulse-ring');
+        if (r) r.remove();
+    }, 8000);
 }
 
 // ================================================================
