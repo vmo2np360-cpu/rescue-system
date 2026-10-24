@@ -552,7 +552,18 @@
 /* ================================================================
    ★ 信息區（Tab 切換版，方向 2 + 4 結合）
    ================================================================ */
-    min-height: 200px;    /* ★ 防止被 flex: 1 压得太小 */
+#md-info-area {
+    flex: 1;
+    min-height: 200px;              /* ★ 防止被 flex: 1 壓得太小 */
+    background: rgba(15, 30, 55, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+}
 
 /* Tab 按鈕列 */
 .md-info-tabs {
@@ -621,8 +632,7 @@
 
 .md-info-panel.active { display: flex; }
 
-/* 監控操作面板：內容垂直居中（方向 2） */
-/* 監控操作面板：顶部对齐（防止内容溢出时滚不到顶部） */
+/* 監控操作面板：頂部對齊（防止內容溢出時滾不到頂部） */
 .md-info-panel[data-panel="actions"] {
     justify-content: flex-start;
 }
@@ -776,13 +786,6 @@
 /* ================================================================
    ★★★ 小屏（< 1200px）：彻底流式布局 + 页面整体滚动 ★★★
    放在文件末尾，确保覆盖所有基础规则
-   策略：
-   1. html/body/section/md-app/md-main 全部 height: auto + overflow: visible
-   2. grid 全部改 flex column，避免 grid auto 行塌缩
-   3. 顺序重排：搜索栏 → 信息区 → 地图 → 状态卡（order 1-4）
-      → 滚动到顶部时按钮完整可见
-   4. 按钮改 2×2 网格，视觉增强（更亮背景、更粗边框、更亮文字）
-   5. 雷达 body 固定 240px 防塌缩
    ================================================================ */
 @media (max-width: 1200px) {
 
@@ -844,8 +847,7 @@
         flex: 0 0 auto !important;
     }
 
-    /* ===== 4.5 小屏重排顺序：搜索栏 → 信息区 → 地图 → 状态卡 =====
-       ★ 关键：order 让信息区紧跟搜索栏，滚动到顶部时按钮完整可见 */
+    /* ===== 4.5 小屏重排顺序：搜索栏 → 信息区 → 地图 → 状态卡 ===== */
     #md-map-search-bar { order: 1 !important; }
     #md-info-area      { order: 2 !important; }
     #md-map-area       { order: 3 !important; }
@@ -865,7 +867,7 @@
         grid-template-columns: repeat(2, 1fr) !important;
     }
 
-    /* ===== 7. 信息区：block 布局 + 2×2 按钮网格 + 紧凑高度 ===== */
+    /* ===== 7. 信息区：block 布局 + 2×2 按钮网格 ===== */
     #md-info-area {
         display: block !important;
         height: auto !important;
@@ -901,7 +903,6 @@
         display: block !important;
     }
 
-    /* ★ 按钮组：2×2 网格，每个按钮大且清晰 */
     .md-info-buttons {
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
@@ -910,7 +911,6 @@
         width: 100% !important;
     }
 
-    /* ★ 按钮视觉增强：更亮背景、更粗边框、更亮文字 */
     .md-toolbar-btn {
         width: 100% !important;
         padding: 16px 16px !important;
@@ -929,7 +929,6 @@
         color: #ffffff !important;
     }
 
-    /* ★ 图例和提示（覆盖 1400px 断点的隐藏） */
     .md-info-legend {
         display: flex !important;
         flex-wrap: wrap !important;
@@ -947,7 +946,7 @@
         border-top: 1px solid rgba(255,255,255,0.06) !important;
     }
 
-    /* ===== 8. 雷达图：父级至少 300px，body 固定 240px 防塌缩 ===== */
+    /* ===== 8. 雷达图：固定高度防塌缩 ===== */
     #md-radar {
         flex: 0 0 auto !important;
         height: auto !important;
@@ -961,7 +960,7 @@
         max-height: 240px !important;
     }
 
-    /* ===== 9. 搜索栏：缩小按钮 ===== */
+    /* ===== 9. 搜索栏 ===== */
     #md-map-search-bar {
         padding: 6px 10px;
     }
