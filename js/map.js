@@ -2470,11 +2470,6 @@ window.occDeleteRecord  = withLock(_mapLocks, 'occDeleteRecord', mapOccDeleteRec
 window.occCloseComparison = mapOccCloseComparison;
 window.occDisplayComparison = mapOccDisplayComparison;
 
-// ★ 加鎖（策略 C）——Incident 事件管理
-window.incidentCreate = withLock(_mapLocks, 'incidentCreate', incidentCreate);
-window.incidentUpdateCurrent = withLock(_mapLocks, 'incidentUpdateCurrent', incidentUpdateCurrent);
-window.incidentClose = withLock(_mapLocks, 'incidentClose', incidentClose);
-window.saveGuestsOnline = withLock(_mapLocks, 'saveGuestsOnline', saveGuestsOnline);
 
 // ================================================================
 // Incident 事件管理
@@ -2836,9 +2831,10 @@ window.closeCabinDrawer = closeCabinDrawer;
 window.openCabinLightbox = openCabinLightbox;
 window.selectCabinPhoto = selectCabinPhoto;
 window.goToCabinPhotos = goToCabinPhotos;
-window.incidentCreate = withLock(_mapLocks, 'incidentCreate', incidentCreate);
-window.incidentUpdateCurrent = withLock(_mapLocks, 'incidentUpdateCurrent', incidentUpdateCurrent);
-window.incidentClose = withLock(_mapLocks, 'incidentClose', incidentClose);
-window.saveGuestsOnline = withLock(_mapLocks, 'saveGuestsOnline', saveGuestsOnline);
+// ★ 加鎖（策略 C）——Incident 事件管理
+window.incidentCreate        = withLock(_mapLocks, 'incidentCreate',        _rawIncidentCreate);
+window.incidentUpdateCurrent = withLock(_mapLocks, 'incidentUpdateCurrent', _rawIncidentUpdateCurrent);
+window.incidentClose         = withLock(_mapLocks, 'incidentClose',         _rawIncidentClose);
+window.saveGuestsOnline      = withLock(_mapLocks, 'saveGuestsOnline',      _rawSaveGuestsOnline);
 
 console.log('✅ map.js 已載入（最終版，含 #mapMessage 建立、獨立對比功能、刪除功能）');
