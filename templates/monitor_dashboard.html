@@ -45,8 +45,19 @@
     <!-- ===== Main ===== -->
    <main id="md-main">
 
-    <!-- ===== 左欄：地圖 + 底部四卡 ===== -->
-    <div class="md-left-col">
+
+    <!-- ★ 新增：地圖上方搜索欄 -->
+    <div id="md-map-search-bar">
+        <input type="text" id="mdMapSearchBox"
+               placeholder="🔍 輸入車廂號碼搜尋"
+               onkeypress="if(event.key==='Enter') mdSearchCabin()">
+        <button onclick="mdSearchCabin()">
+            <i class="fas fa-search"></i> 搜尋
+        </button>
+        <button class="md-search-refresh" onclick="mdUpdateFromFirestore()">
+            <i class="fas fa-sync-alt"></i> 刷新
+        </button>
+    </div>
 
     <section id="md-map-area">
         <div class="md-card md-map-card">
@@ -55,7 +66,6 @@
         </div>
     </section>
 
-    <!-- ★ 狀態卡：緊貼地圖下方 -->
     <footer id="md-status-cards">
         <div class="md-status-card md-awaiting">
             <div class="md-status-label">Awaiting Rescue</div>
@@ -75,46 +85,97 @@
         </div>
     </footer>
 
-    <!-- ★ 信息區：放最下方，吃掉剩餘空間 -->
+    <!-- ★ 信息區：Tab 切換 -->
     <div id="md-info-area">
-        <div class="md-info-header">
-            <span class="md-info-title">
+        <div class="md-info-tabs">
+            <button class="md-info-tab active" data-tab="actions" onclick="mdSwitchInfoTab('actions')">
                 <i class="fas fa-satellite-dish"></i> 監控操作
-            </span>
-        </div>
-
-        <div class="md-info-buttons">
-            <button class="md-toolbar-btn" onclick="mdUpdateFromFirestore()">
-                <i class="fas fa-sync-alt"></i> 刷新數據
             </button>
-            <button class="md-toolbar-btn" onclick="mdFetchWeather();mdFetchWarnings()">
-                <i class="fas fa-cloud-sun"></i> 刷新天氣
+            <button class="md-info-tab" data-tab="rescue" onclick="mdSwitchInfoTab('rescue')">
+                <i class="fas fa-clipboard-list"></i> 救援記錄
             </button>
-            <button class="md-toolbar-btn" onclick="mdUpdateRadar()">
-                <i class="fas fa-satellite"></i> 刷新雷達
-            </button>
-            <button class="md-toolbar-btn" onclick="mdToggleFullscreen()">
-                <i class="fas fa-expand"></i> 全屏切換
+            <button class="md-info-tab" data-tab="occ" onclick="mdSwitchInfoTab('occ')">
+                <i class="fas fa-headset"></i> 求助記錄
             </button>
         </div>
 
-        <div class="md-info-legend">
-            <span class="md-legend-item">
-                <span class="md-legend-dot" style="background:#dc2626;"></span> 等待救援
-            </span>
-            <span class="md-legend-item">
-                <span class="md-legend-dot" style="background:#eab308;"></span> 救援中
-            </span>
-            <span class="md-legend-item">
-                <span class="md-legend-dot" style="background:#22c55e;"></span> 已著陸
-            </span>
-            <span class="md-legend-item">
-                <span class="md-legend-dot" style="background:#3b82f6;"></span> 已離開
-            </span>
-        </div>
+        <div class="md-info-content">
+            <!-- 面板 1：監控操作（預設） -->
+            <div class="md-info-panel active" data-panel="actions">
+                <div class="md-info-buttons">
+                    <button class="md-toolbar-btn" onclick="mdUpdateFromFirestore()">
+                        <i class="fas fa-sync-alt"></i> 刷新數據
+                    </button>
+                    <button class="md-toolbar-btn" onclick="mdFetchWeather();mdFetchWarnings()">
+                        <i class="fas fa-cloud-sun"></i> 刷新天氣
+                    </button>
+                    <button class="md-toolbar-btn" onclick="mdUpdateRadar()">
+                        <i class="fas fa-satellite"></i> 刷新雷達
+                    </button>
+                    <button class="md-toolbar-btn" onclick="mdToggleFullscreen()">
+                        <i class="fas fa-expand"></i> 全屏切換
+                    </button>
+                </div>
 
-        <div class="md-info-hint">
-            💡 雙擊車廂可查看組別詳情 ｜ 拖動可調整車廂位置
+                <div class="md-info-legend">
+                    <span class="md-legend-item">
+                        <span class="md-legend-dot" style="background:#dc2626;"></span> 等待救援
+                    </span>
+                    <span class="md-legend-item">
+                        <span class="md-legend-dot" style="background:#eab308;"></span> 救援中
+                    </span>
+                    <span class="md-legend-item">
+                        <span class="md-legend-dot" style="background:#22c55e;"></span> 已著陸
+                    </span>
+                    <span class="md-legend-item">
+                        <span class="md-legend-dot" style="background:#3b82f6;"></span> 已離開
+                    </span>
+                </div>
+
+                <div class="md-info-hint">
+                    💡 雙擊車廂可查看組別詳情 ｜ 拖動可調整車廂位置
+                </div>
+            </div>
+
+            <!-- 面板 2：救援記錄 -->
+            <div class="md-info-panel" data-panel="rescue">
+                <div class="md-info-table-wrap">
+                    <table class="md-info-table">
+                        <thead>
+                            <tr>
+                                <th>車廂</th>
+                                <th>組別</th>
+                                <th>姓名</th>
+                                <th>健康狀況</th>
+                                <th>狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mdRescueTableBody">
+                            <tr><td colspan="5" class="md-info-empty">載入中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 面板 3：求助記錄 -->
+            <div class="md-info-panel" data-panel="occ">
+                <div class="md-info-table-wrap">
+                    <table class="md-info-table">
+                        <thead>
+                            <tr>
+                                <th>車廂</th>
+                                <th>姓名</th>
+                                <th>健康狀況</th>
+                                <th>來源</th>
+                                <th>狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mdOccTableBody">
+                            <tr><td colspan="5" class="md-info-empty">載入中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
