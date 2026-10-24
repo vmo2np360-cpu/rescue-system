@@ -1575,7 +1575,7 @@ function mdLoadOccTable() {
     if (!tbody) return;
 
     if (!mdRescueRecords || mdRescueRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="md-info-empty">暫無求助記錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="md-info-empty">暫無求助記錄</td></tr>';
         return;
     }
 
@@ -1585,17 +1585,53 @@ function mdLoadOccTable() {
         return new Date(tB) - new Date(tA);
     });
 
+    // 只顯示 HH:MM，跨日時顯示 MM/DD HH:MM
+    const fmtTime = (t) => {
+        if (!t) return '-';
+        let d;
+        try {
+            if (t.toDate) d = t.toDate();
+            else if (t.seconds) d = new Date(t.seconds * 1000);
+            else d = new Date(t);
+            if (isNaN(d.getTime())) return '-';
+        } catch { return '-'; }
+
+        const now = new Date();
+        const sameDay = d.getFullYear() === now.getFullYear()
+                     && d.getMonth() === now.getMonth()
+                     && d.getDate() === now.getDate();
+        const pad = (n) => String(n).padStart(2, '0');
+        const hhmm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return sameDay ? hhmm : `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${hhmm}`;
+    };
+
     let html = '';
     sorted.forEach(rec => {
         const s = rec.processed
             ? { text: '已處理', cls: 'processed' }
             : { text: '待處理', cls: 'pending' };
+
+        // 求助時間
+        const createdTime = fmtTime(rec.createdAt);
+
+        // 完成處理時間
+        let processedTime;
+        if (rec.processed && rec.processedAt) {
+            processedTime = fmtTime(rec.processedAt);
+        } else if (rec.processed) {
+            processedTime = '✅ 已處理';
+        } else {
+            processedTime = '⏳ 待處理';
+        }
+
         html += `
             <tr>
                 <td>${mdEsc(rec.cabinNumber || '-')}</td>
                 <td>${mdEsc(rec.guestName || '-')}</td>
                 <td>${mdEsc(rec.healthStatus || '-')}</td>
                 <td>${mdEsc(rec.source || '-')}</td>
+                <td>${createdTime}</td>
+                <td>${processedTime}</td>
                 <td><span class="md-info-badge ${s.cls}">${s.text}</span></td>
             </tr>
         `;
