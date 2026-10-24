@@ -159,9 +159,74 @@
 @media (max-width: 1600px) {
     #md-main { grid-template-columns: 5fr 2fr; }
 }
+/* ================================================================
+   ★ 小屏（< 1200px）：单列可滚动，所有内容完整显示
+   ================================================================ */
 @media (max-width: 1200px) {
-    #md-main { grid-template-columns: 1fr; }
-    .md-left-col { min-height: 60vh; }
+
+    /* 1. 解除 100vh 锁定，允许页面滚动 */
+    #section-monitor-dashboard.active {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    #md-app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-rows: auto auto;   /* ★ 第二行不再用 1fr */
+    }
+
+    /* 2. 单列布局 */
+    #md-main {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .md-left-col {
+        min-height: auto;                /* ★ 不再撑高 */
+    }
+
+    /* 3. 地圖：固定高度（不用 aspect-ratio，避免算出 327px 太大） */
+    #md-map-area {
+        aspect-ratio: auto;
+        height: 300px;
+        flex: 0 0 300px;
+    }
+
+    /* 4. 狀態卡：小屏改 2 列，避免每張卡太窄 */
+    #md-status-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* 5. 信息區：固定高度 + 內部滾動 */
+    #md-info-area {
+        flex: 0 0 260px;
+        height: 260px;
+    }
+
+    /* 6. 右欄：完整顯示，不裁剪 */
+    #md-side-panel {
+        min-height: auto;
+        overflow: visible;
+    }
+
+    /* 7. 雷達圖：小屏給固定高度，避免被壓成 0 */
+    #md-radar {
+        flex: 0 0 360px;
+        min-height: 360px;
+    }
+
+    /* 8. 搜索欄小屏下按鈕縮小 */
+    #md-map-search-bar {
+        padding: 6px 10px;
+    }
+
+    #md-map-search-bar button {
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
 }
 
 .md-card {
