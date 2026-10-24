@@ -552,18 +552,7 @@
 /* ================================================================
    ★ 信息區（Tab 切換版，方向 2 + 4 結合）
    ================================================================ */
-#md-info-area {
-    flex: 1;
-    min-height: 0;
-    background: rgba(15, 30, 55, 0.85);
-    border: 1px solid rgba(0, 200, 255, 0.15);
-    border-radius: 10px;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    backdrop-filter: blur(4px);
-}
+    min-height: 200px;    /* ★ 防止被 flex: 1 压得太小 */
 
 /* Tab 按鈕列 */
 .md-info-tabs {
@@ -633,8 +622,9 @@
 .md-info-panel.active { display: flex; }
 
 /* 監控操作面板：內容垂直居中（方向 2） */
+/* 監控操作面板：顶部对齐（防止内容溢出时滚不到顶部） */
 .md-info-panel[data-panel="actions"] {
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 /* 按鈕組（方向 4：放大） */
