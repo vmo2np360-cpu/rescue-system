@@ -2,6 +2,10 @@
    monitor-dashboard.css — 只作用於 #section-monitor-dashboard
    ================================================================ */
 
+/* ================================================================
+   大屏基礎樣式（> 1200px）
+   ================================================================ */
+
 #section-monitor-dashboard.active {
     display: flex !important;
     flex-direction: column;
@@ -159,157 +163,8 @@
 @media (max-width: 1600px) {
     #md-main { grid-template-columns: 5fr 2fr; }
 }
-/* ================================================================
-   ★ 小屏（< 1200px）：单列可滚动，所有内容完整显示
-   ================================================================ */
-/* ================================================================
-   ★ 小屏（< 1200px）：单列 + 页面整体滚动，所有内容完整
-   ================================================================ */
-/* ================================================================
-   ★ 小屏（< 1200px）：彻底流式布局 + 页面整体滚动
-   grid 全部改 flex，绕开 grid 高度塌缩
-   ================================================================ */
-@media (max-width: 1200px) {
 
-    /* ===== 0. html/body 允许滚动 ===== */
-    html, body {
-        height: auto !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-    }
-
-    .app-container {
-        height: auto !important;
-        min-height: auto !important;
-        overflow: visible !important;
-    }
-
-    /* ===== 1. section：解除 100vh 锁定 ===== */
-    #section-monitor-dashboard,
-    #section-monitor-dashboard.active {
-        display: block !important;          /* ★ 不用 flex，避免高度链 */
-        height: auto !important;
-        min-height: 100vh !important;
-        max-height: none !important;
-        overflow: visible !important;
-    }
-
-    /* ===== 2. md-app：grid → flex column ===== */
-    #md-app {
-        display: flex !important;           /* ★ 关键：grid 改 flex */
-        flex-direction: column !important;
-        height: auto !important;
-        min-height: 100vh !important;
-        max-height: none !important;
-        overflow: visible !important;
-        gap: 10px;
-        padding: 10px;
-        grid-template-rows: none !important; /* ★ 取消 grid 行 */
-    }
-
-    /* ===== 3. md-main：grid → flex column ===== */
-    #md-main {
-        display: flex !important;           /* ★ 关键：grid 改 flex */
-        flex-direction: column !important;
-        height: auto !important;
-        min-height: auto !important;
-        gap: 10px;
-        grid-template-columns: none !important; /* ★ 取消 grid 列 */
-    }
-
-    /* ===== 4. 左栏 / 右栏：解除压缩 ===== */
-    .md-left-col,
-    #md-side-panel {
-        display: flex !important;
-        flex-direction: column !important;
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
-        flex: 0 0 auto !important;          /* ★ 不收缩 */
-    }
-
-    /* ===== 5. 地图：固定 300px ===== */
-    #md-map-area {
-        flex: 0 0 300px !important;
-        height: 300px !important;
-        min-height: 300px !important;
-        max-height: 300px !important;
-        aspect-ratio: auto !important;
-    }
-
-    /* ===== 6. 状态卡：2 列 ===== */
-    #md-status-cards {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-
-    /* ===== 7. 信息区：固定 260px ===== */
-/* ===== 7. 信息区：不固定高度，按内容撑开 ===== */
-      /* ===== 7. 信息区：给足最小高度，内容不压缩 ===== */
-    #md-info-area {
-        flex: 0 0 auto !important;
-        height: auto !important;
-        min-height: 320px !important;       /* ★ 给足最小高度 */
-        max-height: none !important;
-        overflow: visible !important;
-    }
-
-    /* ★ 关键：content 和 panel 不用 flex: 1，按内容自然撑开 */
-    .md-info-content {
-        flex: 0 0 auto !important;          /* ★ 从 flex: 1 改过来 */
-        min-height: auto !important;        /* ★ 从 min-height: 0 改过来 */
-        height: auto !important;
-        overflow: visible !important;
-        padding: 20px 24px !important;      /* 略微加大内边距 */
-    }
-
-    .md-info-panel,
-    .md-info-panel.active,
-    .md-info-panel[data-panel="actions"] {
-        flex: 0 0 auto !important;          /* ★ 从 flex: 1 改过来 */
-        min-height: auto !important;        /* ★ 从 min-height: 0 改过来 */
-        justify-content: flex-start !important;
-        gap: 20px !important;               /* 按钮、图例、提示间距加大 */
-    }
-
-    /* ★ 小屏恢复图例和提示显示 */
-    .md-info-legend {
-        display: flex !important;
-    }
-    .md-info-hint {
-        display: block !important;
-    }
-
-    /* ★ 按钮保持较大尺寸，不要被 1400px 断点压小 */
-    .md-toolbar-btn {
-        padding: 12px 20px !important;
-        font-size: 0.95rem !important;
-    }
-
-    /* 内容区不再单独滚动，交给页面整体滚动 */
-    .md-info-content {
-        overflow: visible !important;
-        height: auto !important;
-        min-height: auto !important;
-    }
-
-    /* 面板取消垂直居中，改为顶部对齐（防溢出到顶部） */
-    .md-info-panel,
-    .md-info-panel[data-panel="actions"] {
-        justify-content: flex-start !important;
-        min-height: auto !important;
-        flex: 0 0 auto !important;
-    }
-
-    /* ===== 8. 雷达图：不固定高度，按内容撑开（防止 360px 内部再裁） ===== */
-    #md-radar {
-        flex: 0 0 auto !important;
-        height: auto !important;
-        min-height: 300px !important;
-        max-height: none !important;
-    }
-}
-
+/* ===== 通用卡片 ===== */
 .md-card {
     background: rgba(15, 30, 55, 0.85);
     border: 1px solid rgba(0, 200, 255, 0.15);
@@ -514,10 +369,6 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     flex-shrink: 0;
-}
-
-@media (max-width: 1200px) {
-    #md-status-cards { grid-template-columns: repeat(2, 1fr); }
 }
 
 .md-status-card {
@@ -921,11 +772,171 @@
     font-size: 0.95rem;
 }
 
-/* 小屏保護 */
+/* ================================================================
+   ★ 中型螢幕（< 1400px）：按鈕縮小（不影響大屏）
+   ================================================================ */
 @media (max-width: 1400px) {
     .md-info-tab { padding: 10px 12px; font-size: 0.9rem; }
     .md-toolbar-btn { padding: 10px 16px; font-size: 0.85rem; }
     .md-info-hint { display: none; }
     .md-info-legend { font-size: 0.85rem; gap: 16px; }
     #md-map-search-bar button { padding: 8px 14px; font-size: 0.85rem; }
+}
+
+/* ================================================================
+   ★★★ 小屏（< 1200px）：彻底流式布局 + 页面整体滚动 ★★★
+   放在文件末尾，确保覆盖所有基础规则
+   策略：
+   - html/body/section/md-app/md-main 全部 height: auto + overflow: visible
+   - grid 全部改 flex column，避免 grid auto 行塌缩
+   - 每个区块按内容撑开，不固定高度，不内部滚动
+   - 唯一固定高度：地图 300px、雷达 body 240px、info-area 最少 320px
+   ================================================================ */
+@media (max-width: 1200px) {
+
+    /* ===== 0. html/body 允许滚动 ===== */
+    html, body {
+        height: auto !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    .app-container {
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* ===== 1. section：解除 100vh 锁定 ===== */
+    #section-monitor-dashboard,
+    #section-monitor-dashboard.active {
+        display: block !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    /* ===== 2. md-app：grid → flex column ===== */
+    #md-app {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        max-height: none !important;
+        overflow: visible !important;
+        gap: 10px;
+        padding: 10px;
+        grid-template-rows: none !important;
+    }
+
+    /* ===== 3. md-main：grid → flex column ===== */
+    #md-main {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: auto !important;
+        gap: 10px;
+        grid-template-columns: none !important;
+    }
+
+    /* ===== 4. 左栏 / 右栏：解除压缩 ===== */
+    .md-left-col,
+    #md-side-panel {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* ===== 5. 地图：固定 300px ===== */
+    #md-map-area {
+        flex: 0 0 300px !important;
+        height: 300px !important;
+        min-height: 300px !important;
+        max-height: 300px !important;
+        aspect-ratio: auto !important;
+    }
+
+    /* ===== 6. 状态卡：2 列 ===== */
+    #md-status-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* ===== 7. 信息区：至少 320px，内容撑开，不内部滚动 ===== */
+    #md-info-area {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 320px !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .md-info-content {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        padding: 20px 24px !important;
+    }
+
+    .md-info-panel,
+    .md-info-panel.active,
+    .md-info-panel[data-panel="actions"] {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 0 0 auto !important;
+        min-height: auto !important;
+        justify-content: flex-start !important;
+        gap: 20px !important;
+    }
+
+    /* 非 active 的 panel 保持隐藏（覆盖上面的 display: flex） */
+    .md-info-panel:not(.active) {
+        display: none !important;
+    }
+
+    /* ===== 8. 小屏显示图例和提示（覆盖 1400px 断点的隐藏）===== */
+    .md-info-legend {
+        display: flex !important;
+    }
+    .md-info-hint {
+        display: block !important;
+    }
+
+    /* ===== 9. 按钮保持较大尺寸 ===== */
+    .md-toolbar-btn {
+        padding: 12px 20px !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* ===== 10. 雷达图：父级至少 300px，body 固定 240px 防塌缩 ===== */
+    #md-radar {
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 300px !important;
+        max-height: none !important;
+    }
+    .md-radar-body {
+        flex: 0 0 240px !important;
+        height: 240px !important;
+        min-height: 240px !important;
+        max-height: 240px !important;
+    }
+
+    /* ===== 11. 搜索栏 ===== */
+    #md-map-search-bar {
+        padding: 6px 10px;
+    }
+    #md-map-search-bar button {
+        padding: 8px 14px !important;
+        font-size: 0.85rem !important;
+    }
 }
