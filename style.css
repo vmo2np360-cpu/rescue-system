@@ -349,7 +349,8 @@ tr:hover td { background: #f8fafc; }
 .map-svg-wrapper {
     flex: none;
     width: 100%;
-    height: 400px;             /* ★ 可調整 */
+    aspect-ratio: 2800 / 1000;   /* ★ 取代 height: 400px */
+    max-height: 600px;           /* 大螢幕上限，避免過高 */
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -598,7 +599,12 @@ textarea#occNotes:focus {
     }
     .map-tables-container { flex-direction: column; }
     .map-table-panel { min-height: 200px; }
-    .map-svg-wrapper { min-height: 200px; }
+    .map-svg-wrapper {
+        aspect-ratio: auto;      /* 取消比例 */
+        height: 260px;           /* 手機用固定高度，可自行調整 */
+        min-height: unset;       /* 移除舊的 min-height */
+    }
+}
     .map-table-toolbar { flex-wrap: wrap; }
     .map-table-toolbar input[type="text"] { min-width: 100px; flex: 1; }
 }
