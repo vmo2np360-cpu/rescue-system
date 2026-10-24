@@ -48,33 +48,77 @@
     <!-- ===== 左欄：地圖 + 底部四卡 ===== -->
     <div class="md-left-col">
 
-        <section id="md-map-area">
-            <div class="md-card md-map-card">
-         <svg id="md-map" viewBox="0 0 2800 1000"
-     preserveAspectRatio="xMidYMid meet"></svg>
-            </div>
-        </section>
+    <section id="md-map-area">
+        <div class="md-card md-map-card">
+            <svg id="md-map" viewBox="0 0 2800 1000"
+                 preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+    </section>
 
-        <footer id="md-status-cards">
-            <div class="md-status-card md-awaiting">
-                <div class="md-status-label">Awaiting Rescue</div>
-                <div class="md-status-number" id="md-awaiting">0</div>
-            </div>
-            <div class="md-status-card md-in-progress">
-                <div class="md-status-label">Rescue in Progress</div>
-                <div class="md-status-number" id="md-in-progress">0</div>
-            </div>
-            <div class="md-status-card md-rescued">
-                <div class="md-status-label">Rescued</div>
-                <div class="md-status-number" id="md-rescued">0</div>
-            </div>
-            <div class="md-status-card md-closed">
-                <div class="md-status-label">Case Closed</div>
-                <div class="md-status-number" id="md-closed">0</div>
-            </div>
-        </footer>
+    <!-- ★ 狀態卡：緊貼地圖下方 -->
+    <footer id="md-status-cards">
+        <div class="md-status-card md-awaiting">
+            <div class="md-status-label">Awaiting Rescue</div>
+            <div class="md-status-number" id="md-awaiting">0</div>
+        </div>
+        <div class="md-status-card md-in-progress">
+            <div class="md-status-label">Rescue in Progress</div>
+            <div class="md-status-number" id="md-in-progress">0</div>
+        </div>
+        <div class="md-status-card md-rescued">
+            <div class="md-status-label">Rescued</div>
+            <div class="md-status-number" id="md-rescued">0</div>
+        </div>
+        <div class="md-status-card md-closed">
+            <div class="md-status-label">Case Closed</div>
+            <div class="md-status-number" id="md-closed">0</div>
+        </div>
+    </footer>
 
+    <!-- ★ 信息區：放最下方，吃掉剩餘空間 -->
+    <div id="md-info-area">
+        <div class="md-info-header">
+            <span class="md-info-title">
+                <i class="fas fa-satellite-dish"></i> 監控操作
+            </span>
+        </div>
+
+        <div class="md-info-buttons">
+            <button class="md-toolbar-btn" onclick="mdUpdateFromFirestore()">
+                <i class="fas fa-sync-alt"></i> 刷新數據
+            </button>
+            <button class="md-toolbar-btn" onclick="mdFetchWeather();mdFetchWarnings()">
+                <i class="fas fa-cloud-sun"></i> 刷新天氣
+            </button>
+            <button class="md-toolbar-btn" onclick="mdUpdateRadar()">
+                <i class="fas fa-satellite"></i> 刷新雷達
+            </button>
+            <button class="md-toolbar-btn" onclick="mdToggleFullscreen()">
+                <i class="fas fa-expand"></i> 全屏切換
+            </button>
+        </div>
+
+        <div class="md-info-legend">
+            <span class="md-legend-item">
+                <span class="md-legend-dot" style="background:#dc2626;"></span> 等待救援
+            </span>
+            <span class="md-legend-item">
+                <span class="md-legend-dot" style="background:#eab308;"></span> 救援中
+            </span>
+            <span class="md-legend-item">
+                <span class="md-legend-dot" style="background:#22c55e;"></span> 已著陸
+            </span>
+            <span class="md-legend-item">
+                <span class="md-legend-dot" style="background:#3b82f6;"></span> 已離開
+            </span>
+        </div>
+
+        <div class="md-info-hint">
+            💡 雙擊車廂可查看組別詳情 ｜ 拖動可調整車廂位置
+        </div>
     </div>
+
+</div>
 
     <!-- ===== 右欄：資訊 + 雷達圖 ===== -->
     <aside id="md-side-panel">
