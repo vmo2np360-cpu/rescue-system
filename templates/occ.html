@@ -62,6 +62,103 @@
                 </div>
             </div>
 
+            <!-- ★ 新增：求助人數 -->
+            <div class="form-group">
+                <label>求助人數</label>
+                <select id="occTotalPeople">
+                    <option value="1" selected>1 人</option>
+                    <option value="2">2 人</option>
+                    <option value="3">3 人</option>
+                    <option value="4">4 人</option>
+                    <option value="5">5 人</option>
+                    <option value="6">6 人</option>
+                    <option value="7">7 人</option>
+                    <option value="8">8 人</option>
+                    <option value="9">9 人</option>
+                    <option value="10">10 人</option>
+                    <option value="11">11 人</option>
+                    <option value="12">12 人</option>
+                    <option value="13">13 人</option>
+                    <option value="14">14 人</option>
+                    <option value="15">15 人</option>
+                    <option value="16">16 人</option>
+                    <option value="17">17 人</option>
+                </select>
+            </div>
+
+            <!-- ★ 新增：求助人類型（長者 / 成人 / 兒童） -->
+            <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+                <div class="form-group">
+                    <label>長者人數</label>
+                    <select id="occElderlyCount">
+                        <option value="-" selected>-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>成人人數</label>
+                    <select id="occAdultCount">
+                        <option value="-" selected>-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>兒童人數</label>
+                    <select id="occChildCount">
+                        <option value="-" selected>-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>資料來源</label>
                 <select id="occSource" onchange="occToggleOtherSource()">
@@ -135,6 +232,8 @@
                             <th>聯絡方式</th>
                             <th>健康狀況</th>
                             <th>來源</th>
+                            <th>求助時間</th>
+                            <th>求助人數</th>
                             <th>狀態</th>
                             <th>操作</th>
                         </tr>
@@ -206,6 +305,103 @@
                         <option value="紅色(第一優先)">紅色_有生命危險需立即搶救</option>
                         <option value="黑色(沒有生命體徵)">黑色_(沒有生命體徵)</option>
                         <option value="未能分類">未能分類</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ★ 新增：求助人數 -->
+            <div class="form-group">
+                <label>求助人數</label>
+                <select id="occEditTotalPeople">
+                    <option value="1">1 人</option>
+                    <option value="2">2 人</option>
+                    <option value="3">3 人</option>
+                    <option value="4">4 人</option>
+                    <option value="5">5 人</option>
+                    <option value="6">6 人</option>
+                    <option value="7">7 人</option>
+                    <option value="8">8 人</option>
+                    <option value="9">9 人</option>
+                    <option value="10">10 人</option>
+                    <option value="11">11 人</option>
+                    <option value="12">12 人</option>
+                    <option value="13">13 人</option>
+                    <option value="14">14 人</option>
+                    <option value="15">15 人</option>
+                    <option value="16">16 人</option>
+                    <option value="17">17 人</option>
+                </select>
+            </div>
+
+            <!-- ★ 新增：求助人類型（長者 / 成人 / 兒童） -->
+            <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label>長者人數</label>
+                    <select id="occEditElderly">
+                        <option value="-">-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>成人人數</label>
+                    <select id="occEditAdult">
+                        <option value="-">-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>兒童人數</label>
+                    <select id="occEditChild">
+                        <option value="-">-</option>
+                        <option value="1">1 人</option>
+                        <option value="2">2 人</option>
+                        <option value="3">3 人</option>
+                        <option value="4">4 人</option>
+                        <option value="5">5 人</option>
+                        <option value="6">6 人</option>
+                        <option value="7">7 人</option>
+                        <option value="8">8 人</option>
+                        <option value="9">9 人</option>
+                        <option value="10">10 人</option>
+                        <option value="11">11 人</option>
+                        <option value="12">12 人</option>
+                        <option value="13">13 人</option>
+                        <option value="14">14 人</option>
+                        <option value="15">15 人</option>
+                        <option value="16">16 人</option>
+                        <option value="17">17 人</option>
                     </select>
                 </div>
             </div>
