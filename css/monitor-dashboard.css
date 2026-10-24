@@ -244,29 +244,36 @@
     }
 
     /* ===== 7. 信息区：固定 260px ===== */
+/* ===== 7. 信息区：不固定高度，按内容撑开 ===== */
     #md-info-area {
-        flex: 0 0 260px !important;
-        height: 260px !important;
-        min-height: 260px !important;
-        max-height: 260px !important;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
 
-    /* ===== 8. 雷达：固定 360px ===== */
+    /* 内容区不再单独滚动，交给页面整体滚动 */
+    .md-info-content {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+
+    /* 面板取消垂直居中，改为顶部对齐（防溢出到顶部） */
+    .md-info-panel,
+    .md-info-panel[data-panel="actions"] {
+        justify-content: flex-start !important;
+        min-height: auto !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* ===== 8. 雷达图：不固定高度，按内容撑开（防止 360px 内部再裁） ===== */
     #md-radar {
-        flex: 0 0 360px !important;
-        height: 360px !important;
-        min-height: 360px !important;
-        max-height: 360px !important;
-    }
-
-    /* ===== 9. 搜索栏按钮缩小 ===== */
-    #md-map-search-bar {
-        padding: 6px 10px;
-    }
-
-    #md-map-search-bar button {
-        padding: 8px 14px;
-        font-size: 0.85rem;
+        flex: 0 0 auto !important;
+        height: auto !important;
+        min-height: 300px !important;
+        max-height: none !important;
     }
 }
 
