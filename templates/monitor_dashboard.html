@@ -1,268 +1,785 @@
-<div id="md-app">
+/* ================================================================
+   monitor-dashboard.css — 只作用於 #section-monitor-dashboard
+   ================================================================ */
 
-    <!-- ===== Header ===== -->
-    <header id="md-header">
-        <div class="md-header-left">
-            <h1>NP360 Emergency Management</h1>
-        </div>
+#section-monitor-dashboard.active {
+    display: flex !important;
+    flex-direction: column;
+    height: 100vh;
+    background: #0a1428;
+    overflow: hidden;
+    padding: 0;
+}
 
-        <div class="md-header-center">
-            <div class="md-header-item">
-                <span class="md-label">Date</span>
-                <span class="md-value" id="md-date">—</span>
-            </div>
-            <div class="md-header-item">
-                <span class="md-label">Incident Status</span>
-               <span class="md-value" id="md-incident-status">
-                    <span class="md-dot"></span>
-                    <span id="md-incident-status-text">—</span>
-                </span>
-            </div>
-            <div class="md-header-item">
-                <span class="md-label">Incident Type</span>
-                <span class="md-value" id="md-incident-type">—</span>
-            </div>
-        </div>
+#md-app {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    gap: 10px;
+    padding: 10px;
+    position: relative;
+    font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    color: #e0e0e0;
+    box-sizing: border-box;
+}
 
-        <div class="md-header-right">
-            <div class="md-weather">
-                <img id="md-weather-icon" src="assets/weather-icons/pic50.png" alt=""
-                     class="md-weather-icon"
-                     onerror="this.style.display='none'">
-                <div class="md-weather-text">
-                    <div class="md-weather-temp"><span id="md-temp">—</span>°C</div>
-                    <div class="md-weather-humidity">濕度 <span id="md-humidity">—</span>%</div>
-                </div>
-            </div>
-            <div class="md-warning-icons" id="md-warning-icons"></div>
-            <button id="md-fullscreen-btn" class="md-fullscreen-btn"
-            onclick="mdToggleFullscreen()" title="全屏">
-        <i class="fas fa-expand"></i>
-    </button>
-</div>
-    </header>
+#md-app *, #md-app *::before, #md-app *::after { box-sizing: border-box; }
 
-    <!-- ===== Main ===== -->
-   <main id="md-main">
+/* ===== Header ===== */
+#md-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, #0d1f3a 0%, #12294a 50%, #0d1f3a 100%);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
 
+.md-header-left h1 {
+    font-size: clamp(1rem, 1.6vw, 1.6rem);
+    color: #00f3ff;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+    white-space: nowrap;
+}
 
-    <!-- ★ 新增：地圖上方搜索欄 -->
-    <div id="md-map-search-bar">
-        <input type="text" id="mdMapSearchBox"
-               placeholder="🔍 輸入車廂號碼搜尋"
-               onkeypress="if(event.key==='Enter') mdSearchCabin()">
-        <button onclick="mdSearchCabin()">
-            <i class="fas fa-search"></i> 搜尋
-        </button>
-        <button class="md-search-refresh" onclick="mdUpdateFromFirestore()">
-            <i class="fas fa-sync-alt"></i> 刷新
-        </button>
-    </div>
+.md-header-center {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
 
-    <section id="md-map-area">
-        <div class="md-card md-map-card">
-            <svg id="md-map" viewBox="0 -150 2800 1000"
-                 preserveAspectRatio="xMidYMid meet"></svg>
-        </div>
-    </section>
+.md-header-item { display: flex; flex-direction: column; gap: 2px; }
 
-    <footer id="md-status-cards">
-        <div class="md-status-card md-awaiting">
-            <div class="md-status-label">Awaiting Rescue</div>
-            <div class="md-status-number" id="md-awaiting">0</div>
-        </div>
-        <div class="md-status-card md-in-progress">
-            <div class="md-status-label">Rescue in Progress</div>
-            <div class="md-status-number" id="md-in-progress">0</div>
-        </div>
-        <div class="md-status-card md-rescued">
-            <div class="md-status-label">Rescued</div>
-            <div class="md-status-number" id="md-rescued">0</div>
-        </div>
-        <div class="md-status-card md-closed">
-            <div class="md-status-label">Case Closed</div>
-            <div class="md-status-number" id="md-closed">0</div>
-        </div>
-    </footer>
+.md-header-item .md-label {
+    font-size: clamp(0.55rem, 0.7vw, 0.75rem);
+    color: #7aa8c8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
 
-    <!-- ★ 信息區：Tab 切換 -->
-    <div id="md-info-area">
-        <div class="md-info-tabs">
-            <button class="md-info-tab active" data-tab="actions" onclick="mdSwitchInfoTab('actions')">
-                <i class="fas fa-satellite-dish"></i> 監控操作
-            </button>
-            <button class="md-info-tab" data-tab="rescue" onclick="mdSwitchInfoTab('rescue')">
-                <i class="fas fa-clipboard-list"></i> 救援記錄
-            </button>
-            <button class="md-info-tab" data-tab="occ" onclick="mdSwitchInfoTab('occ')">
-                <i class="fas fa-headset"></i> 求助記錄
-            </button>
-        </div>
+.md-header-item .md-value {
+    font-size: clamp(0.75rem, 1vw, 1rem);
+    color: #ffffff;
+    font-weight: 600;
+    white-space: nowrap;
+}
 
-        <div class="md-info-content">
-            <!-- 面板 1：監控操作（預設） -->
-            <div class="md-info-panel active" data-panel="actions">
-                <div class="md-info-buttons">
-                    <button class="md-toolbar-btn" onclick="mdUpdateFromFirestore()">
-                        <i class="fas fa-sync-alt"></i> 刷新數據
-                    </button>
-                    <button class="md-toolbar-btn" onclick="mdFetchWeather();mdFetchWarnings()">
-                        <i class="fas fa-cloud-sun"></i> 刷新天氣
-                    </button>
-                    <button class="md-toolbar-btn" onclick="mdUpdateRadar()">
-                        <i class="fas fa-satellite"></i> 刷新雷達
-                    </button>
-                    <button class="md-toolbar-btn" onclick="mdToggleFullscreen()">
-                        <i class="fas fa-expand"></i> 全屏切換
-                    </button>
-                </div>
+@keyframes mdPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.15); }
+}
 
-                <div class="md-info-legend">
-                    <span class="md-legend-item">
-                        <span class="md-legend-dot" style="background:#dc2626;"></span> 等待救援
-                    </span>
-                    <span class="md-legend-item">
-                        <span class="md-legend-dot" style="background:#eab308;"></span> 救援中
-                    </span>
-                    <span class="md-legend-item">
-                        <span class="md-legend-dot" style="background:#22c55e;"></span> 已著陸
-                    </span>
-                    <span class="md-legend-item">
-                        <span class="md-legend-dot" style="background:#3b82f6;"></span> 已離開
-                    </span>
-                </div>
+.md-header-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+}
 
-                <div class="md-info-hint">
-                    💡 雙擊車廂可查看組別詳情 ｜ 拖動可調整車廂位置
-                </div>
-            </div>
+.md-weather {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 200, 255, 0.08);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+    border-radius: 8px;
+    padding: 6px 14px;
+}
 
-            <!-- 面板 2：救援記錄 -->
-            <div class="md-info-panel" data-panel="rescue">
-                <div class="md-info-table-wrap">
-                    <table class="md-info-table">
-                        <thead>
-                            <tr>
-                                <th>車廂</th>
-                                <th>組別</th>
-                                <th>姓名</th>
-                                <th>健康狀況</th>
-                                <th>狀態</th>
-                            </tr>
-                        </thead>
-                        <tbody id="mdRescueTableBody">
-                            <tr><td colspan="5" class="md-info-empty">載入中...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+.md-weather-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
 
-            <!-- 面板 3：求助記錄 -->
-            <div class="md-info-panel" data-panel="occ">
-                <div class="md-info-table-wrap">
-                    <table class="md-info-table">
-                        <thead>
-                            <tr>
-                                <th>車廂</th>
-                                <th>姓名</th>
-                                <th>健康狀況</th>
-                                <th>來源</th>
-                                <th>狀態</th>
-                            </tr>
-                        </thead>
-                        <tbody id="mdOccTableBody">
-                            <tr><td colspan="5" class="md-info-empty">載入中...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
+.md-weather-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: clamp(0.7rem, 0.9vw, 0.9rem);
+}
 
-</div>
+.md-weather-temp {
+    font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+    font-weight: 700;
+    color: #ffffff;
+}
 
-    <!-- ===== 右欄：資訊 + 雷達圖 ===== -->
-    <aside id="md-side-panel">
+.md-weather-humidity {
+    color: #7aa8c8;
+    font-size: clamp(0.6rem, 0.75vw, 0.8rem);
+}
 
-        <div class="md-card" id="md-incident-info">
-            <h3 class="md-card-title">
-                <i class="fas fa-info-circle"></i> Incident Information
-            </h3>
-            <div class="md-info-row">
-                <span class="md-info-label">Current Time</span>
-                <span class="md-info-value" id="md-current-time">—</span>
-            </div>
-            <div class="md-info-row">
-                <span class="md-info-label">Incident Time</span>
-                <span class="md-info-value" id="md-incident-time">—</span>
-            </div>
-            <div class="md-info-row">
-                <span class="md-info-label">Duration</span>
-                <span class="md-info-value md-duration" id="md-duration">—</span>
-            </div>
-        </div>
+.md-warning-icons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
 
-        <div class="md-card" id="md-operational-impact">
-            <h3 class="md-card-title">
-                <i class="fas fa-chart-line"></i> Operational Impact
-            </h3>
-            <div class="md-impact-grid">
-                <div class="md-impact-item">
-                    <span class="md-impact-label">Guests online</span>
-                    <span class="md-impact-value" id="md-guests-online">—</span>
-                </div>
-                <div class="md-impact-item">
-                    <span class="md-impact-label">Cabins online</span>
-                    <span class="md-impact-value" id="md-cabins-online">—</span>
-                </div>
-                <div class="md-impact-item">
-                    <span class="md-impact-label">Cases Received</span>
-                    <span class="md-impact-value" id="md-cases-received">—</span>
-                </div>
-                <div class="md-impact-item">
-                    <span class="md-impact-label">Guests Affected</span>
-                    <span class="md-impact-value" id="md-guests-affected">—</span>
-                </div>
-            </div>
+.md-warning-icons img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease;
+}
 
-            <div class="md-progress">
-                <div class="md-progress-header">
-                    <span>Rescue Progress</span>
-                    <span id="md-progress-pct">0%</span>
-                </div>
-                <div class="md-progress-bar">
-                    <div class="md-progress-fill" id="md-progress-fill" style="width:0%"></div>
-                </div>
-            </div>
+.md-warning-icons img:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
 
-            <div class="md-last-updated">
-                Last Updated: <span id="md-last-updated">—</span>
-            </div>
-        </div>
+/* ===== Main ===== */
+#md-main {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 10px;
+    min-height: 0;
+}
 
-        <!-- ★ 雷達圖：撐滿右欄剩餘高度 -->
-        <div class="md-card" id="md-radar">
-            <div class="md-radar-header">
-                <span class="md-radar-title">
-                    <i class="fas fa-satellite-dish"></i> 天氣雷達
-                </span>
-                <div class="md-radar-tabs">
-                    <button data-range="64" class="active">64km</button>
-                    <button data-range="128">128km</button>
-                    <button data-range="256">256km</button>
-                </div>
-            </div>
-            <div class="md-radar-body">
-                <img id="md-radar-img" src="" alt="Weather Radar">
-            </div>
-            <div class="md-radar-footer">
-                <span id="md-radar-time">—</span>
-                <span id="md-radar-range">64 km</span>
-            </div>
-        </div>
+/* 左欄：搜索欄 + 地圖 + 四卡 + 信息區 */
+.md-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+}
 
-    </aside>
+@media (max-width: 1600px) {
+    #md-main { grid-template-columns: 5fr 2fr; }
+}
+@media (max-width: 1200px) {
+    #md-main { grid-template-columns: 1fr; }
+    .md-left-col { min-height: 60vh; }
+}
 
-</main>
+.md-card {
+    background: rgba(15, 30, 55, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 10px;
+    padding: 12px 16px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
 
-</div>
+.md-card-title {
+    font-size: clamp(0.8rem, 1vw, 1rem);
+    color: #00d4ff;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ================================================================
+   ★ 地圖上方搜索欄
+   ================================================================ */
+#md-map-search-bar {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: rgba(15, 30, 55, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(4px);
+}
+
+#mdMapSearchBox {
+    flex: 1;
+    padding: 10px 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 200, 255, 0.25);
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+#mdMapSearchBox::placeholder { color: #5a7a9a; }
+
+#mdMapSearchBox:focus {
+    border-color: rgba(0, 243, 255, 0.6);
+    background: rgba(0, 200, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(0, 243, 255, 0.1);
+}
+
+#md-map-search-bar button {
+    padding: 10px 20px;
+    background: rgba(0, 200, 255, 0.2);
+    border: 1px solid rgba(0, 200, 255, 0.4);
+    color: #00f3ff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#md-map-search-bar button:hover {
+    background: rgba(0, 200, 255, 0.35);
+    box-shadow: 0 0 12px rgba(0, 243, 255, 0.3);
+}
+
+#md-map-search-bar button.md-search-refresh {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #22c55e;
+}
+
+#md-map-search-bar button.md-search-refresh:hover {
+    background: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+/* ===== 地圖容器：鎖 2.8:1，不撐滿 ===== */
+#md-map-area {
+    flex: 0 0 auto;
+    aspect-ratio: 2800 / 1000;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+}
+
+.md-map-card {
+    width: 100%;
+    height: 100%;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+}
+
+#md-map {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #0a1428;
+    border-radius: 6px;
+}
+
+/* 右側面板 */
+#md-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+#md-side-panel .md-card {
+    flex-shrink: 0;
+}
+
+.md-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: clamp(0.7rem, 0.9vw, 0.9rem);
+}
+
+.md-info-row:last-child { border-bottom: none; }
+.md-info-label { color: #7aa8c8; }
+.md-info-value { color: #ffffff; font-weight: 600; }
+.md-duration { color: #ffd700; }
+
+/* Operational Impact */
+.md-impact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.md-impact-item {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.md-impact-label {
+    font-size: clamp(0.55rem, 0.7vw, 0.7rem);
+    color: #7aa8c8;
+}
+
+.md-impact-value {
+    font-size: clamp(1rem, 1.4vw, 1.4rem);
+    font-weight: 700;
+    color: #00f3ff;
+}
+
+.md-progress { margin-bottom: 10px; }
+
+.md-progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: clamp(0.65rem, 0.8vw, 0.85rem);
+    color: #7aa8c8;
+    margin-bottom: 6px;
+}
+
+#md-progress-pct { color: #00f3ff; font-weight: 700; }
+
+.md-progress-bar {
+    height: 10px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.md-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00f3ff, #22c55e);
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+.md-last-updated {
+    font-size: clamp(0.55rem, 0.7vw, 0.75rem);
+    color: #5a7a9a;
+    text-align: right;
+    margin-top: 8px;
+}
+
+/* ===== 底部四卡 ===== */
+#md-status-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+    #md-status-cards { grid-template-columns: repeat(2, 1fr); }
+}
+
+.md-status-card {
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(15, 30, 55, 0.85);
+    border: 2px solid;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.md-status-card.md-awaiting { border-color: #dc2626; }
+.md-status-card.md-in-progress { border-color: #eab308; }
+.md-status-card.md-rescued { border-color: #22c55e; }
+.md-status-card.md-closed { border-color: #3b82f6; }
+
+.md-status-label {
+    font-size: clamp(0.75rem, 1vw, 1rem);
+    color: #b0d0ff;
+    font-weight: 600;
+}
+
+.md-status-number {
+    font-size: clamp(1.8rem, 2.8vw, 2.8rem);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.md-awaiting .md-status-number { color: #dc2626; }
+.md-in-progress .md-status-number { color: #eab308; }
+.md-rescued .md-status-number { color: #22c55e; }
+.md-closed .md-status-number { color: #3b82f6; }
+
+/* ===== 右側面板內的雷達圖（撐滿剩餘高度） ===== */
+#md-radar {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+
+#md-radar.collapsed .md-radar-body { display: none; }
+
+.md-radar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 200, 255, 0.15);
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.md-radar-title {
+    font-size: 0.8rem;
+    color: #00d4ff;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.md-radar-tabs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+}
+
+.md-radar-tabs button {
+    background: rgba(0, 200, 255, 0.1);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+    color: #7aa8c8;
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.md-radar-tabs button.active {
+    background: #00aaff;
+    color: #030a1e;
+    font-weight: 700;
+}
+
+.md-radar-tabs button:hover { background: rgba(0, 200, 255, 0.3); }
+
+.md-radar-body {
+    flex: 1;
+    min-height: 0;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#md-radar-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+    background: #000;
+    display: block;
+}
+
+.md-radar-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    color: #7aa8c8;
+    padding: 4px 12px 8px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .md-radar-tabs button { font-size: 0.55rem; padding: 2px 6px; }
+    .md-radar-title { font-size: 0.7rem; }
+}
+
+/* ===== Incident Status 燈號 ===== */
+.md-status-alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ef4444 !important;
+}
+
+.md-status-alert .md-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+    animation: mdPulse 1.5s ease-in-out infinite;
+}
+
+.md-status-closed {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #22c55e !important;
+}
+
+.md-status-closed .md-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+    animation: none;
+}
+
+/* ===== 全屏按鈕 ===== */
+.md-fullscreen-btn {
+    background: rgba(0, 243, 255, 0.15);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    color: #00f3ff;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.md-fullscreen-btn:hover {
+    background: rgba(0, 243, 255, 0.3);
+    box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+}
+
+/* ================================================================
+   ★ 信息區（Tab 切換版，方向 2 + 4 結合）
+   ================================================================ */
+#md-info-area {
+    flex: 1;
+    min-height: 0;
+    background: rgba(15, 30, 55, 0.85);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 10px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+}
+
+/* Tab 按鈕列 */
+.md-info-tabs {
+    display: flex;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(0, 200, 255, 0.15);
+}
+
+.md-info-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #7aa8c8;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.md-info-tab:hover {
+    color: #b0d0ff;
+    background: rgba(0, 200, 255, 0.05);
+}
+
+.md-info-tab.active {
+    color: #00f3ff;
+    border-bottom-color: #00f3ff;
+    background: rgba(0, 200, 255, 0.08);
+}
+
+/* Tab 內容容器 */
+.md-info-content {
+    flex: 1;
+    min-height: 0;
+    padding: 16px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.md-info-content::-webkit-scrollbar {
+    width: 6px;
+    background: transparent;
+}
+
+.md-info-content::-webkit-scrollbar-thumb {
+    background: #2a4a6a;
+    border-radius: 3px;
+}
+
+/* 面板 */
+.md-info-panel {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+}
+
+.md-info-panel.active { display: flex; }
+
+/* 監控操作面板：內容垂直居中（方向 2） */
+.md-info-panel[data-panel="actions"] {
+    justify-content: center;
+}
+
+/* 按鈕組（方向 4：放大） */
+.md-info-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.md-toolbar-btn {
+    background: rgba(0, 200, 255, 0.1);
+    border: 1px solid rgba(0, 200, 255, 0.25);
+    color: #7aa8c8;
+    padding: 14px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.md-toolbar-btn:hover {
+    background: rgba(0, 200, 255, 0.25);
+    color: #00f3ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 243, 255, 0.2);
+}
+
+/* 圖例（方向 4：放大） */
+.md-info-legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.95rem;
+    color: #b0d0ff;
+}
+
+.md-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.md-legend-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 提示（方向 4：放大） */
+.md-info-hint {
+    font-size: 0.85rem;
+    color: #5a7a9a;
+    text-align: center;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 表格面板 */
+.md-info-table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 6px;
+}
+
+.md-info-table-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+}
+
+.md-info-table-wrap::-webkit-scrollbar-thumb {
+    background: #2a4a6a;
+    border-radius: 3px;
+}
+
+.md-info-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.md-info-table th {
+    background: rgba(0, 200, 255, 0.08);
+    color: #00d4ff;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid rgba(0, 200, 255, 0.2);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.md-info-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #d0d8e0;
+    white-space: nowrap;
+}
+
+.md-info-table tbody tr:hover td {
+    background: rgba(0, 243, 255, 0.04);
+}
+
+/* 狀態徽章 */
+.md-info-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.md-info-badge.waiting  { background: #dc2626; color: #fff; }
+.md-info-badge.rescuing { background: #eab308; color: #000; }
+.md-info-badge.landed   { background: #22c55e; color: #000; }
+.md-info-badge.departed { background: #3b82f6; color: #fff; }
+.md-info-badge.pending  { background: #f59e0b; color: #000; }
+.md-info-badge.processed{ background: #64748b; color: #fff; }
+
+/* 空狀態 */
+.md-info-empty {
+    text-align: center;
+    padding: 40px 20px !important;
+    color: #5a7a9a;
+    font-size: 0.95rem;
+}
+
+/* 小屏保護 */
+@media (max-width: 1400px) {
+    .md-info-tab { padding: 10px 12px; font-size: 0.9rem; }
+    .md-toolbar-btn { padding: 10px 16px; font-size: 0.85rem; }
+    .md-info-hint { display: none; }
+    .md-info-legend { font-size: 0.85rem; gap: 16px; }
+    #md-map-search-bar button { padding: 8px 14px; font-size: 0.85rem; }
+}
