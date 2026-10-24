@@ -257,7 +257,7 @@ async function mdInitMap() {
     terrainImg.setAttribute('href', 'assets/map-terrain.png');
     terrainImg.setAttribute('preserveAspectRatio', 'none');
     terrainImg.setAttribute('x', '0');
-    terrainImg.setAttribute('y', '-500');
+    terrainImg.setAttribute('y', '-350');
     terrainImg.setAttribute('width', '2800');
     terrainImg.setAttribute('height', '1334.4');
     mdMapSvg.appendChild(terrainImg);
