@@ -30,31 +30,125 @@ async function dbLoadRecords() {
 }
 
 function dbUpdateStats(records) {
-    let total = records.length, completed = 0, pending = 0;
-    let green = 0, yellow = 0, red = 0, black = 0;
+    const total = records.length;
 
+    // ===== Layer 1：Hero KPIs =====
+    let completed = 0, inProgress = 0, waiting = 0;
     records.forEach(r => {
-        const isCompleted = r.timeLanded || r.status === 'completed' || r.status === 'landed' || r.exitTime;
-        if (isCompleted) {
-            completed++;
-        } else {
-            pending++;
-        }
-
-        const h = r.healthStatus || '';
-        if (h.includes('綠色')) green++;
-        else if (h.includes('黃色')) yellow++;
-        else if (h.includes('紅色')) red++;
-        else if (h.includes('黑色')) black++;
+        const hasStart = !!r.timeReachedTop;
+        const hasEnd = !!r.timeLanded;
+        const isDone = hasEnd || r.status === 'completed';
+        if (isDone) completed++;
+        else if (hasStart && !hasEnd) inProgress++;
+        else waiting++;
     });
 
-    document.getElementById('dbTotal').textContent = total;
-    document.getElementById('dbCompleted').textContent = completed;
-    document.getElementById('dbPending').textContent = pending;
-    document.getElementById('dbGreen').textContent = green;
-    document.getElementById('dbYellow').textContent = yellow;
-    document.getElementById('dbRed').textContent = red;
-    document.getElementById('dbBlack').textContent = black;
+    const pct = (n) => total > 0 ? Math.round(n / total * 100) + '%' : '0%';
+    document.getElementById('dbKpiTotal').textContent = total;
+    document.getElementById('dbKpiTotalPct').textContent = total > 0 ? '全部記錄' : '—';
+    document.getElementById('dbKpiCompleted').textContent = completed;
+    document.getElementById('dbKpiCompletedPct').textContent = pct(completed);
+    document.getElementById('dbKpiInProgress').textContent = inProgress;
+    document.getElementById('dbKpiInProgressPct').textContent = pct(inProgress);
+    document.getElementById('dbKpiWaiting').textContent = waiting;
+    document.getElementById('dbKpiWaitingPct').textContent = pct(waiting);
+
+    // ===== Layer 2：健康分佈 =====
+    let red = 0, yellow = 0, green = 0, black = 0;
+    records.forEach(r => {
+        const h = r.healthStatus || '';
+        if (h.includes('紅色')) red++;
+        else if (h.includes('黃色')) yellow++;
+        else if (h.includes('綠色')) green++;
+        else if (h.includes('黑色')) black++;
+    });
+    const unknown = Math.max(0, total - red - yellow - green - black);
+
+    // 計算百分比（保留小數 1 位）
+    const pctF = (n) => total > 0 ? (n / total * 100) : 0;
+    const segData = [
+        { id: 'dbSegRed',     label: 'dbSegRedLabel',     count: red,     pct: pctF(red) },
+        { id: 'dbSegYellow',  label: 'dbSegYellowLabel',  count: yellow,  pct: pctF(yellow) },
+        { id: 'dbSegGreen',   label: 'dbSegGreenLabel',   count: green,   pct: pctF(green) },
+        { id: 'dbSegBlack',   label: 'dbSegBlackLabel',   count: black,   pct: pctF(black) },
+        { id: 'dbSegUnknown', label: 'dbSegUnknownLabel', count: unknown, pct: pctF(unknown) }
+    ];
+    segData.forEach(s => {
+        const el = document.getElementById(s.id);
+        const lbl = document.getElementById(s.label);
+        if (!el) return;
+        el.style.width = s.pct + '%';
+        if (lbl) {
+            lbl.textContent = s.pct >= 8 ? s.count : '';
+            lbl.style.opacity = s.pct >= 8 ? '1' : '0';
+        }
+        el.title = `${s.count} 人 (${s.pct.toFixed(1)}%)`;
+    });
+
+    document.getElementById('dbHealthTotal').textContent = total + ' 人';
+    document.getElementById('dbLegRed').textContent = red;
+    document.getElementById('dbLegYellow').textContent = yellow;
+    document.getElementById('dbLegGreen').textContent = green;
+    document.getElementById('dbLegBlack').textContent = black;
+    document.getElementById('dbLegUnknown').textContent = unknown;
+
+    // ===== Layer 3：輔助指標 =====
+    // 需救護車
+    const ambulanceNeeded = records.filter(r => r.ambulance === '需要').length;
+    document.getElementById('dbAuxAmbulance').textContent = ambulanceNeeded;
+
+    // 最久等待（分鐘）
+    let longestWait = 0;
+    records.forEach(r => {
+        if (!r.timeReachedTop && !r.timeLanded && r.createdAt) {
+            let d;
+            if (r.createdAt.toDate) d = r.createdAt.toDate();
+            else if (r.createdAt.seconds) d = new Date(r.createdAt.seconds * 1000);
+            else d = new Date(r.createdAt);
+            if (!isNaN(d.getTime())) {
+                const mins = (Date.now() - d.getTime()) / 60000;
+                if (mins > longestWait) longestWait = mins;
+            }
+        }
+    });
+    document.getElementById('dbAuxLongestWait').textContent =
+        longestWait > 0 ? Math.round(longestWait) : '—';
+
+    // 平均救援時長（只算已完成）
+    let totalDuration = 0, countDuration = 0;
+    records.forEach(r => {
+        if (!r.timeReachedTop || !r.timeLanded) return;
+        const toMs = (t) => {
+            if (t.toDate) return t.toDate().getTime();
+            if (t.seconds) return t.seconds * 1000;
+            const d = new Date(t);
+            return isNaN(d.getTime()) ? null : d.getTime();
+        };
+        const s = toMs(r.timeReachedTop);
+        const e = toMs(r.timeLanded);
+        if (s !== null && e !== null && e > s) {
+            totalDuration += (e - s) / 60000;
+            countDuration++;
+        }
+    });
+    document.getElementById('dbAuxAvgRescue').textContent =
+        countDuration > 0 ? Math.round(totalDuration / countDuration) : '—';
+
+    // 今日完成
+    const today = new Date();
+    const isToday = (t) => {
+        if (!t) return false;
+        let d;
+        if (t.toDate) d = t.toDate();
+        else if (t.seconds) d = new Date(t.seconds * 1000);
+        else d = new Date(t);
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === today.getFullYear()
+            && d.getMonth() === today.getMonth()
+            && d.getDate() === today.getDate();
+    };
+    const todayDone = records.filter(r => isToday(r.timeLanded)).length;
+    document.getElementById('dbAuxTodayDone').textContent = todayDone;
 }
 
 function dbRenderTable(records) {
