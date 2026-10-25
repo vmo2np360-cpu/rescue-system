@@ -95,7 +95,7 @@ const PERMISSIONS = {
         'index_assembly_point': ['admin', 'ap'],
         'index_dashboard': ['admin', 'ap', 'occ', 're', 'gr'],
         'index_rescue_map': ['admin', 'occ'],
-        'recourse': ['admin', 'occ', 'gr'],
+        'recourse': ['admin', 'occ', 'gr', 're'],           // ★ 加 re
         'monitor': ['admin', 'occ', 're'],
         'monitor_dashboard': ['admin', 'occ', 're'],
         'audit': ['admin', 'occ'],
@@ -105,15 +105,15 @@ const PERMISSIONS = {
     collections: {
         'guests': {
             create: ['admin', 'gs', 'occ'],
-            read:   ['admin', 'gs', 'ap', 'occ'],
-            update: ['admin', 'gs', 'ap', 'occ'],
-            delete: ['admin', 'gs', 'occ', 'ap'],
+            read:   ['admin', 'gs', 'ap', 'occ', 're'],     // ★ 加 re
+            update: ['admin', 'gs', 'ap', 'occ', 're'],     // ★ 加 re
+            delete: ['admin', 'gs', 'occ', 'ap', 're'],     // ★ 加 re
         },
         'rescue_records': {
-            create: ['admin', 'occ', 'gr'],
-            read: ['admin', 'occ', 'gr'],
-            update: ['admin', 'occ', 'gr'],
-            delete: ['admin', 'occ', 'gr'],
+            create: ['admin', 'occ', 'gr', 're'],           // ★ 加 re
+            read:   ['admin', 'occ', 'gr', 're'],           // ★ 加 re
+            update: ['admin', 'occ', 'gr', 're'],           // ★ 加 re
+            delete: ['admin', 'occ', 'gr', 're'],           // ★ 加 re
         },
         'rescue_map_actions': {
             edit: ['admin', 'occ', 're'],
