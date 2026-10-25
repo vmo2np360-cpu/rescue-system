@@ -1086,3 +1086,219 @@ textarea#occNotes:focus {
         height: 350px;
     }
 }
+/* ================================================================
+   Dashboard 三層信息架構
+   ================================================================ */
+
+/* ===== Layer 1：Hero KPIs ===== */
+.db-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.db-hero-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid #2563eb;
+    padding: 20px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.db-hero-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+}
+
+.db-hero-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.db-hero-content { flex: 1; min-width: 0; }
+
+.db-hero-number {
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.db-hero-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.db-hero-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* ===== Layer 2：健康分佈條 ===== */
+.db-health-bar-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 20px 20px 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.db-health-bar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e3a5f;
+    margin-bottom: 14px;
+}
+
+.db-health-bar-total {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.db-health-bar {
+    display: flex;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f1f5f9;
+    margin-bottom: 12px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.db-health-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    transition: flex-basis 0.4s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.db-health-seg-label {
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    white-space: nowrap;
+    padding: 0 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.db-health-segment[style*="width: 3"],
+.db-health-segment[style*="width: 4"],
+.db-health-segment[style*="width: 5"],
+.db-health-segment[style*="width: 6"],
+.db-health-segment[style*="width: 7"],
+.db-health-segment[style*="width: 8"],
+.db-health-segment[style*="width: 9"],
+.db-health-segment[style*="width: 1"] {
+    /* 寬度 ≥ 10% 時顯示標籤 */
+}
+
+.db-health-red     { background: linear-gradient(180deg, #ef4444, #dc2626); }
+.db-health-yellow  { background: linear-gradient(180deg, #facc15, #eab308); }
+.db-health-green   { background: linear-gradient(180deg, #22c55e, #16a34a); }
+.db-health-black   { background: linear-gradient(180deg, #475569, #1e293b); }
+.db-health-unknown { background: linear-gradient(180deg, #cbd5e1, #94a3b8); }
+
+.db-health-legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: #475569;
+}
+
+.db-health-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.db-health-legend b {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.db-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ===== Layer 3：輔助指標 ===== */
+.db-aux-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.db-aux-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.db-aux-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.db-aux-content { flex: 1; min-width: 0; }
+
+.db-aux-number {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.db-aux-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* ===== 響應式 ===== */
+@media (max-width: 1200px) {
+    .db-hero-grid { grid-template-columns: repeat(2, 1fr); }
+    .db-aux-grid  { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+    .db-hero-grid { grid-template-columns: 1fr; }
+    .db-aux-grid  { grid-template-columns: 1fr; }
+    .db-hero-number { font-size: 2rem; }
+    .db-aux-number  { font-size: 1.4rem; }
+}
