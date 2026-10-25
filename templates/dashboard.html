@@ -1,20 +1,110 @@
 <h2 style="color:#1e3a5f; margin-bottom:16px;"><i class="fas fa-chart-line"></i> 監控面板</h2>
 <div id="dbMessage" class="message"></div>
 
-<!-- 統計卡片（原有，不新增四種狀態卡片） -->
-<div class="stats-grid">
-    <div class="stat-card"><div class="number" id="dbTotal">0</div><div class="label">總記錄數</div></div>
-    <div class="stat-card"><div class="number" id="dbCompleted">0</div><div class="label">已完成</div></div>
-    <div class="stat-card"><div class="number" id="dbPending">0</div><div class="label">處理中</div></div>
+<!-- ===== Layer 1：Hero KPIs ===== -->
+<div class="db-hero-grid">
+    <div class="db-hero-card" style="border-left-color: #2563eb;">
+        <div class="db-hero-icon" style="color:#2563eb;"><i class="fas fa-users"></i></div>
+        <div class="db-hero-content">
+            <div class="db-hero-number" id="dbKpiTotal">0</div>
+            <div class="db-hero-label">總人數</div>
+            <div class="db-hero-sub" id="dbKpiTotalPct">—</div>
+        </div>
+    </div>
+
+    <div class="db-hero-card" style="border-left-color: #22c55e;">
+        <div class="db-hero-icon" style="color:#22c55e;"><i class="fas fa-check-circle"></i></div>
+        <div class="db-hero-content">
+            <div class="db-hero-number" style="color:#22c55e;" id="dbKpiCompleted">0</div>
+            <div class="db-hero-label">已完成</div>
+            <div class="db-hero-sub" id="dbKpiCompletedPct">0%</div>
+        </div>
+    </div>
+
+    <div class="db-hero-card" style="border-left-color: #eab308;">
+        <div class="db-hero-icon" style="color:#eab308;"><i class="fas fa-spinner"></i></div>
+        <div class="db-hero-content">
+            <div class="db-hero-number" style="color:#eab308;" id="dbKpiInProgress">0</div>
+            <div class="db-hero-label">進行中</div>
+            <div class="db-hero-sub" id="dbKpiInProgressPct">0%</div>
+        </div>
+    </div>
+
+    <div class="db-hero-card" style="border-left-color: #dc2626;">
+        <div class="db-hero-icon" style="color:#dc2626;"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="db-hero-content">
+            <div class="db-hero-number" style="color:#dc2626;" id="dbKpiWaiting">0</div>
+            <div class="db-hero-label">等待救援</div>
+            <div class="db-hero-sub" id="dbKpiWaitingPct">0%</div>
+        </div>
+    </div>
 </div>
 
-<div class="health-grid">
-    <div class="health-card green"><div class="number" id="dbGreen">0</div><div class="label">綠色(第三優先)</div></div>
-    <div class="health-card yellow"><div class="number" id="dbYellow">0</div><div class="label">黃色(第二優先)</div></div>
-    <div class="health-card red"><div class="number" id="dbRed">0</div><div class="label">紅色(第一優先)</div></div>
-    <div class="health-card black"><div class="number" id="dbBlack">0</div><div class="label">黑色(沒有生命體徵)</div></div>
+<!-- ===== Layer 2：健康分佈條 ===== -->
+<div class="db-health-bar-card">
+    <div class="db-health-bar-title">
+        <i class="fas fa-heartbeat"></i> 健康狀況分佈
+        <span class="db-health-bar-total" id="dbHealthTotal">0 人</span>
+    </div>
+    <div class="db-health-bar">
+        <div class="db-health-segment db-health-red" id="dbSegRed" style="width:0%;">
+            <span class="db-health-seg-label" id="dbSegRedLabel"></span>
+        </div>
+        <div class="db-health-segment db-health-yellow" id="dbSegYellow" style="width:0%;">
+            <span class="db-health-seg-label" id="dbSegYellowLabel"></span>
+        </div>
+        <div class="db-health-segment db-health-green" id="dbSegGreen" style="width:0%;">
+            <span class="db-health-seg-label" id="dbSegGreenLabel"></span>
+        </div>
+        <div class="db-health-segment db-health-black" id="dbSegBlack" style="width:0%;">
+            <span class="db-health-seg-label" id="dbSegBlackLabel"></span>
+        </div>
+        <div class="db-health-segment db-health-unknown" id="dbSegUnknown" style="width:0%;">
+            <span class="db-health-seg-label" id="dbSegUnknownLabel"></span>
+        </div>
+    </div>
+    <div class="db-health-legend">
+        <span><i class="db-dot" style="background:#dc2626;"></i>紅色 <b id="dbLegRed">0</b></span>
+        <span><i class="db-dot" style="background:#eab308;"></i>黃色 <b id="dbLegYellow">0</b></span>
+        <span><i class="db-dot" style="background:#22c55e;"></i>綠色 <b id="dbLegGreen">0</b></span>
+        <span><i class="db-dot" style="background:#1e293b;"></i>黑色 <b id="dbLegBlack">0</b></span>
+        <span><i class="db-dot" style="background:#94a3b8;"></i>未分類 <b id="dbLegUnknown">0</b></span>
+    </div>
 </div>
 
+<!-- ===== Layer 3：輔助指標 ===== -->
+<div class="db-aux-grid">
+    <div class="db-aux-card">
+        <div class="db-aux-icon" style="background:#fef3c7; color:#92400e;"><i class="fas fa-ambulance"></i></div>
+        <div class="db-aux-content">
+            <div class="db-aux-number" id="dbAuxAmbulance">0</div>
+            <div class="db-aux-label">需救護車</div>
+        </div>
+    </div>
+    <div class="db-aux-card">
+        <div class="db-aux-icon" style="background:#fee2e2; color:#dc2626;"><i class="fas fa-hourglass-half"></i></div>
+        <div class="db-aux-content">
+            <div class="db-aux-number" id="dbAuxLongestWait">—</div>
+            <div class="db-aux-label">最久等待（分鐘）</div>
+        </div>
+    </div>
+    <div class="db-aux-card">
+        <div class="db-aux-icon" style="background:#dbeafe; color:#2563eb;"><i class="fas fa-stopwatch"></i></div>
+        <div class="db-aux-content">
+            <div class="db-aux-number" id="dbAuxAvgRescue">—</div>
+            <div class="db-aux-label">平均救援（分鐘）</div>
+        </div>
+    </div>
+    <div class="db-aux-card">
+        <div class="db-aux-icon" style="background:#dcfce7; color:#16a34a;"><i class="fas fa-calendar-check"></i></div>
+        <div class="db-aux-content">
+            <div class="db-aux-number" id="dbAuxTodayDone">0</div>
+            <div class="db-aux-label">今日完成</div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 原有篩選 + 表格（保留） ===== -->
 <div class="card">
     <div class="filter-row">
         <div class="form-group"><label>搜尋</label><input type="text" id="dbSearch" placeholder="車廂或姓名" oninput="dbFilterRecords()"></div>
@@ -48,25 +138,25 @@
         <button class="btn btn-secondary" id="dbRefreshBtn"><i class="fas fa-sync-alt"></i> 刷新</button>
         <button class="btn btn-secondary" onclick="dbExportCSV()"><i class="fas fa-file-csv"></i> 匯出 CSV</button>
     </div>
-<div class="table-wrap">
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>車廂</th>
-                <th>姓名</th>
-                <th>聯絡方式</th>
-                <th>組別</th>
-                <th>健康狀況</th>
-                <th>救援開始</th>
-                <th>救援完成</th>
-                <th>離開時間</th>
-                <th>後續處理</th>
-                <th>狀態</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="dbTableBody"></tbody>
-    </table>
-</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>車廂</th>
+                    <th>姓名</th>
+                    <th>聯絡方式</th>
+                    <th>組別</th>
+                    <th>健康狀況</th>
+                    <th>救援開始</th>
+                    <th>救援完成</th>
+                    <th>離開時間</th>
+                    <th>後續處理</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="dbTableBody"></tbody>
+        </table>
+    </div>
 </div>
