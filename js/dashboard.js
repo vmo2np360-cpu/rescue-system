@@ -32,26 +32,27 @@ async function dbLoadRecords() {
 function dbUpdateStats(records) {
     const total = records.length;
 
-    // ===== Layer 1：Hero KPIs =====
-    let completed = 0, inProgress = 0, waiting = 0;
+    // ===== Layer 1：4 個狀態（用 getGroupStatus 保證與 map/monitor 一致）=====
+    let waiting = 0, rescuing = 0, landed = 0, departed = 0;
     records.forEach(r => {
-        const hasStart = !!r.timeReachedTop;
-        const hasEnd = !!r.timeLanded;
-        const isDone = hasEnd || r.status === 'completed';
-        if (isDone) completed++;
-        else if (hasStart && !hasEnd) inProgress++;
+        const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
+        if (status === 'departed') departed++;
+        else if (status === 'landed') landed++;
+        else if (status === 'rescuing') rescuing++;
         else waiting++;
     });
 
     const pct = (n) => total > 0 ? Math.round(n / total * 100) + '%' : '0%';
+
     document.getElementById('dbKpiTotal').textContent = total;
-    document.getElementById('dbKpiTotalPct').textContent = total > 0 ? '全部記錄' : '—';
-    document.getElementById('dbKpiCompleted').textContent = completed;
-    document.getElementById('dbKpiCompletedPct').textContent = pct(completed);
-    document.getElementById('dbKpiInProgress').textContent = inProgress;
-    document.getElementById('dbKpiInProgressPct').textContent = pct(inProgress);
     document.getElementById('dbKpiWaiting').textContent = waiting;
     document.getElementById('dbKpiWaitingPct').textContent = pct(waiting);
+    document.getElementById('dbKpiRescuing').textContent = rescuing;
+    document.getElementById('dbKpiRescuingPct').textContent = pct(rescuing);
+    document.getElementById('dbKpiLanded').textContent = landed;
+    document.getElementById('dbKpiLandedPct').textContent = pct(landed);
+    document.getElementById('dbKpiDeparted').textContent = departed;
+    document.getElementById('dbKpiDepartedPct').textContent = pct(departed);
 
     // ===== Layer 2：健康分佈 =====
     let red = 0, yellow = 0, green = 0, black = 0;
@@ -64,7 +65,6 @@ function dbUpdateStats(records) {
     });
     const unknown = Math.max(0, total - red - yellow - green - black);
 
-    // 計算百分比（保留小數 1 位）
     const pctF = (n) => total > 0 ? (n / total * 100) : 0;
     const segData = [
         { id: 'dbSegRed',     label: 'dbSegRedLabel',     count: red,     pct: pctF(red) },
@@ -85,17 +85,20 @@ function dbUpdateStats(records) {
         el.title = `${s.count} 人 (${s.pct.toFixed(1)}%)`;
     });
 
-    document.getElementById('dbHealthTotal').textContent = total + ' 人';
-    document.getElementById('dbLegRed').textContent = red;
-    document.getElementById('dbLegYellow').textContent = yellow;
-    document.getElementById('dbLegGreen').textContent = green;
-    document.getElementById('dbLegBlack').textContent = black;
-    document.getElementById('dbLegUnknown').textContent = unknown;
+    const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+    };
+    setTxt('dbHealthTotal', total + ' 人');
+    setTxt('dbLegRed', red);
+    setTxt('dbLegYellow', yellow);
+    setTxt('dbLegGreen', green);
+    setTxt('dbLegBlack', black);
+    setTxt('dbLegUnknown', unknown);
 
     // ===== Layer 3：輔助指標 =====
-    // 需救護車
     const ambulanceNeeded = records.filter(r => r.ambulance === '需要').length;
-    document.getElementById('dbAuxAmbulance').textContent = ambulanceNeeded;
+    setTxt('dbAuxAmbulance', ambulanceNeeded);
 
     // 最久等待（分鐘）
     let longestWait = 0;
@@ -111,10 +114,9 @@ function dbUpdateStats(records) {
             }
         }
     });
-    document.getElementById('dbAuxLongestWait').textContent =
-        longestWait > 0 ? Math.round(longestWait) : '—';
+    setTxt('dbAuxLongestWait', longestWait > 0 ? Math.round(longestWait) : '—');
 
-    // 平均救援時長（只算已完成）
+    // 平均救援時長（只算已完成救援）
     let totalDuration = 0, countDuration = 0;
     records.forEach(r => {
         if (!r.timeReachedTop || !r.timeLanded) return;
@@ -131,10 +133,9 @@ function dbUpdateStats(records) {
             countDuration++;
         }
     });
-    document.getElementById('dbAuxAvgRescue').textContent =
-        countDuration > 0 ? Math.round(totalDuration / countDuration) : '—';
+    setTxt('dbAuxAvgRescue', countDuration > 0 ? Math.round(totalDuration / countDuration) : '—');
 
-    // 今日完成
+    // 今日完成（只算 timeLanded 是今天）
     const today = new Date();
     const isToday = (t) => {
         if (!t) return false;
@@ -148,7 +149,7 @@ function dbUpdateStats(records) {
             && d.getDate() === today.getDate();
     };
     const todayDone = records.filter(r => isToday(r.timeLanded)).length;
-    document.getElementById('dbAuxTodayDone').textContent = todayDone;
+    setTxt('dbAuxTodayDone', todayDone);
 }
 
 function dbRenderTable(records) {
