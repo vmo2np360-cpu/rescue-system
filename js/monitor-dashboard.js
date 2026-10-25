@@ -1575,7 +1575,7 @@ function mdLoadOccTable() {
     if (!tbody) return;
 
     if (!mdRescueRecords || mdRescueRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="md-info-empty">暫無求助記錄</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="md-info-empty">暫無求助記錄</td></tr>';
         return;
     }
 
@@ -1614,6 +1614,9 @@ function mdLoadOccTable() {
         // 求助時間
         const createdTime = fmtTime(rec.createdAt);
 
+        // ★ 求助人數（舊資料 fallback '-'）
+        const totalPeople = rec.totalPeople || '-';
+
         // 完成處理時間
         let processedTime;
         if (rec.processed && rec.processedAt) {
@@ -1631,6 +1634,7 @@ function mdLoadOccTable() {
                 <td>${mdEsc(rec.healthStatus || '-')}</td>
                 <td>${mdEsc(rec.source || '-')}</td>
                 <td>${createdTime}</td>
+                <td>${totalPeople}</td>
                 <td>${processedTime}</td>
                 <td><span class="md-info-badge ${s.cls}">${s.text}</span></td>
             </tr>
@@ -1638,7 +1642,6 @@ function mdLoadOccTable() {
     });
     tbody.innerHTML = html;
 }
-
 // ================================================================
 // ★ 搜索車廂（參考 monitor.js 的 monSearchCabin）
 // ================================================================
