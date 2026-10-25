@@ -357,6 +357,9 @@ function initAssemblyPoint() {
     document.getElementById('apMessage').className = 'message';
     document.getElementById('apManualCabin').value = '';
     document.getElementById('apManualGroup').value = '';
+
+    // ★ 初始化已著陸記錄監聽
+    apInitLandedListener();
 }
 
 window.startScanner = startScanner;
@@ -372,3 +375,177 @@ window.initAssemblyPoint = initAssemblyPoint;
 window.openApEditModal = openApEditModal;
 window.closeApEditModal = closeApEditModal;
 window.saveApEditModal = withLock(_apLocks, 'saveApEditModal', saveApEditModal);
+
+// ================================================================
+// ★ 已著陸記錄抽屜
+// ================================================================
+let _apLandedUnsub = null;
+let _apLandedCache = [];
+
+function apInitLandedListener() {
+    if (_apLandedUnsub) {
+        try { _apLandedUnsub(); } catch (e) {}
+        _apLandedUnsub = null;
+    }
+
+    _apLandedUnsub = db.collection('guests')
+        .where('status', '==', 'landed')
+        .onSnapshot(
+            (snap) => {
+                const list = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    // 只保留真正已著陸的（timeLanded 有值）
+                    if (data.timeLanded) {
+                        list.push({ id: d.id, ...data });
+                    }
+                });
+
+                // 排序：最新著陸在上
+                list.sort((a, b) => {
+                    const toMs = (t) => {
+                        if (!t) return 0;
+                        if (t.toDate) return t.toDate().getTime();
+                        if (t.seconds) return t.seconds * 1000;
+                        const d = new Date(t);
+                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                    };
+                    return toMs(b.timeLanded) - toMs(a.timeLanded);
+                });
+
+                _apLandedCache = list;
+                apRenderLandedList(list);
+            },
+            (err) => {
+                if (err && err.code === 'permission-denied') return;
+                console.warn('已著陸記錄監聽失敗:', err);
+            }
+        );
+}
+
+function apRenderLandedList(list) {
+    const container = document.getElementById('apLandedList');
+    const countEl = document.getElementById('apLandedCount');
+    if (!container) return;
+
+    // 更新按鈕上的數字（總數，不是過濾後）
+    if (countEl) countEl.textContent = list.length;
+
+    // 過濾
+    const searchEl = document.getElementById('apLandedSearch');
+    const q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+    let filtered = list;
+    if (q) {
+        filtered = list.filter(item =>
+            (item.cabinNumber || '').toLowerCase().includes(q) ||
+            (item.guestName || '').toLowerCase().includes(q) ||
+            (item.groupNumber || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="ap-drawer-empty">
+                ${q ? '沒有符合搜尋條件的記錄' : '目前沒有已著陸的記錄'}
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(item => {
+        // 健康分類
+        const health = item.healthStatus || '';
+        let healthClass = 'unknown';
+        let healthShort = '未';
+        if (health.includes('紅色')) { healthClass = 'red'; healthShort = '紅'; }
+        else if (health.includes('黃色')) { healthClass = 'yellow'; healthShort = '黃'; }
+        else if (health.includes('綠色')) { healthClass = 'green'; healthShort = '綠'; }
+        else if (health.includes('黑色')) { healthClass = 'black'; healthShort = '黑'; }
+
+        // 處理狀態（exitMethod 有值 = 已處理離場）
+        const isDone = !!item.exitMethod;
+        const statusBadge = isDone
+            ? '<span class="ap-landed-item-status done">✓ 已處理</span>'
+            : '<span class="ap-landed-item-status pending">待處理</span>';
+
+        // 著陸時間
+        let timeStr = '';
+        try {
+            let t;
+            if (item.timeLanded?.toDate) t = item.timeLanded.toDate();
+            else if (item.timeLanded?.seconds) t = new Date(item.timeLanded.seconds * 1000);
+            else t = new Date(item.timeLanded);
+            if (!isNaN(t.getTime())) {
+                timeStr = t.toLocaleTimeString('zh-TW', {
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                });
+            }
+        } catch (e) {}
+
+        const cabin = escapeHtml(item.cabinNumber || '-');
+        const group = escapeHtml(item.groupNumber || '?');
+        const name = escapeHtml(item.guestName || '未提供');
+        const idJs = escapeJs(item.id);
+
+        html += `
+            <div class="ap-landed-item" onclick="apSelectLandedRecord('${idJs}')">
+                <div class="ap-landed-item-badge ${healthClass}">
+                    <span>${healthShort}</span>
+                    <span class="cabin-mini">${cabin}</span>
+                </div>
+                <div class="ap-landed-item-info">
+                    <div class="ap-landed-item-title">🚠 車廂 ${cabin} ｜ 第${group}組</div>
+                    <div class="ap-landed-item-sub">
+                        <span>${name}</span>
+                        ${item.ambulance === '需要' ? '<span style="color:#dc2626;">🚑 需救護車</span>' : ''}
+                    </div>
+                    ${timeStr ? `<div class="ap-landed-item-time">⏱ 著陸 ${timeStr}</div>` : ''}
+                </div>
+                ${statusBadge}
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function apFilterLandedList() {
+    apRenderLandedList(_apLandedCache);
+}
+
+function apOpenLandedDrawer() {
+    const drawer = document.getElementById('apLandedDrawer');
+    const overlay = document.getElementById('apLandedOverlay');
+    if (drawer) drawer.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function apCloseLandedDrawer() {
+    const drawer = document.getElementById('apLandedDrawer');
+    const overlay = document.getElementById('apLandedOverlay');
+    if (drawer) drawer.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function apSelectLandedRecord(docId) {
+    apCloseLandedDrawer();
+    apLoadRecord(docId);
+}
+
+// ESC 關閉
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const drawer = document.getElementById('apLandedDrawer');
+    if (drawer && drawer.classList.contains('open')) {
+        apCloseLandedDrawer();
+    }
+});
+
+// 全域暴露
+window.apOpenLandedDrawer = apOpenLandedDrawer;
+window.apCloseLandedDrawer = apCloseLandedDrawer;
+window.apSelectLandedRecord = apSelectLandedRecord;
+window.apFilterLandedList = apFilterLandedList;
+window.apInitLandedListener = apInitLandedListener;
