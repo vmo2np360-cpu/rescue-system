@@ -126,8 +126,8 @@ function occRenderTable(records) {
         return true;
     });
     let idx = filtered.length;
-    const canEdit = ['admin', 'occ', 'gr'].includes(window.currentRole);
-    const canDelete = ['admin', 'occ', 'gr'].includes(window.currentRole);
+  const canEdit = ['admin', 'occ', 'gr', 're'].includes(window.currentRole);
+const canDelete = ['admin', 'occ', 'gr', 're'].includes(window.currentRole);
     filtered.forEach(r => {
         const tr = document.createElement('tr');
         const statusText = r.processed ? '已處理' : '待處理';
