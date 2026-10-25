@@ -91,9 +91,25 @@ function dbRenderTable(records) {
         const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
         const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status) : { text: '未知', badge: 'status-unknown' };
 
+        // ★ 離開時間
         let exitTimeStr = '-';
         if (r.exitTime) {
             exitTimeStr = window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-';
+        }
+
+        // ★ 救援開始時間
+        const startTimeStr = r.timeReachedTop
+            ? (window.formatTimestamp ? window.formatTimestamp(r.timeReachedTop) : r.timeReachedTop)
+            : '-';
+
+        // ★ 救援完成時間
+        let endTimeStr;
+        if (r.timeLanded) {
+            endTimeStr = window.formatTimestamp ? window.formatTimestamp(r.timeLanded) : r.timeLanded;
+        } else if (r.timeReachedTop) {
+            endTimeStr = '⏳ 進行中';
+        } else {
+            endTimeStr = '-';
         }
 
         tr.innerHTML = `
@@ -103,6 +119,8 @@ function dbRenderTable(records) {
             <td>${r.contactNumber || '-'}</td>
             <td>${r.groupNumber ? '第' + r.groupNumber + '組' : '-'}</td>
             <td>${r.healthStatus || '-'}</td>
+            <td>${startTimeStr}</td>
+            <td>${endTimeStr}</td>
             <td>${exitTimeStr}</td>
             <td>${r.exitMethod || '-'}</td>
             <td><span class="status-badge ${statusInfo.badge}">${statusInfo.text}</span></td>
@@ -284,24 +302,62 @@ function dbExportCSV() {
         alert('無資料可匯出');
         return;
     }
+
+    // ★ CSV 欄位轉義（處理逗號、雙引號、換行）
+    const csvEscape = (v) => {
+        if (v === null || v === undefined) return '';
+        const s = String(v);
+        if (/[",\n\r]/.test(s)) {
+            return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+    };
+
+    // ★ 時間戳格式化
+    const fmtTs = (t) => {
+        if (!t) return '';
+        return window.formatTimestamp ? window.formatTimestamp(t) : '';
+    };
+
     const BOM = '\uFEFF';
-    let csv = BOM + '車廂,姓名,聯絡方式,組別,健康狀況,離開時間,後續處理,狀態\n';
+    // ★ 完整 guests 表單欄位（19 列）
+    const headers = [
+        '車廂', '組別', '姓名', '聯絡方式', '性別', '年齡',
+        '健康狀況', '救護車需求', '救護車車牌', '醫院名稱',
+        '救援人員', '救援開始時間', '救援完成時間',
+        '後續處理', '離開時間', '備註',
+        '狀態', '建立時間', '更新時間'
+    ];
+    let csv = BOM + headers.map(csvEscape).join(',') + '\n';
+
     records.forEach(r => {
         const status = window.getGroupStatus ? window.getGroupStatus(r) : 'waiting';
         const statusInfo = window.getStatusDisplayInfo ? window.getStatusDisplayInfo(status) : { text: status };
-        const exitTimeStr = r.exitTime ? (window.formatTimestamp ? window.formatTimestamp(r.exitTime) : '-') : '-';
+
         const row = [
             r.cabinNumber || '',
+            r.groupNumber || '',
             r.guestName || '',
             r.contactNumber || '',
-            r.groupNumber ? '第' + r.groupNumber + '組' : '',
+            r.gender || '',
+            r.ageRange || '',
             r.healthStatus || '',
-            exitTimeStr,
+            r.ambulance || '',
+            r.ambulancePlate || '',
+            r.hospital || '',
+            r.rescuedBy || '',
+            fmtTs(r.timeReachedTop),
+            fmtTs(r.timeLanded),
             r.exitMethod || '',
-            statusInfo.text
+            fmtTs(r.exitTime),
+            r.remarks || '',
+            statusInfo.text,
+            fmtTs(r.createdAt),
+            fmtTs(r.updatedAt)
         ];
-        csv += row.join(',') + '\n';
+        csv += row.map(csvEscape).join(',') + '\n';
     });
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
