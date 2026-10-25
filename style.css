@@ -1563,3 +1563,22 @@ textarea#occNotes:focus {
     .ap-landed-item { padding: 10px 16px; }
     .ap-landed-item-badge { width: 46px; height: 46px; }
 }
+/* ================================================================
+   Dashboard 總數徽章（h2 旁）
+   ================================================================ */
+.db-total-badge {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e40af;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: 1px solid #93c5fd;
+}
+
+.db-total-badge b {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin: 0 2px;
+}
