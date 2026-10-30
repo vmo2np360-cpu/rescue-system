@@ -3,11 +3,11 @@
 <section class="ct-control-panel">
     <div class="ct-control-group">
         <label>面前車號</label>
-        <input type="text" id="ct-inputCurrent" placeholder="例：42" />
+        <input type="number" id="ct-inputCurrent" value="34" min="1" max="200" />
     </div>
     <div class="ct-control-group">
         <label>目標車號</label>
-        <input type="text" id="ct-inputTarget" placeholder="例：92" />
+        <input type="number" id="ct-inputTarget" value="92" min="1" max="200" />
     </div>
     <div class="ct-control-group">
         <label>繩速 (m/s)</label>
@@ -17,18 +17,18 @@
         <label>模式</label>
         <select id="ct-inputMode">
             <option value="109">109</option>
-            <option value="84">84</option>
+            <option value="84" selected>84</option>
         </select>
     </div>
+    <!-- ★ 新增：站點選擇 -->
     <div class="ct-control-group">
-        <label>站點位置（僅視覺）</label>
+        <label>站點位置</label>
         <select id="ct-inputStation">
-            <option value="TCT">TCT（東涌）</option>
-            <option value="AIAS-U">AIAS-U（上行）</option>
-            <option value="NLS-U">NLS-U（上行）</option>
-            <option value="NPT">NPT（昂坪）</option>
-            <option value="NLS-D">NLS-D（下行）</option>
-            <option value="AIAS-D">AIAS-D（下行）</option>
+            <option value="">— 預設（TC）—</option>
+            <option value="TC">TC（東涌）</option>
+            <option value="AIAS">AIAS</option>
+            <option value="NLS">NLS</option>
+            <option value="NP">NP（昂坪）</option>
         </select>
     </div>
     <button class="ct-btn ct-btn-primary" id="ct-btnCalculate">
@@ -39,6 +39,7 @@
     </button>
 </section>
 
+<!-- 結果面板 -->
 <section class="ct-result-panel">
     <div class="ct-result-item">
         <span class="label">Gap（車距）</span>
@@ -53,4 +54,37 @@
         <span class="value" id="ct-resTotalSec">—</span>
     </div>
     <div class="ct-result-item">
-        <span class="label">行車時間</span
+        <span class="label">行車時間</span>
+        <span class="value" id="ct-resTravelTime">—</span>
+    </div>
+    <div class="ct-result-item ct-highlight">
+        <span class="label">預計抵達</span>
+        <span class="value" id="ct-resArrival">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">面前位置</span>
+        <span class="value" id="ct-resPosCurrent">—</span>
+    </div>
+    <div class="ct-result-item">
+        <span class="label">目標位置</span>
+        <span class="value" id="ct-resPosTarget">—</span>
+    </div>
+</section>
+
+<!-- 視覺地圖 -->
+<div class="ct-map-wrapper">
+    <svg id="ct-map" viewBox="0 0 2800 1000" preserveAspectRatio="xMidYMid meet">
+        <defs></defs>
+    </svg>
+</div>
+
+<!-- 圖例 -->
+<footer class="ct-legend">
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#22c55e;border-color:#16a34a;"></span> 標準車廂</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#3b82f6;border-color:#2563eb;"></span> 水晶車廂</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#eab308;border-color:#ca8a04;"></span> 全景車廂</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#94a3b8;border-color:#64748b;"></span> 工程車</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#ffffff;border-color:#333;"></span> 未設定</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#ffffff;border-color:#00BFFF;box-shadow:0 0 6px #00BFFF;"></span> 面前車</div>
+    <div class="ct-legend-item"><span class="ct-swatch" style="background:#ffffff;border-color:#FF4500;box-shadow:0 0 6px #FF4500;"></span> 目標車</div>
+</footer>
