@@ -1,29 +1,56 @@
 // ================================================================
 // CableTimingEngine.js
-// 纜車車距計算引擎（109 模式，可擴充 84）
+// 纜車車距計算引擎（109 / 84 模式）
 // 核心公式：gap = (posTarget - posCurrent + N) % N，若 0 則 N
 // 到各站：gapToStation = (gapToCurrent + STATION_DISTANCE[from][to]) % N
+// 站點不變、全程長度相同；模式差異只在車廂數 N → 站間車位數按 N/109 縮放
 // ================================================================
 
-const STATION_DISTANCE_109 = {
-    //              To:  TCT  AIAS-U  NLS-U  NPT  NLS-D  AIAS-D
-    'TCT':    { 'TCT':   0, 'AIAS-U':   8, 'NLS-U':  38, 'NPT':  57, 'NLS-D':  71, 'AIAS-D': 101 },
-    'AIAS-U': { 'TCT': 101, 'AIAS-U':   0, 'NLS-U':  30, 'NPT':  49, 'NLS-D':  63, 'AIAS-D':  93 },
-    'NLS-U':  { 'TCT':  71, 'AIAS-U':  79, 'NLS-U':   0, 'NPT':  19, 'NLS-D':  33, 'AIAS-D':  63 },
-    'NPT':    { 'TCT':  52, 'AIAS-U':  60, 'NLS-U':  90, 'NPT':   0, 'NLS-D':  14, 'AIAS-D':  44 },
-    'NLS-D':  { 'TCT':  38, 'AIAS-U':  46, 'NLS-U':  76, 'NPT':  95, 'NLS-D':   0, 'AIAS-D':  30 },
-    'AIAS-D': { 'TCT':   8, 'AIAS-U':  16, 'NLS-U':  46, 'NPT':  65, 'NLS-D':  79, 'AIAS-D':   0 }
+const STATION_ORDER = ['TCT', 'AIAS-U', 'NLS-U', 'NPT', 'NLS-D', 'AIAS-D'];
+
+// 109 模式六站累計車位（TCT=0 起），已與原 STATION_DISTANCE_109 逐格驗證一致
+const STATION_POS_109 = {
+    'TCT':    0,
+    'AIAS-U': 8,
+    'NLS-U':  38,
+    'NPT':    57,
+    'NLS-D':  71,
+    'AIAS-D': 101
 };
 
-// 84 模式矩陣：先用 109 結構佔位，待你提供 84 序列後替換
-const STATION_DISTANCE_84 = {
-    'TCT':    { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 },
-    'AIAS-U': { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 },
-    'NLS-U':  { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 },
-    'NPT':    { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 },
-    'NLS-D':  { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 },
-    'AIAS-D': { 'TCT': 0, 'AIAS-U': 0, 'NLS-U': 0, 'NPT': 0, 'NLS-D': 0, 'AIAS-D': 0 }
-};
+// 依模式 N 生成 6×6 站間距離矩陣
+// 前提：全程長度相同 → 站間比例固定 → pos = round(POS_109 / 109 * N)
+function buildStationDistance(N) {
+    const pos = {};
+    STATION_ORDER.forEach(st => {
+        pos[st] = Math.round(STATION_POS_109[st] / 109 * N);
+    });
+
+    // 閉環校正：保證嚴格遞增且 < N（避免 round 造成相鄰站重疊）
+    for (let i = 1; i < STATION_ORDER.length; i++) {
+        if (pos[STATION_ORDER[i]] <= pos[STATION_ORDER[i - 1]]) {
+            pos[STATION_ORDER[i]] = pos[STATION_ORDER[i - 1]] + 1;
+        }
+    }
+
+    const m = {};
+    STATION_ORDER.forEach(from => {
+        m[from] = {};
+        STATION_ORDER.forEach(to => {
+            if (from === to) {
+                m[from][to] = 0;
+            } else {
+                let d = (pos[to] - pos[from] + N) % N;
+                if (d === 0) d = N; // 保險；from≠to 時不應發生
+                m[from][to] = d;
+            }
+        });
+    });
+    return m;
+}
+
+const STATION_DISTANCE_109 = buildStationDistance(109);
+const STATION_DISTANCE_84  = buildStationDistance(84);
 
 class CableTimingEngine {
     /**
@@ -138,7 +165,7 @@ class CableTimingEngine {
         const arrival = new Date(now.getTime() + totalSeconds * 1000);
 
         // 到各站時間
-        const stations = ['TCT', 'AIAS-U', 'NLS-U', 'NPT', 'NLS-D', 'AIAS-D'];
+        const stations = STATION_ORDER;
         const stationETAs = {};
         stations.forEach(st => {
             const r = this.calculateGapToStation(currentId, targetId, currentStation, st);
@@ -170,3 +197,5 @@ class CableTimingEngine {
 }
 
 window.CableTimingEngine = CableTimingEngine;
+window.STATION_DISTANCE_109 = STATION_DISTANCE_109;
+window.STATION_DISTANCE_84  = STATION_DISTANCE_84;
