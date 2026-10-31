@@ -19,8 +19,9 @@ let _ctHighlightCurrent = null;
 let _ctHighlightTarget = null;
 
 // 面前車與站點（站點只用於視覺定位）
+// ★ 問題 4：預設選中 TCT，與 HTML ct-inputStation 的第一個 option 一致
 let _ctCurrentCabin = null;
-let _ctSelectedStation = null;
+let _ctSelectedStation = 'TCT';
 
 // ================================================================
 // 車廂種類顏色
@@ -48,6 +49,16 @@ async function initCableTiming() {
         return;
     }
 
+    // ★ 問題 2：加入最大重試計數，避免無限重試
+    if (!initCableTiming._retryCount) initCableTiming._retryCount = 0;
+    const MAX_RETRY = 10;
+
+    // ★ 修復：頁面未激活時不初始化（避免背景建立地圖）
+    if (!section.classList.contains('active')) {
+        console.log('📍 車距計算頁面未激活，跳過初始化');
+        return;
+    }
+
     if (_ctInitialized) {
         console.log('車距計算已初始化，重新載入資料');
         await ctReloadData();
@@ -55,10 +66,19 @@ async function initCableTiming() {
     }
 
     if (!document.getElementById('ct-map')) {
-        console.warn('模板尚未載入，300ms 後重試');
+        initCableTiming._retryCount++;
+        if (initCableTiming._retryCount > MAX_RETRY) {
+            console.error('❌ initCableTiming: 超過最大重試次數（#ct-map 不存在）');
+            initCableTiming._retryCount = 0;
+            return;
+        }
+        console.warn(`模板尚未載入，300ms 後重試 (${initCableTiming._retryCount}/${MAX_RETRY})`);
         setTimeout(initCableTiming, 300);
         return;
     }
+
+    // 成功找到 #ct-map，重置重試計數
+    initCableTiming._retryCount = 0;
 
     try {
         _ctCabinMode = await window.getGlobalModeFromFirestore();
@@ -74,6 +94,10 @@ async function initCableTiming() {
 
     const modeSelect = document.getElementById('ct-inputMode');
     if (modeSelect) modeSelect.value = String(_ctCabinMode);
+
+    // ★ 問題 4：同步站點下拉選單的初始值
+    const stationSelect = document.getElementById('ct-inputStation');
+    if (stationSelect) stationSelect.value = _ctSelectedStation;
 
     _ctMapSvg = document.getElementById('ct-map');
     ctBuildMap();
@@ -103,10 +127,43 @@ async function ctLoadCabinTypes() {
             }
         });
         console.log('✅ 已載入', Object.keys(_ctCabinTypeCache).length, '筆車廂種類');
+
+        // 成功時移除舊的錯誤提示
+        const oldNotice = document.getElementById('ct-type-notice');
+        if (oldNotice) oldNotice.remove();
+
     } catch (e) {
         console.warn('載入車廂種類失敗:', e);
+
+        // ★ 問題 5：顯示使用者可見的提示 + 重試按鈕
+        const panel = document.querySelector('.ct-control-panel');
+        if (panel) {
+            let notice = document.getElementById('ct-type-notice');
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.id = 'ct-type-notice';
+                notice.style.cssText = 'background:#fef3c7; color:#92400e; padding:8px 14px; border-radius:6px; font-size:0.85rem; margin-top:8px; width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;';
+                panel.appendChild(notice);
+            }
+            notice.innerHTML = `
+                <span>⚠️ 車廂種類載入失敗，所有車廂將以預設顏色顯示。</span>
+                <button onclick="ctRetryLoadTypes()" style="padding:4px 14px; background:#92400e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:500;">重試</button>
+            `;
+        }
     }
 }
+
+// ★ 問題 5：重試載入車廂種類（供提示按鈕呼叫）
+async function ctRetryLoadTypes() {
+    const notice = document.getElementById('ct-type-notice');
+    if (notice) {
+        notice.innerHTML = '<span>⏳ 重新載入中...</span>';
+    }
+    await ctLoadCabinTypes();
+    await ctLoadCabins();
+}
+
+window.ctRetryLoadTypes = ctRetryLoadTypes;
 
 // ================================================================
 // 地圖建立
@@ -193,6 +250,12 @@ function ctBuildMap() {
     if (typeof window.addDirectionMarkers === 'function') {
         window.addDirectionMarkers(_ctMapSvg, _ctGroundPts);
     }
+
+    // ★ 問題 4：同步站點下拉選單的 UI 值
+    const stationSelect = document.getElementById('ct-inputStation');
+    if (stationSelect && _ctSelectedStation) {
+        stationSelect.value = _ctSelectedStation;
+    }
 }
 
 function ctCalcStationArcPositions() {
@@ -248,10 +311,14 @@ function ctCalcCabinArcPositions() {
 // 讀取車廂序列，建立引擎
 // ================================================================
 async function ctLoadCabins() {
-    if (!_ctMapSvg) return;
+    if (!_ctMapSvg) {
+        console.warn('ctLoadCabins: _ctMapSvg 不存在，跳過');
+        return;
+    }
 
     try {
         const snap = await realtimeDb.ref('cabins').once('value');
+        // ★ 問題：snap.val() 可能為 null，加雙重防護
         const data = snap.val() || {};
 
         _ctMapCabins.forEach(c => {
@@ -266,7 +333,10 @@ async function ctLoadCabins() {
 
         for (let i = 0; i < total; i++) {
             const cabinId = 'cabin-' + i;
-            const seqRaw = (data[cabinId] && data[cabinId].sequence) ? String(data[cabinId].sequence).trim() : '';
+            // ★ 問題：data[cabinId] 可能為 undefined，用 optional chaining 風格防護
+            const seqRaw = (data && data[cabinId] && data[cabinId].sequence)
+                ? String(data[cabinId].sequence).trim()
+                : '';
             const seq = seqRaw;
             const type = seq ? (_ctCabinTypeCache[seq] || '') : '';
             const colorInfo = ctGetTypeColor(type);
@@ -307,19 +377,43 @@ async function ctLoadCabins() {
 
         ctLayoutCabins();
 
+        // ★ 問題 3 + 13：重建引擎，並在序列為空時顯示提示
         if (sequence.length > 0) {
             try {
                 _ctEngine = new CableTimingEngine(sequence, String(_ctCabinMode));
-                console.log('✅ 引擎已建立：序列', sequence.length, '台');
+                console.log(`✅ 引擎已建立：序列 ${sequence.length} 台，模式 ${_ctCabinMode}`);
             } catch (e) {
                 console.error('❌ 建立引擎失敗:', e);
+                _ctEngine = null;
             }
         } else {
-            console.warn('⚠️ 序列為空');
+            console.warn('⚠️ 序列為空，無法建立引擎');
+            _ctEngine = null;
+
+            // ★ 在圖例上方顯示提示
+            let emptyNotice = document.getElementById('ct-empty-notice');
+            if (!emptyNotice) {
+                const wrapper = document.querySelector('.ct-map-wrapper');
+                if (wrapper) {
+                    emptyNotice = document.createElement('div');
+                    emptyNotice.id = 'ct-empty-notice';
+                    emptyNotice.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,255,255,0.95); padding:16px 24px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.15); text-align:center; color:#64748b; font-size:0.9rem; z-index:10;';
+                    emptyNotice.innerHTML = '⚠️ 尚未設定車廂號碼<br><span style="font-size:0.8rem;">請先至「車廂管理」→「車廂順序設定」套用車廂號碼</span>';
+                    wrapper.style.position = 'relative';
+                    wrapper.appendChild(emptyNotice);
+                }
+            }
+        }
+
+        // 成功載入時移除空提示
+        if (sequence.length > 0) {
+            const emptyNotice = document.getElementById('ct-empty-notice');
+            if (emptyNotice) emptyNotice.remove();
         }
 
     } catch (e) {
         console.error('讀取車廂失敗:', e);
+        _ctEngine = null;
     }
 }
 
@@ -414,12 +508,46 @@ function ctBindEvents() {
         });
     }
 
+    // ★ 問題 3：模式切換後完整重建（引擎 + 高亮 + 弧長）
     const modeSelect = document.getElementById('ct-inputMode');
     if (modeSelect && !modeSelect.dataset.bound) {
         modeSelect.dataset.bound = 'true';
         modeSelect.addEventListener('change', async (e) => {
-            _ctCabinMode = parseInt(e.target.value, 10);
+            const newMode = parseInt(e.target.value, 10);
+            console.log(`🔄 切換模式: ${_ctCabinMode} → ${newMode}`);
+
+            _ctCabinMode = newMode;
+
+            // 清除舊引擎與高亮狀態
+            _ctEngine = null;
+            _ctHighlightCurrent = null;
+            _ctHighlightTarget = null;
+
+            // 重建車廂（內部會重建引擎）
             await ctLoadCabins();
+
+            // 重新計算站點弧長（保險）
+            ctCalcStationArcPositions();
+
+            // 重新佈局 + 清除高亮
+            ctLayoutCabins();
+            ctApplyHighlight();
+
+            // 清空結果面板（避免顯示舊模式的計算結果）
+            const resultIds = [
+                'ct-resGap', 'ct-resSecPerCar', 'ct-resTotalSec',
+                'ct-resTravelTime', 'ct-resArrival', 'ct-resPosCurrent', 'ct-resPosTarget'
+            ];
+            resultIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '—';
+            });
+            ['TCT', 'AIAS-U', 'NLS-U', 'NPT', 'NLS-D', 'AIAS-D'].forEach(st => {
+                const el = document.getElementById(`ct-res-station-${st}`);
+                if (el) el.textContent = '—';
+            });
+
+            console.log(`✅ 模式切換完成：${_ctCabinMode}，車廂數 ${_ctMapCabins.length}`);
         });
     }
 
@@ -427,7 +555,7 @@ function ctBindEvents() {
     if (stationSelect && !stationSelect.dataset.bound) {
         stationSelect.dataset.bound = 'true';
         stationSelect.addEventListener('change', (e) => {
-            _ctSelectedStation = e.target.value || null;
+            _ctSelectedStation = e.target.value || 'TCT';
             ctLayoutCabins();
             ctApplyHighlight();
         });
@@ -455,8 +583,13 @@ function ctRunCalculation() {
     }
 
     // ★ speed=0 防護（繩速為 0 時無法推算）
+     // ★ speed 驗證（> 0 且 <= 6）
     if (!(speed > 0)) {
         alert('繩速必須大於 0');
+        return;
+    }
+    if (speed > 6) {
+        alert('繩速不可超過 6 m/s');
         return;
     }
 
@@ -556,7 +689,11 @@ async function ctReloadData() {
 // ================================================================
 // 全域暴露
 // ================================================================
+// ================================================================
+// 全域暴露
+// ================================================================
 window.initCableTiming = initCableTiming;
 window.ctReloadData = ctReloadData;
+window.ctRetryLoadTypes = ctRetryLoadTypes;   // ★ 問題 5 重試按鈕用
 
-console.log('✅ cable-timing.js 已載入');
+console.log('✅ cable-timing.js 已載入（含問題 1-5 修復）');
