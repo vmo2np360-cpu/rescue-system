@@ -2,7 +2,7 @@
 // CableTimingEngine.js
 // 纜車車距計算引擎（109 / 84 模式）
 // 核心公式：gap = (posTarget - posCurrent + N) % N，若 0 則 N
-// 到各站：gapToStation = (gapToCurrent + STATION_DISTANCE[from][to]) % N
+// 到各站：gapToStation = gapToCurrent + STATION_DISTANCE[from][to]（含多圈）
 // 站點不變、全程長度相同；模式差異只在車廂數 N → 站間車位數按 N/109 縮放
 // ================================================================
 
@@ -71,10 +71,31 @@ class CableTimingEngine {
             this.posMap.set(String(id).trim(), idx);
         });
 
+        // ★ 完整性檢查：偵測 sequence.length 是否等於 mode
+        const expectedTotal = parseInt(mode, 10);
+        this.isIncomplete = (!isNaN(expectedTotal) && this.total !== expectedTotal);
+        this.expectedTotal = expectedTotal;
+
+        if (this.isIncomplete) {
+            console.warn(
+                `⚠️ CableTimingEngine: 序列不完整 ` +
+                `（模式 ${expectedTotal}，實際 ${this.total}）。` +
+                `STATION_DISTANCE 將用 ${this.total} 動態生成，計算結果僅供參考。`
+            );
+        }
+
+        // ★ 保留原始矩陣（供「完整輸入」時對照）
         this.STATION_DISTANCE = {
             '109': STATION_DISTANCE_109,
             '84':  STATION_DISTANCE_84
         };
+
+        // ★ 核心修正：根據實際 total 動態生成矩陣
+        //   完整輸入時（total === mode），buildStationDistance(total) 與現有矩陣完全相同
+        //   缺號時（total !== mode），用實際 total 生成，避免「矩陣格數與 total 不匹配」
+        this.activeStationDistance = buildStationDistance(this.total);
+
+        // ★ 常數保持不變（G/M 是經驗值，缺號時仍用原值）
         this.CONSTANTS = {
             '109': { G: 31.4, M: 24.06 },
             '84':  { G: 40,   M: 31.5 }
@@ -112,12 +133,16 @@ class CableTimingEngine {
     /**
      * 目標車到「指定站」的車位數
      * 算法：目標車先到當前站（gapToCurrent），再從當前站走到目標站
+     * ★ 不做 % total，直接相加，允許「多圈」
      */
     calculateGapToStation(currentId, targetId, currentStation, targetStation) {
         const base = this.calculateGapToCurrent(currentId, targetId);
         if (base.error) return base;
 
-        const matrix = this.STATION_DISTANCE[this.mode];
+        // ★ 修正：用 activeStationDistance（根據實際 total 動態生成）
+        //   - 完整輸入時：activeStationDistance === STATION_DISTANCE[mode]（完全一致）
+        //   - 缺號時：activeStationDistance 用實際 total 生成，與 base.gap 單位匹配
+        const matrix = this.activeStationDistance;
         if (!matrix || !matrix[currentStation]) {
             return { error: `站點 ${currentStation} 未定義` };
         }
@@ -126,13 +151,16 @@ class CableTimingEngine {
             return { error: `站間距離未定義：${currentStation} → ${targetStation}` };
         }
 
-        let gap = (base.gap + dist) % this.total;
-        if (gap === 0) gap = this.total;
+        // ★ 不做 % total，直接相加
+        //   base.gap ∈ [1, total]，dist ∈ [0, total-1]
+        //   gap ∈ [1, 2*total-1]，代表「目標車到目標站」的實際車位數（含多圈）
+        let gap = base.gap + dist;
 
         return {
             gap,
             baseGap: base.gap,
-            stationDist: dist
+            stationDist: dist,
+            isIncomplete: this.isIncomplete || false
         };
     }
 
