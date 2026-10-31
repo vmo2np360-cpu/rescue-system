@@ -70,4 +70,70 @@
     </div>
 </section>
 
-<section class="ct-station
+<!-- ★ 到站時間面板 -->
+<section class="ct-station-panel">
+    <h3 class="ct-subtitle">📍 到各站時間</h3>
+    <div class="ct-station-grid">
+        <div class="ct-station-item">
+            <span class="label">TCT（東涌）</span>
+            <span class="value" id="ct-res-station-TCT">—</span>
+        </div>
+        <div class="ct-station-item">
+            <span class="label">AIAS-U（上行）</span>
+            <span class="value" id="ct-res-station-AIAS-U">—</span>
+        </div>
+        <div class="ct-station-item">
+            <span class="label">NLS-U（上行）</span>
+            <span class="value" id="ct-res-station-NLS-U">—</span>
+        </div>
+        <div class="ct-station-item">
+            <span class="label">NPT（昂坪）</span>
+            <span class="value" id="ct-res-station-NPT">—</span>
+        </div>
+        <div class="ct-station-item">
+            <span class="label">NLS-D（下行）</span>
+            <span class="value" id="ct-res-station-NLS-D">—</span>
+        </div>
+        <div class="ct-station-item">
+            <span class="label">AIAS-D（下行）</span>
+            <span class="value" id="ct-res-station-AIAS-D">—</span>
+        </div>
+    </div>
+</section>
+
+<!-- ★ 地圖容器 -->
+<div class="ct-map-wrapper">
+    <svg id="ct-map" viewBox="0 0 2800 1000" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<!-- ★ 圖例 -->
+<div class="ct-legend">
+    <div class="ct-legend-item">
+        <span class="ct-swatch ct-current"></span>
+        <span>面前車</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch ct-target"></span>
+        <span>目標車</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch ct-default"></span>
+        <span>標準車廂</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch" style="background:#3b82f6; border-color:#2563eb;"></span>
+        <span>水晶車廂</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch" style="background:#eab308; border-color:#ca8a04;"></span>
+        <span>全景車廂</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch" style="background:#94a3b8; border-color:#64748b;"></span>
+        <span>工程車</span>
+    </div>
+    <div class="ct-legend-item">
+        <span class="ct-swatch ct-empty"></span>
+        <span>空車廂</span>
+    </div>
+</div>
